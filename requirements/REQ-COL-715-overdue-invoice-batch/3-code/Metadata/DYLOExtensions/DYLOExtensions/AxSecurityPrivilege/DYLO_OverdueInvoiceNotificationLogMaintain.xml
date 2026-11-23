@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxSecurityPrivilege xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_OverdueInvoiceNotificationLogMaintain</Name>
+	<Label>@DYLOExtensions:OverdueInvNotifLogMaintainPrivilege</Label>
+	<DataEntityPermissions />
+	<DirectAccessPermissions>
+		<AxSecurityDataEntityReference>
+			<Grant>
+				<Delete>Allow</Delete>
+				<Read>Allow</Read>
+				<Update>Allow</Update>
+			</Grant>
+			<Name>DYLO_OverdueInvoiceNotificationLog</Name>
+			<Fields />
+		</AxSecurityDataEntityReference>
+	</DirectAccessPermissions>
+	<EntryPoints>
+		<AxSecurityEntryPointReference>
+			<Name>DYLO_OverdueInvoiceNotificationLog</Name>
+			<Grant>
+				<Read>Allow</Read>
+			</Grant>
+			<ObjectName>DYLO_OverdueInvoiceNotificationLog</ObjectName>
+			<ObjectType>MenuItemDisplay</ObjectType>
+			<Forms />
+		</AxSecurityEntryPointReference>
+		<AxSecurityEntryPointReference>
+			<Name>DYLO_OverdueInvoiceNotificationResend</Name>
+			<Grant>
+				<Read>Allow</Read>
+				<Update>Allow</Update>
+			</Grant>
+			<ObjectName>DYLO_OverdueInvoiceNotificationResend</ObjectName>
+			<ObjectType>MenuItemAction</ObjectType>
+			<Forms />
+		</AxSecurityEntryPointReference>
+		<AxSecurityEntryPointReference>
+			<Name>DYLO_OverdueInvoiceNotificationPurge</Name>
+			<Grant>
+				<Correct>Allow</Correct>
+				<Create>Allow</Create>
+				<Delete>Allow</Delete>
+				<Read>Allow</Read>
+				<Update>Allow</Update>
+			</Grant>
+			<ObjectName>DYLO_OverdueInvoiceNotificationPurge</ObjectName>
+			<ObjectType>MenuItemAction</ObjectType>
+			<Forms />
+		</AxSecurityEntryPointReference>
+	</EntryPoints>
+	<FormControlOverrides />
+</AxSecurityPrivilege>

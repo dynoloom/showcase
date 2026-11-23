@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_SalesOrderApiTraceLogger</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Writes the trace records of the inbound sales order API, outside the order transaction.
+/// </summary>
+public class DYLO_SalesOrderApiTraceLogger
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>logCall</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Inserts the trace record of an API call in the current legal entity.
+    /// </summary>
+    /// <param name = "_request">The request; may be null.</param>
+    /// <param name = "_requestJson">The formatted request JSON.</param>
+    /// <param name = "_response">The response.</param>
+    /// <param name = "_executedDateTime">The start of the call.</param>
+    /// <param name = "_durationMs">The duration in milliseconds.</param>
+    /// <returns>The trace record.</returns>
+    public static DYLO_SalesOrderApiTrace logCall(
+        DYLO_SalesOrderApiRequestContract   _request,
+        str                                 _requestJson,
+        DYLO_SalesOrderApiResponseContract  _response,
+        utcdatetime                         _executedDateTime,
+        int64                               _durationMs)
+    {
+        DYLO_SalesOrderApiTrace trace;
+
+        trace.CorrelationId     = _response.parmCorrelationId();
+        trace.ExternalOrderRef  = _response.parmExternalOrderId();
+
+        if (_request)
+        {
+            trace.CustAccount   = _request.parmCustomerAccount();
+            trace.CurrencyCode  = _request.parmCurrency();
+
+            if (!trace.CurrencyCode && trace.CustAccount)
+            {
+                trace.CurrencyCode = CustTable::find(trace.CustAccount).Currency;
+            }
+        }
+
+        trace.Status            = _response.parmSuccess() ? DYLO_SalesOrderApiStatus::Success : DYLO_SalesOrderApiStatus::Failed;
+        trace.SalesId           = _response.parmSalesId();
+        trace.ErrorCode         = _response.parmErrorCode();
+        trace.ErrorMessage      = _response.parmMessage();
+        trace.RequestJson       = _requestJson;
+        trace.ResponseJson      = DYLO_SalesOrderApiTraceLogger::responseJson(_response);
+        trace.ExecutedDateTime  = _executedDateTime;
+        trace.DurationMs        = _durationMs;
+        trace.CallerUserId      = curUserId();
+
+        ttsbegin;
+        trace.insert();
+        ttscommit;
+
+        return trace;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>logRetry</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Updates a trace record after it was reprocessed.
+    /// </summary>
+    /// <param name = "_trace">The trace record.</param>
+    /// <param name = "_response">The response of the reprocessing.</param>
+    /// <param name = "_durationMs">The duration of the reprocessing in milliseconds.</param>
+    public static void logRetry(
+        DYLO_SalesOrderApiTrace             _trace,
+        DYLO_SalesOrderApiResponseContract  _response,
+        int64                               _durationMs)
+    {
+        DYLO_SalesOrderApiTrace trace;
+
+        ttsbegin;
+
+        trace = DYLO_SalesOrderApiTrace::findRecId(_trace.RecId, true);
+
+        if (trace.RecId)
+        {
+            trace.RetryCount++;
+            trace.LastRetryDateTime = DateTimeUtil::utcNow();
+            trace.LastRetryBy       = curUserId();
+            trace.ResponseJson      = DYLO_SalesOrderApiTraceLogger::responseJson(_response);
+            trace.ErrorCode         = _response.parmErrorCode();
+            trace.ErrorMessage      = _response.parmMessage();
+            trace.DurationMs        = _durationMs;
+
+            if (_response.parmSuccess())
+            {
+                trace.Status  = DYLO_SalesOrderApiStatus::Reprocessed;
+                trace.SalesId = _response.parmSalesId();
+            }
+
+            trace.update();
+        }
+
+        ttscommit;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>responseJson</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Serializes and formats a response.
+    /// </summary>
+    public static str responseJson(DYLO_SalesOrderApiResponseContract _response)
+    {
+        return DYLO_JsonFormatter::format(FormJsonSerializer::serializeClass(_response));
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

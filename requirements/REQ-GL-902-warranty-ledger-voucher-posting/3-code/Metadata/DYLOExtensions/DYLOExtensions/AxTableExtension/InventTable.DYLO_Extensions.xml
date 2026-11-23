@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxTableExtension xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>InventTable.DYLO_Extensions</Name>
+	<FieldGroupExtensions />
+	<FieldGroups>
+		<AxTableFieldGroup>
+			<Name>DYLO_WarrantyProvision</Name>
+			<Label>@DYLOExtensions:WarrantyProvisionGroup</Label>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>DYLO_WarrantyEligible</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>DYLO_WarrantyProvisionPct</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+	</FieldGroups>
+	<FieldModifications />
+	<Fields>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldEnum">
+			<Name>DYLO_WarrantyEligible</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>NoYesId</ExtendedDataType>
+			<HelpText>@DYLOExtensions:WarrantyProvisionEligibleHelp</HelpText>
+			<Label>@DYLOExtensions:WarrantyProvisionEligible</Label>
+			<EnumType>NoYes</EnumType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldReal">
+			<Name>DYLO_WarrantyProvisionPct</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>DYLO_WarrantyProvisionPct</ExtendedDataType>
+		</AxTableField>
+	</Fields>
+	<FullTextIndexes />
+	<Indexes />
+	<Mappings />
+	<PropertyModifications />
+	<RelationExtensions />
+	<RelationModifications />
+	<Relations />
+</AxTableExtension>

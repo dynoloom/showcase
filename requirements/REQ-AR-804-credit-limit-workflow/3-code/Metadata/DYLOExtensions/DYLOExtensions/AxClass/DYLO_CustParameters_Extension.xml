@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_CustParameters_Extension</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Extension of <c>CustParameters</c> for credit limit requests.
+/// </summary>
+[ExtensionOf(tableStr(CustParameters))]
+final class DYLO_CustParameters_Extension
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>DYLO_numRefCustCreditLimitRequestId</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The number sequence reference of the credit limit request ID.
+    /// </summary>
+    /// <returns>The number sequence reference.</returns>
+    public static NumberSequenceReference DYLO_numRefCustCreditLimitRequestId()
+    {
+        return NumberSeqReference::findReference(extendedTypeNum(DYLO_CustCreditLimitRequestId));
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

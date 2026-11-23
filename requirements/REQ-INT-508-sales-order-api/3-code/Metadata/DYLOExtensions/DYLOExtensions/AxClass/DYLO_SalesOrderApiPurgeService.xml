@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_SalesOrderApiPurgeService</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Deletes successful sales order API trace records older than the retention; failed and reprocessed records are kept.
+/// </summary>
+public class DYLO_SalesOrderApiPurgeService extends SysOperationServiceBase
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>purge</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Purges the successful trace records of the current legal entity that are older than the retention.
+    /// </summary>
+    /// <param name = "_contract">The purge parameters.</param>
+    public void purge(DYLO_SalesOrderApiPurgeContract _contract)
+    {
+        DYLO_SalesOrderApiTrace trace;
+        utcdatetime             cutoff = DateTimeUtil::addDays(DateTimeUtil::utcNow(), -_contract.parmRetentionDays());
+        int64                   purgedCount;
+
+        ttsbegin;
+
+        select count(RecId) from trace
+            where trace.Status           == DYLO_SalesOrderApiStatus::Success
+               && trace.ExecutedDateTime <  cutoff;
+
+        purgedCount = trace.RecId;
+
+        delete_from trace
+            where trace.Status           == DYLO_SalesOrderApiStatus::Success
+               && trace.ExecutedDateTime <  cutoff;
+
+        ttscommit;
+
+        info(strFmt("@DYLOExtensions:SOApiPurgeDone", purgedCount));
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

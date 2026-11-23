@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_OverdueInvoiceNotificationPurge</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Deletes overdue invoice notification log lines older than the log retention days of the setup.
+/// </summary>
+public final class DYLO_OverdueInvoiceNotificationPurge
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>main</Name>
+				<Source><![CDATA[
+    public static void main(Args _args)
+    {
+        DYLO_OverdueNotificationParameters  parameters = DYLO_OverdueNotificationParameters::find();
+        DYLO_OverdueInvoiceNotificationLog  log;
+        TransDateTime                       cutoffDateTime;
+        int64                               purgeCount;
+
+        if (parameters.LogRetentionDays <= 0)
+        {
+            throw error("@DYLOExtensions:OverdueInvNotifErrLogRetention");
+        }
+
+        cutoffDateTime = DateTimeUtil::addDays(DateTimeUtil::utcNow(), -parameters.LogRetentionDays);
+
+        if (Box::yesNo(strFmt("@DYLOExtensions:OverdueInvNotifConfirmPurge",
+                DateTimeUtil::applyTimeZoneOffset(cutoffDateTime, DateTimeUtil::getUserPreferredTimeZone())),
+                DialogButton::No) != DialogButton::Yes)
+        {
+            return;
+        }
+
+        select count(RecId) from log
+            where log.CreatedDateTime < cutoffDateTime;
+
+        purgeCount = log.RecId;
+
+        ttsbegin;
+
+        delete_from log
+            where log.CreatedDateTime < cutoffDateTime;
+
+        ttscommit;
+
+        info(strFmt("@DYLOExtensions:OverdueInvNotifPurged", purgeCount));
+
+        DYLO_OverdueInvoiceNotificationEmail::refreshCaller(_args, false);
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

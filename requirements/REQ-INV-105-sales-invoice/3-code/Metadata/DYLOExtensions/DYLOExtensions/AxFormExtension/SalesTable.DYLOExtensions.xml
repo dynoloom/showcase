@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxFormExtension xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V6">
+	<Name>SalesTable.DYLOExtensions</Name>
+	<ControlModifications />
+	<Controls>
+		<AxFormExtensionControl xmlns="">
+			<Name>DYLO_DeliveryInstructionsControl</Name>
+			<FormControl xmlns=""
+				i:type="AxFormStringControl">
+				<Name>DYLO_DeliveryInstructions</Name>
+				<FilterExpression>%1</FilterExpression>
+				<Type>String</Type>
+				<VerticalSpacing>-1</VerticalSpacing>
+				<FormControlExtension
+					i:nil="true" />
+				<DataField>DYLO_DeliveryInstructions</DataField>
+				<DataSource>SalesTable</DataSource>
+				<DisplayHeight>3</DisplayHeight>
+				<MultiLine>Yes</MultiLine>
+			</FormControl>
+			<Parent>Delivery</Parent>
+		</AxFormExtensionControl>
+	</Controls>
+	<DataSourceModifications />
+	<DataSourceReferences />
+	<DataSources />
+	<Parts />
+	<PropertyModifications />
+</AxFormExtension>

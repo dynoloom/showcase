@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_CustCreditLimitReqWFTypeEventHandler</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// The event handler of the credit limit change approval workflow type.
+/// </summary>
+public final class DYLO_CustCreditLimitReqWFTypeEventHandler implements WorkflowCanceledEventHandler,
+    WorkflowCompletedEventHandler,
+    WorkflowStartedEventHandler
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>started</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The workflow has started: the request is submitted.
+    /// </summary>
+    /// <param name = "_workflowEventArgs">The arguments object for the event handler.</param>
+    public void started(WorkflowEventArgs _workflowEventArgs)
+    {
+        DYLO_CustCreditLimitRequestWFProcessor::setStatus(
+            _workflowEventArgs.parmWorkflowContext().parmRecId(),
+            DYLO_CustCreditLimitRequestStatus::Submitted);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>canceled</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The workflow was canceled or recalled: the request is canceled.
+    /// </summary>
+    /// <param name = "_workflowEventArgs">The arguments object for the event handler.</param>
+    public void canceled(WorkflowEventArgs _workflowEventArgs)
+    {
+        DYLO_CustCreditLimitRequestWFProcessor::setStatus(
+            _workflowEventArgs.parmWorkflowContext().parmRecId(),
+            DYLO_CustCreditLimitRequestStatus::Canceled);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>completed</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The workflow has completed: an approved request updates the customer's credit limit.
+    /// </summary>
+    /// <param name = "_workflowEventArgs">The arguments object for the event handler.</param>
+    public void completed(WorkflowEventArgs _workflowEventArgs)
+    {
+        WorkflowContext workflowContext = _workflowEventArgs.parmWorkflowContext();
+
+        DYLO_CustCreditLimitRequestWFProcessor::complete(
+            workflowContext.parmRecId(),
+            workflowContext.parmWorkflowCorrelationId());
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

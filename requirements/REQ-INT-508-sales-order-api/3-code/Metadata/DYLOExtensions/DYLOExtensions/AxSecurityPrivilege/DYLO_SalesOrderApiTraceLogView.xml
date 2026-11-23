@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxSecurityPrivilege xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_SalesOrderApiTraceLogView</Name>
+	<Label>@DYLOExtensions:SOApiPrivTraceLogView</Label>
+	<DataEntityPermissions />
+	<DirectAccessPermissions />
+	<EntryPoints>
+		<AxSecurityEntryPointReference>
+			<Name>DYLO_SalesOrderApiTraceLog</Name>
+			<Grant>
+				<Read>Allow</Read>
+			</Grant>
+			<ObjectName>DYLO_SalesOrderApiTraceLog</ObjectName>
+			<ObjectType>MenuItemDisplay</ObjectType>
+			<Forms />
+		</AxSecurityEntryPointReference>
+		<AxSecurityEntryPointReference>
+			<Name>DYLO_SalesOrderApiPayloadView</Name>
+			<Grant>
+				<Read>Allow</Read>
+			</Grant>
+			<ObjectName>DYLO_SalesOrderApiPayloadView</ObjectName>
+			<ObjectType>MenuItemDisplay</ObjectType>
+			<Forms />
+		</AxSecurityEntryPointReference>
+	</EntryPoints>
+	<FormControlOverrides />
+</AxSecurityPrivilege>

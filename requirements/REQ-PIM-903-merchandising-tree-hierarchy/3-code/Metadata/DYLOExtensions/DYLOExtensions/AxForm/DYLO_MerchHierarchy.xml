@@ -1,0 +1,840 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxForm xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V6">
+	<Name>DYLO_MerchHierarchy</Name>
+	<SourceCode>
+		<Methods xmlns="">
+			<Method>
+				<Name>classDeclaration</Name>
+				<Source><![CDATA[
+/// <summary>
+/// Merchandising hierarchy (REQ-PIM-903): the hierarchy as a tree, the selected node's details
+/// and inherited margin rules, and the released products assigned to the node and its sub-nodes.
+/// </summary>
+[Form]
+public class DYLO_MerchHierarchy extends FormRun
+{
+    DYLO_MerchHierarchyTreeDatasource treeHelper;
+}
+]]></Source>
+			</Method>
+			<Method>
+				<Name>init</Name>
+				<Source><![CDATA[
+    public void init()
+    {
+        DYLO_MerchHierarchyManager::createRootIfMissing();
+
+        super();
+
+        treeHelper = DYLO_MerchHierarchyTreeDatasource::construct(DYLO_MerchHierarchyNode_ds, HierarchyTree);
+        treeHelper.initTree();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>updateDesign</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Sets the captions and enables the buttons for the selected node.
+    /// </summary>
+    public void updateDesign()
+    {
+        DYLO_MerchHierarchyNode node        = DYLO_MerchHierarchyNode;
+        boolean                 hasNode     = node.RecId != 0;
+        boolean                 isRoot      = node.isRoot();
+        boolean                 hasProducts = node.hasProducts();
+        boolean                 isLeaf      = node.isLeaf();
+
+        NewChildNode.enabled(hasNode && node.Active && !hasProducts);
+        MoveUp.enabled(hasNode && !isRoot && DYLO_MerchHierarchyManager::findSibling(node, true).RecId != 0);
+        MoveDown.enabled(hasNode && !isRoot && DYLO_MerchHierarchyManager::findSibling(node, false).RecId != 0);
+        ReparentNode.enabled(hasNode && !isRoot);
+        DeleteNode.enabled(hasNode && !isRoot);
+        AddProduct.enabled(hasNode && node.Active && isLeaf);
+        RemoveProduct.enabled(DYLO_MerchHierarchyProduct.RecId != 0);
+
+        DetailsGroup.caption(strFmt("@DYLOExtensions:MerchHierDetailsCaption", node.nodeDisplay()));
+        ProductsGroup.caption(strFmt("@DYLOExtensions:MerchHierProductsCaption",
+            DYLO_MerchHierarchyManager::rollupProductCount(node.RecId)));
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>afterReparent</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Called by the re-parent dialog: rebuilds the tree and selects the moved node.
+    /// </summary>
+    public void afterReparent(RecId _nodeRecId)
+    {
+        treeHelper.initTree(_nodeRecId);
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+		<DataSources xmlns="">
+			<DataSource>
+				<Name>DYLO_MerchHierarchyNode</Name>
+				<Methods>
+					<Method>
+						<Name>active</Name>
+						<Source><![CDATA[
+        public int active()
+        {
+            int ret = super();
+
+            DYLO_MerchHierarchyProduct_ds.executeQuery();
+            element.updateDesign();
+
+            return ret;
+        }
+
+]]></Source>
+					</Method>
+					<Method>
+						<Name>written</Name>
+						<Source><![CDATA[
+        public void written()
+        {
+            super();
+
+            // The effective margin, level and inheritance are calculated on save.
+            this.reread();
+            this.refresh();
+
+            if (treeHelper)
+            {
+                treeHelper.refreshSelectedText();
+            }
+
+            DYLO_MerchHierarchyProduct_ds.executeQuery();
+            element.updateDesign();
+        }
+
+]]></Source>
+					</Method>
+				</Methods>
+				<Fields />
+			</DataSource>
+			<DataSource>
+				<Name>DYLO_MerchHierarchyProduct</Name>
+				<Methods>
+					<Method>
+						<Name>initValue</Name>
+						<Source><![CDATA[
+        public void initValue()
+        {
+            super();
+
+            DYLO_MerchHierarchyProduct.Node = DYLO_MerchHierarchyNode.RecId;
+        }
+
+]]></Source>
+					</Method>
+					<Method>
+						<Name>executeQuery</Name>
+						<Source><![CDATA[
+        /// <summary>
+        /// Shows the products of the selected node and all its sub-nodes (roll-up).
+        /// </summary>
+        public void executeQuery()
+        {
+            QueryBuildDataSource    qbds = this.query().dataSourceTable(tableNum(DYLO_MerchHierarchyProduct));
+            SetEnumerator           enumerator;
+            RecId                   nodeRecId;
+
+            qbds.clearRanges();
+
+            if (DYLO_MerchHierarchyNode.RecId)
+            {
+                enumerator = DYLO_MerchHierarchyManager::subtreeNodeRecIds(DYLO_MerchHierarchyNode.RecId).getEnumerator();
+
+                while (enumerator.moveNext())
+                {
+                    nodeRecId = enumerator.current();
+                    qbds.addRange(fieldNum(DYLO_MerchHierarchyProduct, Node)).value(queryValue(nodeRecId));
+                }
+            }
+            else
+            {
+                qbds.addRange(fieldNum(DYLO_MerchHierarchyProduct, Node)).value(queryValue(0));
+            }
+
+            super();
+        }
+
+]]></Source>
+					</Method>
+					<Method>
+						<Name>active</Name>
+						<Source><![CDATA[
+        public int active()
+        {
+            int ret = super();
+
+            // The item can be chosen on a new assignment only.
+            this.object(fieldNum(DYLO_MerchHierarchyProduct, ItemId)).allowEdit(!DYLO_MerchHierarchyProduct.RecId);
+            RemoveProduct.enabled(DYLO_MerchHierarchyProduct.RecId != 0);
+
+            return ret;
+        }
+
+]]></Source>
+					</Method>
+					<Method>
+						<Name>written</Name>
+						<Source><![CDATA[
+        public void written()
+        {
+            super();
+
+            element.updateDesign();
+        }
+
+]]></Source>
+					</Method>
+					<Method>
+						<Name>delete</Name>
+						<Source><![CDATA[
+        public void delete()
+        {
+            super();
+
+            element.updateDesign();
+        }
+
+]]></Source>
+					</Method>
+				</Methods>
+				<Fields />
+			</DataSource>
+		</DataSources>
+		<DataControls xmlns="">
+			<Control>
+				<Name>NewChildNode</Name>
+				<Type>Button</Type>
+				<Methods>
+					<Method>
+						<Name>clicked</Name>
+						<Source><![CDATA[
+        public void clicked()
+        {
+            super();
+
+            if (treeHelper)
+            {
+                treeHelper.create();
+            }
+        }
+
+]]></Source>
+					</Method>
+				</Methods>
+			</Control>
+			<Control>
+				<Name>MoveUp</Name>
+				<Type>Button</Type>
+				<Methods>
+					<Method>
+						<Name>clicked</Name>
+						<Source><![CDATA[
+        public void clicked()
+        {
+            int                     idx = HierarchyTree.getSelection();
+            DYLO_MerchHierarchyNode node;
+
+            super();
+
+            if (!treeHelper || !DYLO_MerchHierarchyNode_ds.leaveRecord())
+            {
+                return;
+            }
+
+            node = treeHelper.selectedNode();
+
+            if (DYLO_MerchHierarchyManager::moveUp(node))
+            {
+                treeHelper.refreshSubtree(HierarchyTree.getParent(idx), node.RecId);
+            }
+        }
+
+]]></Source>
+					</Method>
+				</Methods>
+			</Control>
+			<Control>
+				<Name>MoveDown</Name>
+				<Type>Button</Type>
+				<Methods>
+					<Method>
+						<Name>clicked</Name>
+						<Source><![CDATA[
+        public void clicked()
+        {
+            int                     idx = HierarchyTree.getSelection();
+            DYLO_MerchHierarchyNode node;
+
+            super();
+
+            if (!treeHelper || !DYLO_MerchHierarchyNode_ds.leaveRecord())
+            {
+                return;
+            }
+
+            node = treeHelper.selectedNode();
+
+            if (DYLO_MerchHierarchyManager::moveDown(node))
+            {
+                treeHelper.refreshSubtree(HierarchyTree.getParent(idx), node.RecId);
+            }
+        }
+
+]]></Source>
+					</Method>
+				</Methods>
+			</Control>
+			<Control>
+				<Name>DeleteNode</Name>
+				<Type>Button</Type>
+				<Methods>
+					<Method>
+						<Name>clicked</Name>
+						<Source><![CDATA[
+        public void clicked()
+        {
+            super();
+
+            if (treeHelper)
+            {
+                treeHelper.delete();
+            }
+        }
+
+]]></Source>
+					</Method>
+				</Methods>
+			</Control>
+			<Control>
+				<Name>HierarchyTree</Name>
+				<Type>Tree</Type>
+				<Methods>
+					<Method>
+						<Name>expanding</Name>
+						<Source><![CDATA[
+        public boolean expanding(int _idx, FormTreeExpand _action, anytype _data)
+        {
+            boolean ret = super(_idx, _action, _data);
+
+            if (treeHelper)
+            {
+                treeHelper.expanding(_idx, _action, _data);
+            }
+
+            return ret;
+        }
+
+]]></Source>
+					</Method>
+					<Method>
+						<Name>selectionChanged</Name>
+						<Source><![CDATA[
+        public void selectionChanged(FormTreeItem _oldItem, FormTreeItem _newItem, FormTreeSelect _how)
+        {
+            super(_oldItem, _newItem, _how);
+
+            if (treeHelper)
+            {
+                treeHelper.selectionChanged(_oldItem, _newItem);
+            }
+        }
+
+]]></Source>
+					</Method>
+					<Method>
+						<Name>selectionChanging</Name>
+						<Source><![CDATA[
+        public boolean selectionChanging(FormTreeItem _oldItem, FormTreeItem _newItem, FormTreeSelect _how)
+        {
+            boolean ret = super(_oldItem, _newItem, _how);
+
+            if (!ret && treeHelper)
+            {
+                ret = treeHelper.selectionChanging(_oldItem, _newItem, _how);
+            }
+
+            return ret;
+        }
+
+]]></Source>
+					</Method>
+				</Methods>
+			</Control>
+			<Control>
+				<Name>AddProduct</Name>
+				<Type>Button</Type>
+				<Methods>
+					<Method>
+						<Name>clicked</Name>
+						<Source><![CDATA[
+        public void clicked()
+        {
+            super();
+
+            DYLO_MerchHierarchyProduct_ds.create();
+        }
+
+]]></Source>
+					</Method>
+				</Methods>
+			</Control>
+			<Control>
+				<Name>RemoveProduct</Name>
+				<Type>Button</Type>
+				<Methods>
+					<Method>
+						<Name>clicked</Name>
+						<Source><![CDATA[
+        public void clicked()
+        {
+            super();
+
+            if (DYLO_MerchHierarchyProduct.RecId)
+            {
+                DYLO_MerchHierarchyProduct_ds.delete();
+            }
+        }
+
+]]></Source>
+					</Method>
+				</Methods>
+			</Control>
+		</DataControls>
+		<Members xmlns="" />
+	</SourceCode>
+	<DataSources>
+		<AxFormDataSource xmlns="">
+			<Name>DYLO_MerchHierarchyNode</Name>
+			<Table>DYLO_MerchHierarchyNode</Table>
+			<Fields>
+				<AxFormDataSourceField>
+					<DataField>Active</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>CategoryManager</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>EffectiveMinGrossMarginPct</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>HierarchyLevel</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>InheritedFromNode</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>MinGrossMarginPct</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>Name</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>NodeId</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>ParentNode</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>RecId</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>SortOrder</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>TableId</DataField>
+				</AxFormDataSourceField>
+			</Fields>
+			<ReferencedDataSources />
+			<InsertIfEmpty>No</InsertIfEmpty>
+			<DataSourceLinks />
+			<DerivedDataSources />
+		</AxFormDataSource>
+		<AxFormDataSource xmlns="">
+			<Name>DYLO_MerchHierarchyProduct</Name>
+			<Table>DYLO_MerchHierarchyProduct</Table>
+			<Fields>
+				<AxFormDataSourceField>
+					<DataField>ItemId</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>Node</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>RecId</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>TableId</DataField>
+				</AxFormDataSourceField>
+			</Fields>
+			<ReferencedDataSources />
+			<InsertIfEmpty>No</InsertIfEmpty>
+			<DataSourceLinks />
+			<DerivedDataSources />
+		</AxFormDataSource>
+	</DataSources>
+	<Design>
+		<Caption xmlns="">@DYLOExtensions:MerchHierFormCaption</Caption>
+		<DataSource xmlns="">DYLO_MerchHierarchyNode</DataSource>
+		<Pattern xmlns="">Custom</Pattern>
+		<ShowDeleteButton xmlns="">No</ShowDeleteButton>
+		<ShowNewButton xmlns="">No</ShowNewButton>
+		<Controls xmlns="">
+			<AxFormControl xmlns=""
+				i:type="AxFormActionPaneControl">
+				<Name>ActionPane</Name>
+				<Type>ActionPane</Type>
+				<FormControlExtension
+					i:nil="true" />
+				<Controls>
+					<AxFormControl xmlns=""
+						i:type="AxFormButtonGroupControl">
+						<Name>NodeActions</Name>
+						<Type>ButtonGroup</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<Controls>
+							<AxFormControl xmlns=""
+								i:type="AxFormButtonControl">
+								<Name>NewChildNode</Name>
+								<AutoDeclaration>Yes</AutoDeclaration>
+								<HelpText>@DYLOExtensions:MerchHierNewChildNodeHelp</HelpText>
+								<NeededPermission>Create</NeededPermission>
+								<Type>Button</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<NormalImage>New</NormalImage>
+								<Text>@DYLOExtensions:MerchHierNewChildNode</Text>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormButtonControl">
+								<Name>MoveUp</Name>
+								<AutoDeclaration>Yes</AutoDeclaration>
+								<NeededPermission>Update</NeededPermission>
+								<Type>Button</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<Text>@DYLOExtensions:MerchHierMoveUp</Text>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormButtonControl">
+								<Name>MoveDown</Name>
+								<AutoDeclaration>Yes</AutoDeclaration>
+								<NeededPermission>Update</NeededPermission>
+								<Type>Button</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<Text>@DYLOExtensions:MerchHierMoveDown</Text>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormMenuFunctionButtonControl">
+								<Name>ReparentNode</Name>
+								<AutoDeclaration>Yes</AutoDeclaration>
+								<Type>MenuFunctionButton</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataSource>DYLO_MerchHierarchyNode</DataSource>
+								<MenuItemName>DYLO_MerchHierarchyReparentDialog</MenuItemName>
+								<NeedsRecord>Yes</NeedsRecord>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormButtonControl">
+								<Name>DeleteNode</Name>
+								<AutoDeclaration>Yes</AutoDeclaration>
+								<NeededPermission>Delete</NeededPermission>
+								<Type>Button</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<NormalImage>Delete</NormalImage>
+								<Text>@DYLOExtensions:MerchHierDeleteNode</Text>
+							</AxFormControl>
+						</Controls>
+						<Caption>@DYLOExtensions:MerchHierNodeActions</Caption>
+					</AxFormControl>
+				</Controls>
+			</AxFormControl>
+			<AxFormControl xmlns=""
+				i:type="AxFormGroupControl">
+				<Name>BodyGroup</Name>
+				<HeightMode>SizeToAvailable</HeightMode>
+				<Type>Group</Type>
+				<WidthMode>SizeToAvailable</WidthMode>
+				<FormControlExtension
+					i:nil="true" />
+				<Controls>
+					<AxFormControl xmlns=""
+						i:type="AxFormGroupControl">
+						<Name>TreeGroup</Name>
+						<HeightMode>SizeToAvailable</HeightMode>
+						<Type>Group</Type>
+						<WidthMode>SizeToAvailable</WidthMode>
+						<FormControlExtension
+							i:nil="true" />
+						<Controls>
+							<AxFormControl xmlns=""
+								i:type="AxFormTreeControl">
+								<Name>HierarchyTree</Name>
+								<AutoDeclaration>Yes</AutoDeclaration>
+								<Height>0</Height>
+								<HeightMode>SizeToAvailable</HeightMode>
+								<Type>Tree</Type>
+								<Width>0</Width>
+								<WidthMode>SizeToAvailable</WidthMode>
+								<FormControlExtension
+									i:nil="true" />
+							</AxFormControl>
+						</Controls>
+						<Caption>@DYLOExtensions:MerchHierTreeCaption</Caption>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormGroupControl">
+						<Name>DetailsGroup</Name>
+						<AutoDeclaration>Yes</AutoDeclaration>
+						<HeightMode>SizeToAvailable</HeightMode>
+						<Type>Group</Type>
+						<WidthMode>SizeToAvailable</WidthMode>
+						<FormControlExtension
+							i:nil="true" />
+						<Controls>
+							<AxFormControl xmlns=""
+								i:type="AxFormGroupControl">
+								<Name>NodeFields</Name>
+								<Type>Group</Type>
+								<WidthMode>SizeToAvailable</WidthMode>
+								<FormControlExtension
+									i:nil="true" />
+								<Controls>
+									<AxFormControl xmlns=""
+										i:type="AxFormStringControl">
+										<Name>NodeFields_NodeId</Name>
+										<Type>String</Type>
+										<FormControlExtension
+											i:nil="true" />
+										<DataField>NodeId</DataField>
+										<DataSource>DYLO_MerchHierarchyNode</DataSource>
+									</AxFormControl>
+									<AxFormControl xmlns=""
+										i:type="AxFormStringControl">
+										<Name>NodeFields_Name</Name>
+										<Type>String</Type>
+										<FormControlExtension
+											i:nil="true" />
+										<DataField>Name</DataField>
+										<DataSource>DYLO_MerchHierarchyNode</DataSource>
+									</AxFormControl>
+									<AxFormControl xmlns=""
+										i:type="AxFormStringControl">
+										<Name>NodeFields_ParentNode</Name>
+										<AllowEdit>No</AllowEdit>
+										<Type>String</Type>
+										<FormControlExtension
+											i:nil="true" />
+										<DataMethod>parentNodeDisplay</DataMethod>
+										<DataSource>DYLO_MerchHierarchyNode</DataSource>
+										<Label>@DYLOExtensions:MerchHierParentNode</Label>
+									</AxFormControl>
+									<AxFormControl xmlns=""
+										i:type="AxFormIntegerControl">
+										<Name>NodeFields_HierarchyLevel</Name>
+										<AllowEdit>No</AllowEdit>
+										<Type>Integer</Type>
+										<FormControlExtension
+											i:nil="true" />
+										<DataField>HierarchyLevel</DataField>
+										<DataSource>DYLO_MerchHierarchyNode</DataSource>
+									</AxFormControl>
+									<AxFormControl xmlns=""
+										i:type="AxFormRealControl">
+										<Name>NodeFields_MinGrossMarginPct</Name>
+										<Type>Real</Type>
+										<FormControlExtension
+											i:nil="true" />
+										<DataField>MinGrossMarginPct</DataField>
+										<DataSource>DYLO_MerchHierarchyNode</DataSource>
+									</AxFormControl>
+									<AxFormControl xmlns=""
+										i:type="AxFormRealControl">
+										<Name>NodeFields_EffectiveMinGrossMarginPct</Name>
+										<AllowEdit>No</AllowEdit>
+										<Type>Real</Type>
+										<FormControlExtension
+											i:nil="true" />
+										<DataField>EffectiveMinGrossMarginPct</DataField>
+										<DataSource>DYLO_MerchHierarchyNode</DataSource>
+									</AxFormControl>
+									<AxFormControl xmlns=""
+										i:type="AxFormStringControl">
+										<Name>NodeFields_InheritedFrom</Name>
+										<AllowEdit>No</AllowEdit>
+										<Type>String</Type>
+										<FormControlExtension
+											i:nil="true" />
+										<DataMethod>inheritedFromDisplay</DataMethod>
+										<DataSource>DYLO_MerchHierarchyNode</DataSource>
+										<Label>@DYLOExtensions:MerchHierInheritedFrom</Label>
+									</AxFormControl>
+									<AxFormControl xmlns=""
+										i:type="AxFormReferenceGroupControl">
+										<Name>NodeFields_CategoryManager</Name>
+										<Type>ReferenceGroup</Type>
+										<FormControlExtension
+											i:nil="true" />
+										<Controls />
+										<DataSource>DYLO_MerchHierarchyNode</DataSource>
+										<ReferenceField>CategoryManager</ReferenceField>
+									</AxFormControl>
+									<AxFormControl xmlns=""
+										i:type="AxFormStringControl">
+										<Name>NodeFields_CategoryManagerName</Name>
+										<AllowEdit>No</AllowEdit>
+										<Type>String</Type>
+										<FormControlExtension
+											i:nil="true" />
+										<DataMethod>categoryManagerName</DataMethod>
+										<DataSource>DYLO_MerchHierarchyNode</DataSource>
+										<Label>@DYLOExtensions:MerchHierCategoryManagerName</Label>
+									</AxFormControl>
+									<AxFormControl xmlns=""
+										i:type="AxFormCheckBoxControl">
+										<Name>NodeFields_Active</Name>
+										<Type>CheckBox</Type>
+										<FormControlExtension
+											i:nil="true" />
+										<DataField>Active</DataField>
+										<DataSource>DYLO_MerchHierarchyNode</DataSource>
+									</AxFormControl>
+								</Controls>
+								<DataSource>DYLO_MerchHierarchyNode</DataSource>
+								<FrameType>None</FrameType>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormGroupControl">
+								<Name>ProductsGroup</Name>
+								<AutoDeclaration>Yes</AutoDeclaration>
+								<HeightMode>SizeToAvailable</HeightMode>
+								<Type>Group</Type>
+								<WidthMode>SizeToAvailable</WidthMode>
+								<FormControlExtension
+									i:nil="true" />
+								<Controls>
+									<AxFormControl xmlns=""
+										i:type="AxFormButtonGroupControl">
+										<Name>ProductsActions</Name>
+										<Type>ButtonGroup</Type>
+										<FormControlExtension
+											i:nil="true" />
+										<Controls>
+											<AxFormControl xmlns=""
+												i:type="AxFormButtonControl">
+												<Name>AddProduct</Name>
+												<AutoDeclaration>Yes</AutoDeclaration>
+												<NeededPermission>Create</NeededPermission>
+												<Type>Button</Type>
+												<FormControlExtension
+													i:nil="true" />
+												<Text>@DYLOExtensions:MerchHierAddProduct</Text>
+											</AxFormControl>
+											<AxFormControl xmlns=""
+												i:type="AxFormButtonControl">
+												<Name>RemoveProduct</Name>
+												<AutoDeclaration>Yes</AutoDeclaration>
+												<NeededPermission>Delete</NeededPermission>
+												<Type>Button</Type>
+												<FormControlExtension
+													i:nil="true" />
+												<Text>@DYLOExtensions:MerchHierRemoveProduct</Text>
+											</AxFormControl>
+										</Controls>
+										<ArrangeMethod>HorizontalLeft</ArrangeMethod>
+									</AxFormControl>
+									<AxFormControl xmlns=""
+										i:type="AxFormGridControl">
+										<Name>ProductsGrid</Name>
+										<HeightMode>SizeToAvailable</HeightMode>
+										<Type>Grid</Type>
+										<WidthMode>SizeToAvailable</WidthMode>
+										<FormControlExtension
+											i:nil="true" />
+										<Controls>
+											<AxFormControl xmlns=""
+												i:type="AxFormStringControl">
+												<Name>ProductsGrid_ItemId</Name>
+												<Type>String</Type>
+												<FormControlExtension
+													i:nil="true" />
+												<DataField>ItemId</DataField>
+												<DataSource>DYLO_MerchHierarchyProduct</DataSource>
+											</AxFormControl>
+											<AxFormControl xmlns=""
+												i:type="AxFormStringControl">
+												<Name>ProductsGrid_ProductName</Name>
+												<AllowEdit>No</AllowEdit>
+												<Type>String</Type>
+												<FormControlExtension
+													i:nil="true" />
+												<DataMethod>productName</DataMethod>
+												<DataSource>DYLO_MerchHierarchyProduct</DataSource>
+												<Label>@DYLOExtensions:MerchHierProductName</Label>
+											</AxFormControl>
+											<AxFormControl xmlns=""
+												i:type="AxFormStringControl">
+												<Name>ProductsGrid_Node</Name>
+												<AllowEdit>No</AllowEdit>
+												<Type>String</Type>
+												<FormControlExtension
+													i:nil="true" />
+												<DataMethod>nodeDisplay</DataMethod>
+												<DataSource>DYLO_MerchHierarchyProduct</DataSource>
+												<Label>@DYLOExtensions:MerchHierNode</Label>
+											</AxFormControl>
+											<AxFormControl xmlns=""
+												i:type="AxFormRealControl">
+												<Name>ProductsGrid_TargetMarginPct</Name>
+												<AllowEdit>No</AllowEdit>
+												<Type>Real</Type>
+												<FormControlExtension
+													i:nil="true" />
+												<DataMethod>targetMarginPct</DataMethod>
+												<DataSource>DYLO_MerchHierarchyProduct</DataSource>
+												<Label>@DYLOExtensions:MerchHierTargetMarginPct</Label>
+											</AxFormControl>
+											<AxFormControl xmlns=""
+												i:type="AxFormStringControl">
+												<Name>ProductsGrid_Status</Name>
+												<AllowEdit>No</AllowEdit>
+												<Type>String</Type>
+												<FormControlExtension
+													i:nil="true" />
+												<DataMethod>lifecycleState</DataMethod>
+												<DataSource>DYLO_MerchHierarchyProduct</DataSource>
+												<Label>@DYLOExtensions:MerchHierStatus</Label>
+											</AxFormControl>
+										</Controls>
+										<DataSource>DYLO_MerchHierarchyProduct</DataSource>
+										<Style>Tabular</Style>
+									</AxFormControl>
+								</Controls>
+								<Caption>@DYLOExtensions:MerchHierProductsHeading</Caption>
+							</AxFormControl>
+						</Controls>
+						<Caption>@DYLOExtensions:MerchHierDetailsHeading</Caption>
+					</AxFormControl>
+				</Controls>
+				<ArrangeMethod>HorizontalLeft</ArrangeMethod>
+				<FrameType>None</FrameType>
+			</AxFormControl>
+		</Controls>
+	</Design>
+	<Parts />
+</AxForm>

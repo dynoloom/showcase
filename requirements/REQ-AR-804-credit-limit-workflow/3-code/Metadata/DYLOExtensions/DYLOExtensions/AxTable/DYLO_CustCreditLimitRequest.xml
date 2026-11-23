@@ -1,0 +1,466 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxTable xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_CustCreditLimitRequest</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// A request to change a customer's credit limit, approved through the credit limit change approval workflow.
+/// </summary>
+public class DYLO_CustCreditLimitRequest extends common
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>initValue</Name>
+				<Source><![CDATA[
+    public void initValue()
+    {
+        super();
+
+        NumberSequenceReference numberSequenceReference = CustParameters::DYLO_numRefCustCreditLimitRequestId();
+        this.RequestId       = NumberSeq::newGetNum(numberSequenceReference).num();
+        this.ApprovalStatus  = DYLO_CustCreditLimitRequestStatus::Draft;
+        this.RequestedBy     = curUserId();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>modifiedField</Name>
+				<Source><![CDATA[
+    public void modifiedField(FieldId _fieldId)
+    {
+        super(_fieldId);
+
+        switch (_fieldId)
+        {
+            case fieldNum(DYLO_CustCreditLimitRequest, CustAccount):
+                this.CurrentCreditMax = CustTable::find(this.CustAccount).CreditMax;
+                this.NetChange        = this.RequestedCreditMax - this.CurrentCreditMax;
+                break;
+
+            case fieldNum(DYLO_CustCreditLimitRequest, RequestedCreditMax):
+                this.NetChange        = this.RequestedCreditMax - this.CurrentCreditMax;
+                break;
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>validateWrite</Name>
+				<Source><![CDATA[
+    public boolean validateWrite()
+    {
+        boolean ret = super();
+
+        if (ret && this.RecId != 0
+            && this.orig().ApprovalStatus != DYLO_CustCreditLimitRequestStatus::Draft)
+        {
+            ret = checkFailed("@DYLOExtensions:CreditLimitReqErrNotDraft");
+        }
+
+        if (ret && this.RequestedCreditMax < 0)
+        {
+            ret = checkFailed("@DYLOExtensions:CreditLimitReqErrNegative");
+        }
+
+        if (ret)
+        {
+            DYLO_CustCreditLimitRequest openRequest = DYLO_CustCreditLimitRequest::findOpenRequest(this.CustAccount, this.RecId);
+            if (openRequest.RecId)
+            {
+                ret = checkFailed(strFmt("@DYLOExtensions:CreditLimitReqErrOpenRequest", this.CustAccount, openRequest.RequestId));
+            }
+        }
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>validateDelete</Name>
+				<Source><![CDATA[
+    public boolean validateDelete()
+    {
+        boolean ret = super();
+
+        if (ret && this.ApprovalStatus != DYLO_CustCreditLimitRequestStatus::Draft)
+        {
+            ret = checkFailed("@DYLOExtensions:CreditLimitReqErrNotDraft");
+        }
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>canSubmitToWorkflow</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Determines whether the request can be submitted to workflow.
+    /// </summary>
+    /// <param name = "_workflowType">The workflow type name.</param>
+    /// <returns>true if the request is saved and in Draft; otherwise, false.</returns>
+    public boolean canSubmitToWorkflow(str _workflowType = '')
+    {
+        return this.RecId != 0
+            && this.ApprovalStatus == DYLO_CustCreditLimitRequestStatus::Draft;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>custName</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The name of the customer of the request.
+    /// </summary>
+    /// <returns>The customer name.</returns>
+    public display CustName custName()
+    {
+        return CustTable::find(this.CustAccount).name();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>isOpen</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Determines whether the request is open: Draft, Submitted or Pending approval.
+    /// </summary>
+    /// <returns>true if the request is open; otherwise, false.</returns>
+    public boolean isOpen()
+    {
+        return this.ApprovalStatus == DYLO_CustCreditLimitRequestStatus::Draft
+            || this.ApprovalStatus == DYLO_CustCreditLimitRequestStatus::Submitted
+            || this.ApprovalStatus == DYLO_CustCreditLimitRequestStatus::PendingApproval;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>findOpenRequest</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Finds an open request for a customer other than the given record.
+    /// </summary>
+    /// <param name = "_custAccount">The customer account.</param>
+    /// <param name = "_excludeRecId">The record ID of the request to ignore.</param>
+    /// <returns>The open request, or an empty buffer.</returns>
+    public static DYLO_CustCreditLimitRequest findOpenRequest(CustAccount _custAccount, RecId _excludeRecId)
+    {
+        DYLO_CustCreditLimitRequest request;
+
+        if (_custAccount)
+        {
+            select firstonly request
+                where request.CustAccount == _custAccount
+                   && request.RecId != _excludeRecId
+                   && (request.ApprovalStatus == DYLO_CustCreditLimitRequestStatus::Draft
+                    || request.ApprovalStatus == DYLO_CustCreditLimitRequestStatus::Submitted
+                    || request.ApprovalStatus == DYLO_CustCreditLimitRequestStatus::PendingApproval);
+        }
+
+        return request;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>find</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Finds a request by its ID.
+    /// </summary>
+    /// <param name = "_requestId">The request ID.</param>
+    /// <param name = "_forUpdate">true to select the record for update.</param>
+    /// <returns>The request, or an empty buffer.</returns>
+    public static DYLO_CustCreditLimitRequest find(DYLO_CustCreditLimitRequestId _requestId, boolean _forUpdate = false)
+    {
+        DYLO_CustCreditLimitRequest request;
+
+        if (_requestId)
+        {
+            request.selectForUpdate(_forUpdate);
+            select firstonly request where request.RequestId == _requestId;
+        }
+
+        return request;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>findRecId</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Finds a request by its record ID.
+    /// </summary>
+    /// <param name = "_recId">The record ID.</param>
+    /// <param name = "_forUpdate">true to select the record for update.</param>
+    /// <returns>The request, or an empty buffer.</returns>
+    public static DYLO_CustCreditLimitRequest findRecId(RecId _recId, boolean _forUpdate = false)
+    {
+        DYLO_CustCreditLimitRequest request;
+
+        if (_recId)
+        {
+            request.selectForUpdate(_forUpdate);
+            select firstonly request where request.RecId == _recId;
+        }
+
+        return request;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+	<DeveloperDocumentation>@DYLOExtensions:CreditLimitReqTableDevDoc</DeveloperDocumentation>
+	<Label>@DYLOExtensions:CreditLimitReqTable</Label>
+	<TableGroup>Main</TableGroup>
+	<TitleField1>RequestId</TitleField1>
+	<TitleField2>CustAccount</TitleField2>
+	<CacheLookup>Found</CacheLookup>
+	<ClusteredIndex>RequestIdIdx</ClusteredIndex>
+	<CreatedBy>Yes</CreatedBy>
+	<CreatedDateTime>Yes</CreatedDateTime>
+	<ModifiedBy>Yes</ModifiedBy>
+	<ModifiedDateTime>Yes</ModifiedDateTime>
+	<Modules>Customer</Modules>
+	<PrimaryIndex>RequestIdIdx</PrimaryIndex>
+	<ReplacementKey>RequestIdIdx</ReplacementKey>
+	<DeleteActions />
+	<FieldGroups>
+		<AxTableFieldGroup>
+			<Name>AutoReport</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoLookup</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoIdentification</Name>
+			<AutoPopulate>Yes</AutoPopulate>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoSummary</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoBrowse</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>Overview</Name>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>RequestId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>CustAccount</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>custName</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>RequestedCreditMax</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>ApprovalStatus</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>Request</Name>
+			<Label>@DYLOExtensions:CreditLimitReqRequestGroup</Label>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>RequestId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>CustAccount</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>custName</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>CurrentCreditMax</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>Change</Name>
+			<Label>@DYLOExtensions:CreditLimitReqChangeGroup</Label>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>RequestedCreditMax</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>NetChange</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>ApprovalStatus</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Justification</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>Workflow</Name>
+			<Label>@DYLOExtensions:CreditLimitReqWorkflowGroup</Label>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>RequestedBy</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>ApprovalPath</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>ApprovalDate</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>FinalApproverId</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+	</FieldGroups>
+	<Fields>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>RequestId</Name>
+			<AllowEdit>No</AllowEdit>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>DYLO_CustCreditLimitRequestId</ExtendedDataType>
+			<Mandatory>Yes</Mandatory>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>CustAccount</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>CustAccount</ExtendedDataType>
+			<Mandatory>Yes</Mandatory>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldReal">
+			<Name>CurrentCreditMax</Name>
+			<AllowEdit>No</AllowEdit>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>CustCreditMaxMST</ExtendedDataType>
+			<Label>@DYLOExtensions:CreditLimitReqCurrentCreditMax</Label>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldReal">
+			<Name>RequestedCreditMax</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>CustCreditMaxMST</ExtendedDataType>
+			<Label>@DYLOExtensions:CreditLimitReqRequestedCreditMax</Label>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldReal">
+			<Name>NetChange</Name>
+			<AllowEdit>No</AllowEdit>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>AmountMST</ExtendedDataType>
+			<Label>@DYLOExtensions:CreditLimitReqNetChange</Label>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>Justification</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>DYLO_CustCreditLimitJustification</ExtendedDataType>
+			<Mandatory>Yes</Mandatory>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>RequestedBy</Name>
+			<AllowEdit>No</AllowEdit>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>UserId</ExtendedDataType>
+			<Label>@DYLOExtensions:CreditLimitReqRequestedBy</Label>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldEnum">
+			<Name>ApprovalStatus</Name>
+			<AllowEdit>No</AllowEdit>
+			<AssetClassification>System Metadata</AssetClassification>
+			<EnumType>DYLO_CustCreditLimitRequestStatus</EnumType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldEnum">
+			<Name>ApprovalPath</Name>
+			<AllowEdit>No</AllowEdit>
+			<AssetClassification>System Metadata</AssetClassification>
+			<EnumType>DYLO_CustCreditLimitApprovalPath</EnumType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldDate">
+			<Name>ApprovalDate</Name>
+			<AllowEdit>No</AllowEdit>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>TransDate</ExtendedDataType>
+			<Label>@DYLOExtensions:CreditLimitReqApprovalDate</Label>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>FinalApproverId</Name>
+			<AllowEdit>No</AllowEdit>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>UserId</ExtendedDataType>
+			<Label>@DYLOExtensions:CreditLimitReqFinalApprover</Label>
+		</AxTableField>
+	</Fields>
+	<FullTextIndexes />
+	<Indexes>
+		<AxTableIndex>
+			<Name>RequestIdIdx</Name>
+			<AlternateKey>Yes</AlternateKey>
+			<Fields>
+				<AxTableIndexField>
+					<DataField>RequestId</DataField>
+				</AxTableIndexField>
+			</Fields>
+		</AxTableIndex>
+		<AxTableIndex>
+			<Name>CustStatusIdx</Name>
+			<AllowDuplicates>Yes</AllowDuplicates>
+			<Fields>
+				<AxTableIndexField>
+					<DataField>CustAccount</DataField>
+				</AxTableIndexField>
+				<AxTableIndexField>
+					<DataField>ApprovalStatus</DataField>
+				</AxTableIndexField>
+			</Fields>
+		</AxTableIndex>
+	</Indexes>
+	<Mappings />
+	<Relations>
+		<AxTableRelation xmlns=""
+			i:type="AxTableRelationForeignKey">
+			<Name>CustTable</Name>
+			<Cardinality>ZeroMore</Cardinality>
+			<RelatedTable>CustTable</RelatedTable>
+			<RelatedTableCardinality>ExactlyOne</RelatedTableCardinality>
+			<RelationshipType>Association</RelationshipType>
+			<Constraints>
+				<AxTableRelationConstraint xmlns=""
+					i:type="AxTableRelationConstraintField">
+					<Name>CustAccount</Name>
+					<Field>CustAccount</Field>
+					<RelatedField>AccountNum</RelatedField>
+				</AxTableRelationConstraint>
+			</Constraints>
+			<Index>AccountIdx</Index>
+		</AxTableRelation>
+	</Relations>
+	<StateMachines />
+</AxTable>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxDataEntityViewExtension xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>CustCustomerV3Entity.DYLOExtensions</Name>
+	<DataSources />
+	<FieldGroupExtensions />
+	<FieldGroups />
+	<FieldModifications />
+	<Fields>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewUnmappedFieldString">
+			<Name>LoyaltyTier</Name>
+			<AllowEdit>Yes</AllowEdit>
+			<AllowEditOnCreate>Yes</AllowEditOnCreate>
+			<Mandatory>No</Mandatory>
+			<ExtendedDataType>DYLO_LoyaltyTierText</ExtendedDataType>
+			<IsComputedField>No</IsComputedField>
+		</AxDataEntityViewField>
+		<AxDataEntityViewField xmlns=""
+			i:type="AxDataEntityViewMappedField">
+			<Name>PreferredDeliveryWindow</Name>
+			<Mandatory>No</Mandatory>
+			<DataField>DYLO_PreferredDeliveryWindow</DataField>
+			<DataSource>CustTable</DataSource>
+		</AxDataEntityViewField>
+	</Fields>
+	<Mappings />
+	<PropertyModifications />
+	<Relations />
+</AxDataEntityViewExtension>

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxTableExtension xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>CustTable.DYLOExtensions</Name>
+	<FieldGroupExtensions />
+	<FieldGroups>
+		<AxTableFieldGroup>
+			<Name>DYLO_CommercialPreferences</Name>
+			<Label>@DYLOExtensions:CustCommPrefCommercialPreferences</Label>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>DYLO_LoyaltyTier</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>DYLO_PreferredDeliveryWindow</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+	</FieldGroups>
+	<FieldModifications />
+	<Fields>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldEnum">
+			<Name>DYLO_LoyaltyTier</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<EnumType>DYLO_LoyaltyTier</EnumType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>DYLO_PreferredDeliveryWindow</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>DYLO_PreferredDeliveryWindow</ExtendedDataType>
+		</AxTableField>
+	</Fields>
+	<FullTextIndexes />
+	<Indexes />
+	<Mappings />
+	<PropertyModifications />
+	<RelationExtensions />
+	<RelationModifications />
+	<Relations />
+</AxTableExtension>

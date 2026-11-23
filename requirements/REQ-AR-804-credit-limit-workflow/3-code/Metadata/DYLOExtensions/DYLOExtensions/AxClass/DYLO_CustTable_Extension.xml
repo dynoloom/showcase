@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_CustTable_Extension</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Locks the credit limit of a customer: it is changed through a credit limit request,
+/// or directly only by a user with the Edit customer credit limit privilege.
+/// </summary>
+[ExtensionOf(tableStr(CustTable))]
+final class DYLO_CustTable_Extension
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>validateWrite</Name>
+				<Source><![CDATA[
+    public boolean validateWrite()
+    {
+        boolean ret = next validateWrite();
+
+        if (ret && !DYLO_CustCreditLimitUpdateContext::isActive())
+        {
+            if (this.RecId == 0)
+            {
+                if (this.CreditMax != 0)
+                {
+                    ret = checkFailed("@DYLOExtensions:CreditLimitReqCustLockedCreate");
+                }
+            }
+            else if (this.CreditMax != this.orig().CreditMax
+                && !DYLO_CustCreditLimitRequestWFProcessor::canEditCreditLimit())
+            {
+                ret = checkFailed("@DYLOExtensions:CreditLimitReqCustLockedChange");
+            }
+        }
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

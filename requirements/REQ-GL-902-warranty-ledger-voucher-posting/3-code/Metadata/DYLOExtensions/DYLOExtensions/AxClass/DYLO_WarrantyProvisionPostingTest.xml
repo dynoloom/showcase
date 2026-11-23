@@ -1,0 +1,271 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_WarrantyProvisionPostingTest</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Unit tests for <c>DYLO_WarrantyProvisionPostingService</c>.
+/// </summary>
+[
+SysTestTarget(classStr(DYLO_WarrantyProvisionPostingService), UtilElementType::Class),
+SysTestGranularity(SysTestGranularity::Unit)
+]
+public final class DYLO_WarrantyProvisionPostingTest extends SysTestCase
+{
+    const ItemId            TestItemId          = 'DYLOWTYITEM';
+    const ItemGroupId       TestItemGroupId     = 'DYLOWTYGRP';
+    const InvoiceId         TestInvoiceId       = 'DYLOWTYINV';
+    const Voucher           TestVoucher         = 'DYLOWTYVOU';
+
+    CurrencyCode            currencyCode;
+    TransDate               testDate;
+    LedgerVoucher           ledgerVoucher;
+    CustInvoiceJour         custInvoiceJour;
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>setUp</Name>
+				<Source><![CDATA[
+    public void setUp()
+    {
+        super();
+
+        testDate     = DateTimeUtil::getSystemDate(DateTimeUtil::getUserPreferredTimeZone());
+        currencyCode = Ledger::accountingCurrency(CompanyInfo::current());
+
+        ledgerVoucher = LedgerVoucher::newLedgerPost(DetailSummary::Detail, SysModule::Cust, '');
+        ledgerVoucher.addVoucher(LedgerVoucherObject::newVoucher(TestVoucher, testDate, SysModule::Cust, LedgerTransType::Cust));
+
+        custInvoiceJour.InvoiceId       = TestInvoiceId;
+        custInvoiceJour.InvoiceDate     = testDate;
+        custInvoiceJour.LedgerVoucher   = TestVoucher;
+        custInvoiceJour.CurrencyCode    = currencyCode;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>createItem</Name>
+				<Source><![CDATA[
+    private void createItem(DYLO_WarrantyProvisionPct _pct, boolean _withGroup = true)
+    {
+        InventTable inventTable;
+        inventTable.ItemId                      = TestItemId;
+        inventTable.DYLO_WarrantyEligible       = NoYes::Yes;
+        inventTable.DYLO_WarrantyProvisionPct   = _pct;
+        inventTable.doInsert();
+
+        if (_withGroup)
+        {
+            InventItemGroup inventItemGroup;
+            inventItemGroup.ItemGroupId = TestItemGroupId;
+            inventItemGroup.doInsert();
+
+            InventItemGroupItem inventItemGroupItem;
+            inventItemGroupItem.ItemId              = TestItemId;
+            inventItemGroupItem.ItemDataAreaId      = curExt();
+            inventItemGroupItem.ItemGroupId         = TestItemGroupId;
+            inventItemGroupItem.ItemGroupDataAreaId = curExt();
+            inventItemGroupItem.doInsert();
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>createSetup</Name>
+				<Source><![CDATA[
+    private void createSetup()
+    {
+        MainAccount expenseAccount;
+        MainAccount provisionAccount;
+
+        select firstonly MainAccountId from expenseAccount
+            order by expenseAccount.MainAccountId asc
+            where expenseAccount.LedgerChartOfAccounts == LedgerChartOfAccounts::current();
+
+        select firstonly MainAccountId from provisionAccount
+            order by provisionAccount.MainAccountId desc
+            where provisionAccount.LedgerChartOfAccounts == LedgerChartOfAccounts::current();
+
+        DYLO_WarrantyPostingSetup setup;
+        setup.ItemGroupId               = TestItemGroupId;
+        setup.ExpenseLedgerDimension    = LedgerDefaultAccountHelper::getDefaultAccountFromMainAccountId(expenseAccount.MainAccountId);
+        setup.ProvisionLedgerDimension  = LedgerDefaultAccountHelper::getDefaultAccountFromMainAccountId(provisionAccount.MainAccountId);
+        setup.doInsert();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>createInvoiceTrans</Name>
+				<Source><![CDATA[
+    private CustInvoiceTrans createInvoiceTrans(InventTransId _inventTransId)
+    {
+        CustInvoiceTrans custInvoiceTrans;
+        custInvoiceTrans.InvoiceId      = TestInvoiceId;
+        custInvoiceTrans.InvoiceDate    = testDate;
+        custInvoiceTrans.ItemId         = TestItemId;
+        custInvoiceTrans.InventTransId  = _inventTransId;
+        custInvoiceTrans.CurrencyCode   = currencyCode;
+        custInvoiceTrans.doInsert();
+
+        return custInvoiceTrans;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>post</Name>
+				<Source><![CDATA[
+    private DYLO_WarrantyProvisionTrans post(CustInvoiceTrans _custInvoiceTrans, AmountCur _lineValue)
+    {
+        SalesParmLine salesParmLine;
+        salesParmLine.InventTransId = _custInvoiceTrans.InventTransId;
+
+        CurrencyExchangeHelper exchangeRateHelper = CurrencyExchangeHelper::newExchangeDate(Ledger::current(), testDate);
+
+        DYLO_WarrantyProvisionPostingService::construct(
+            ledgerVoucher,
+            custInvoiceJour,
+            _custInvoiceTrans,
+            salesParmLine,
+            _lineValue,
+            currencyCode,
+            exchangeRateHelper).post();
+
+        DYLO_WarrantyProvisionTrans provisionLog;
+        select firstonly provisionLog
+            where provisionLog.CustInvoiceTransRecId == _custInvoiceTrans.RecId;
+
+        return provisionLog;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testAmountCalculationAndRounding</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// A 40,000.00 line at 3.50% posts 1,400.00; a 333.33 line posts the rounded 11.67.
+    /// </summary>
+    [SysTestMethod]
+    public void testAmountCalculationAndRounding()
+    {
+        this.createItem(3.50);
+        this.createSetup();
+
+        DYLO_WarrantyProvisionTrans provisionLog = this.post(this.createInvoiceTrans('DYLOWTYLOT1'), 40000.00);
+        this.assertEquals(1400.00, provisionLog.AmountCur);
+        this.assertEquals(3.50, provisionLog.ProvisionPct);
+
+        provisionLog = this.post(this.createInvoiceTrans('DYLOWTYLOT2'), 333.33);
+        this.assertEquals(CurrencyExchangeHelper::amount(333.33 * 3.50 / 100, currencyCode), provisionLog.AmountCur);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testMissingSetupThrowsError</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// An eligible item whose item group has no warranty posting setup stops the posting.
+    /// </summary>
+    [SysTestMethod]
+    public void testMissingSetupThrowsError()
+    {
+        boolean errorThrown;
+
+        this.createItem(3.50);
+
+        try
+        {
+            this.post(this.createInvoiceTrans('DYLOWTYLOT1'), 40000.00);
+        }
+        catch (Exception::Error)
+        {
+            errorThrown = true;
+        }
+
+        this.assertTrue(errorThrown);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testCreditNoteSign</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// A credit note line with no link to an invoice reverses with the item's current %.
+    /// </summary>
+    [SysTestMethod]
+    public void testCreditNoteSign()
+    {
+        this.createItem(3.50);
+        this.createSetup();
+
+        DYLO_WarrantyProvisionTrans provisionLog = this.post(this.createInvoiceTrans('DYLOWTYLOT1'), -40000.00);
+        this.assertEquals(-1400.00, provisionLog.AmountCur);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testCreditNoteUsesOriginalPct</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// A credit note line linked to the original invoice line uses the % logged on that invoice.
+    /// </summary>
+    [SysTestMethod]
+    public void testCreditNoteUsesOriginalPct()
+    {
+        this.createItem(3.50);
+        this.createSetup();
+
+        CustInvoiceTrans originalTrans = this.createInvoiceTrans('DYLOWTYORIG');
+
+        DYLO_WarrantyProvisionTrans originalLog;
+        originalLog.CustInvoiceTransRecId   = originalTrans.RecId;
+        originalLog.InvoiceId               = TestInvoiceId;
+        originalLog.InvoiceDate             = testDate;
+        originalLog.ItemId                  = TestItemId;
+        originalLog.ProvisionPct            = 5.00;
+        originalLog.CurrencyCode            = currencyCode;
+        originalLog.doInsert();
+
+        SalesLine returnLine;
+        returnLine.ItemId               = TestItemId;
+        returnLine.InventTransId        = 'DYLOWTYRET';
+        returnLine.InventTransIdReturn  = originalTrans.InventTransId;
+        returnLine.doInsert();
+
+        DYLO_WarrantyProvisionTrans provisionLog = this.post(this.createInvoiceTrans(returnLine.InventTransId), -1000.00);
+        this.assertEquals(-50.00, provisionLog.AmountCur);
+        this.assertEquals(5.00, provisionLog.ProvisionPct);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>testVoucherIsInvoiceVoucher</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The warranty lines are posted under the invoice's own voucher number.
+    /// </summary>
+    [SysTestMethod]
+    public void testVoucherIsInvoiceVoucher()
+    {
+        this.createItem(3.50);
+        this.createSetup();
+
+        DYLO_WarrantyProvisionTrans provisionLog = this.post(this.createInvoiceTrans('DYLOWTYLOT1'), 40000.00);
+        this.assertEquals(custInvoiceJour.LedgerVoucher, provisionLog.Voucher);
+        this.assertEquals(TestVoucher, ledgerVoucher.findLedgerVoucherObject().parmVoucher());
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

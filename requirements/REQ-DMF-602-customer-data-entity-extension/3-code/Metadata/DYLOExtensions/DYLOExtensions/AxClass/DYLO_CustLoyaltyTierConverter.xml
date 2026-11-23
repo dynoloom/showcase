@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_CustLoyaltyTierConverter</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Converts the customer loyalty tier between its text form, used by the Customers V3 data entity,
+/// and the <c>DYLO_LoyaltyTier</c> enum stored on <c>CustTable</c>.
+/// </summary>
+public final class DYLO_CustLoyaltyTierConverter
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>fromText</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Converts a loyalty tier text to the enum value. Empty or blank text gives Standard.
+    /// The text is matched, ignoring case and surrounding spaces, to the enum element names and labels.
+    /// </summary>
+    /// <param name = "_text">The loyalty tier text.</param>
+    /// <returns>The loyalty tier.</returns>
+    /// <exception>An error is thrown when the text is not a known loyalty tier.</exception>
+    public static DYLO_LoyaltyTier fromText(DYLO_LoyaltyTierText _text)
+    {
+        str value = strLRTrim(_text);
+
+        if (value == '')
+        {
+            return DYLO_LoyaltyTier::Standard;
+        }
+
+        str valueUpr = strUpr(value);
+        DictEnum dictEnum = new DictEnum(enumNum(DYLO_LoyaltyTier));
+
+        for (int i = 0; i < dictEnum.values(); i++)
+        {
+            if (valueUpr == strUpr(dictEnum.index2Symbol(i))
+                || valueUpr == strUpr(dictEnum.index2Label(i)))
+            {
+                DYLO_LoyaltyTier tier = dictEnum.index2Value(i);
+                return tier;
+            }
+        }
+
+        throw error(strFmt("@DYLOExtensions:CustCommPrefLoyaltyTierInvalid", value));
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>toText</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Converts a loyalty tier to its text: Standard, Silver, Gold or Platinum.
+    /// </summary>
+    /// <param name = "_tier">The loyalty tier.</param>
+    /// <returns>The element name of the loyalty tier.</returns>
+    public static DYLO_LoyaltyTierText toText(DYLO_LoyaltyTier _tier)
+    {
+        return enum2Symbol(enumNum(DYLO_LoyaltyTier), enum2int(_tier));
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

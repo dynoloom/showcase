@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_JsonFormatter</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Indents a JSON text for display ("pretty print"), without external libraries.
+/// </summary>
+public class DYLO_JsonFormatter
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>format</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Formats a JSON text: 2 spaces of indentation per level, a line break after each comma and
+    /// around brackets, a space after each colon. Text inside strings, escapes included, is kept as is.
+    /// </summary>
+    /// <param name = "_json">The JSON text.</param>
+    /// <returns>The formatted JSON text.</returns>
+    public static str format(str _json)
+    {
+        System.Text.StringBuilder   builder = new System.Text.StringBuilder();
+        int                         length  = strLen(_json);
+        int                         indent;
+        int                         pos;
+        int                         nextPos;
+        boolean                     inString;
+        boolean                     escaped;
+        str                         c;
+        str                         nextChar;
+
+        for (pos = 1; pos <= length; pos++)
+        {
+            c = subStr(_json, pos, 1);
+
+            if (inString)
+            {
+                builder.Append(c);
+
+                if (escaped)
+                {
+                    escaped = false;
+                }
+                else if (c == '\\')
+                {
+                    escaped = true;
+                }
+                else if (c == '"')
+                {
+                    inString = false;
+                }
+                continue;
+            }
+
+            switch (c)
+            {
+                case '"':
+                    inString = true;
+                    builder.Append(c);
+                    break;
+
+                case '{', '[':
+                    // An empty object or array stays on one line
+                    nextPos = DYLO_JsonFormatter::nextNonSpace(_json, pos + 1, length);
+                    nextChar = nextPos ? subStr(_json, nextPos, 1) : '';
+                    if ((c == '{' && nextChar == '}') || (c == '[' && nextChar == ']'))
+                    {
+                        builder.Append(c + nextChar);
+                        pos = nextPos;
+                    }
+                    else
+                    {
+                        indent++;
+                        builder.Append(c);
+                        builder.Append(DYLO_JsonFormatter::newLine(indent));
+                    }
+                    break;
+
+                case '}', ']':
+                    indent = max(indent - 1, 0);
+                    builder.Append(DYLO_JsonFormatter::newLine(indent));
+                    builder.Append(c);
+                    break;
+
+                case ',':
+                    builder.Append(c);
+                    builder.Append(DYLO_JsonFormatter::newLine(indent));
+                    break;
+
+                case ':':
+                    builder.Append(': ');
+                    break;
+
+                case ' ', '\t', '\n', '\r':
+                    // Whitespace outside strings is replaced by the formatting
+                    break;
+
+                default:
+                    builder.Append(c);
+                    break;
+            }
+        }
+
+        return builder.ToString();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>newLine</Name>
+				<Source><![CDATA[
+    private static str newLine(int _indent)
+    {
+        return '\n' + strRep(' ', _indent * 2);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>nextNonSpace</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Finds the position of the next character that is not whitespace; 0 when there is none.
+    /// </summary>
+    private static int nextNonSpace(str _json, int _from, int _length)
+    {
+        int pos;
+        str c;
+
+        for (pos = _from; pos <= _length; pos++)
+        {
+            c = subStr(_json, pos, 1);
+            if (c != ' ' && c != '\t' && c != '\n' && c != '\r')
+            {
+                return pos;
+            }
+        }
+
+        return 0;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

@@ -1,0 +1,719 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_TradeAgreementPriceAdjService</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Service of the periodic mass trade agreement price update.
+/// Creates one price/discount agreement journal with, for each matching sales price agreement,
+/// one line that closes the agreement the day before the effective date and one line with the adjusted price.
+/// The trade agreements themselves change only when the journal is posted.
+/// </summary>
+public class DYLO_TradeAgreementPriceAdjService extends SysOperationServiceBase
+{
+    str skipReason;
+
+    #define.MaxRetries(5)
+    #define.LineNumBundleSize(1000000)
+    #define.LogRetentionDays(90)
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>process</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Entry point: creates the journal, finds the items and runs the bundles, in batch as runtime tasks.
+    /// </summary>
+    /// <param name = "_contract">The dialog parameters.</param>
+    public void process(DYLO_TradeAgreementPriceAdjContract _contract)
+    {
+        DYLO_PriceAdjRunId                      runId;
+        PriceDiscJournalNum                     journalNum;
+        List                                    items;
+        DYLO_TradeAgreementPriceAdjTaskContract taskContract;
+
+        if (!_contract.validateParameters())
+        {
+            throw Exception::Error;
+        }
+
+        runId      = newGuid();
+        journalNum = this.createJournal(_contract);
+        items      = this.findItems(_contract);
+
+        if (items.empty())
+        {
+            this.deleteJournal(journalNum);
+            warning(strFmt("@DYLOExtensions:MassPriceAdjNoAgreements", _contract.parmCustPriceGroup()));
+            return;
+        }
+
+        if (this.isExecutingInBatch())
+        {
+            this.scheduleTasks(_contract, runId, journalNum, items);
+        }
+        else
+        {
+            taskContract = new DYLO_TradeAgreementPriceAdjTaskContract();
+            this.initTaskContract(taskContract, _contract, runId, journalNum);
+            taskContract.parmItemIds(items);
+            taskContract.parmLineNumBase(0);
+            taskContract.parmBundleCount(1);
+
+            this.processBundle(taskContract);
+            this.finalizeRun(taskContract);
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>createJournal</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Creates the price/discount agreement journal header from the chosen journal name.
+    /// </summary>
+    /// <param name = "_contract">The dialog parameters.</param>
+    /// <returns>The number of the new journal.</returns>
+    protected PriceDiscJournalNum createJournal(DYLO_TradeAgreementPriceAdjContract _contract)
+    {
+        PriceDiscAdmTable priceDiscAdmTable;
+
+        ttsbegin;
+
+        priceDiscAdmTable.clear();
+        priceDiscAdmTable.initValue();
+        priceDiscAdmTable.JournalName = _contract.parmJournalName();
+        priceDiscAdmTable.initFromPriceDiscAdmName(PriceDiscAdmName::find(_contract.parmJournalName()));
+        priceDiscAdmTable.Name = strFmt("@DYLOExtensions:MassPriceAdjJournalDescription",
+            _contract.parmAdjustmentPct(),
+            _contract.parmEffectiveFromDate());
+        priceDiscAdmTable.insert();
+
+        ttscommit;
+
+        return priceDiscAdmTable.JournalNum;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>findItems</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Finds the items that have active sales price agreements for the customer price group and the chosen item groups.
+    /// </summary>
+    /// <param name = "_contract">The dialog parameters.</param>
+    /// <returns>A list of item numbers.</returns>
+    protected List findItems(DYLO_TradeAgreementPriceAdjContract _contract)
+    {
+        List                items = new List(Types::String);
+        Set                 itemGroups;
+        ListEnumerator      enumerator;
+        PriceDiscTable      priceDiscTable;
+        PriceGroupId        custPriceGroup = _contract.parmCustPriceGroup();
+        TransDate           effDate = _contract.parmEffectiveFromDate();
+
+        if (_contract.hasItemGroupFilter())
+        {
+            itemGroups = new Set(Types::String);
+            enumerator = _contract.parmItemGroupIds().getEnumerator();
+            while (enumerator.moveNext())
+            {
+                itemGroups.add(enumerator.current());
+            }
+        }
+
+        while select ItemRelation from priceDiscTable
+            group by ItemRelation
+            where priceDiscTable.Module          == ModuleInventCustVend::Cust
+               && priceDiscTable.Relation        == PriceType::PriceSales
+               && priceDiscTable.AccountCode     == PriceDiscPartyCodeType::GroupId
+               && priceDiscTable.AccountRelation == custPriceGroup
+               && priceDiscTable.ItemCode        == PriceDiscProductCodeType::Table
+               && (priceDiscTable.ToDate == dateNull() || priceDiscTable.ToDate >= effDate)
+        {
+            if (!itemGroups || itemGroups.in(InventTable::find(priceDiscTable.ItemRelation).itemGroupId()))
+            {
+                items.addEnd(priceDiscTable.ItemRelation);
+            }
+        }
+
+        return items;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>initTaskContract</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Copies the run parameters into a task contract.
+    /// </summary>
+    /// <param name = "_taskContract">The task contract to fill.</param>
+    /// <param name = "_contract">The dialog parameters.</param>
+    /// <param name = "_runId">The id of this run.</param>
+    /// <param name = "_journalNum">The journal number of this run.</param>
+    protected void initTaskContract(
+        DYLO_TradeAgreementPriceAdjTaskContract _taskContract,
+        DYLO_TradeAgreementPriceAdjContract     _contract,
+        DYLO_PriceAdjRunId                      _runId,
+        PriceDiscJournalNum                     _journalNum)
+    {
+        _taskContract.parmRunId(_runId);
+        _taskContract.parmJournalNum(_journalNum);
+        _taskContract.parmCustPriceGroup(_contract.parmCustPriceGroup());
+        _taskContract.parmAdjustmentPct(_contract.parmAdjustmentPct());
+        _taskContract.parmEffectiveFromDate(_contract.parmEffectiveFromDate());
+        _taskContract.parmRoundingRule(_contract.parmRoundingRule());
+        _taskContract.parmAutoPost(_contract.parmAutoPost());
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>scheduleTasks</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Splits the items into bundles, adds one runtime task per bundle and a summary task that runs after all bundles.
+    /// </summary>
+    /// <param name = "_contract">The dialog parameters.</param>
+    /// <param name = "_runId">The id of this run.</param>
+    /// <param name = "_journalNum">The journal number of this run.</param>
+    /// <param name = "_items">The items to process.</param>
+    protected void scheduleTasks(
+        DYLO_TradeAgreementPriceAdjContract _contract,
+        DYLO_PriceAdjRunId                  _runId,
+        PriceDiscJournalNum                 _journalNum,
+        List                                _items)
+    {
+        BatchHeader                                 batchHeader = this.getCurrentBatchHeader();
+        RecId                                       currentTaskId = this.getCurrentBatchTask().RecId;
+        List                                        bundleControllers = new List(Types::Class);
+        List                                        bundleItems = new List(Types::String);
+        ListEnumerator                              enumerator = _items.getEnumerator();
+        int                                         itemsPerTask = max(1, _contract.parmItemsPerTask());
+        int                                         bundleNo;
+        DYLO_TradeAgreementPriceAdjTaskController   bundleController;
+        DYLO_TradeAgreementPriceAdjTaskController   finalizeController;
+        DYLO_TradeAgreementPriceAdjTaskContract     taskContract;
+
+        while (enumerator.moveNext())
+        {
+            bundleItems.addEnd(enumerator.current());
+
+            if (bundleItems.elements() >= itemsPerTask)
+            {
+                bundleNo++;
+                bundleController = this.addBundleTask(batchHeader, currentTaskId, _contract, _runId, _journalNum, bundleItems, bundleNo);
+                bundleControllers.addEnd(bundleController);
+                bundleItems = new List(Types::String);
+            }
+        }
+
+        if (!bundleItems.empty())
+        {
+            bundleNo++;
+            bundleController = this.addBundleTask(batchHeader, currentTaskId, _contract, _runId, _journalNum, bundleItems, bundleNo);
+            bundleControllers.addEnd(bundleController);
+        }
+
+        finalizeController = DYLO_TradeAgreementPriceAdjTaskController::newFromMethod(methodStr(DYLO_TradeAgreementPriceAdjService, finalizeRun));
+        taskContract = finalizeController.getDataContractObject();
+        this.initTaskContract(taskContract, _contract, _runId, _journalNum);
+        taskContract.parmItemIds(new List(Types::String));
+        taskContract.parmBundleCount(bundleNo);
+        batchHeader.addRuntimeTask(finalizeController, currentTaskId);
+
+        enumerator = bundleControllers.getEnumerator();
+        while (enumerator.moveNext())
+        {
+            bundleController = enumerator.current();
+            batchHeader.addDependency(finalizeController, bundleController, BatchDependencyStatus::FinishedOrError);
+        }
+
+        batchHeader.save();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>addBundleTask</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Adds one runtime task for a bundle of items.
+    /// </summary>
+    /// <param name = "_batchHeader">The batch header of the running job.</param>
+    /// <param name = "_currentTaskId">The RecId of the running task.</param>
+    /// <param name = "_contract">The dialog parameters.</param>
+    /// <param name = "_runId">The id of this run.</param>
+    /// <param name = "_journalNum">The journal number of this run.</param>
+    /// <param name = "_bundleItems">The items of the bundle.</param>
+    /// <param name = "_bundleNo">The number of the bundle; gives the bundle its own range of line numbers.</param>
+    /// <returns>The task controller that was added.</returns>
+    protected DYLO_TradeAgreementPriceAdjTaskController addBundleTask(
+        BatchHeader                         _batchHeader,
+        RecId                               _currentTaskId,
+        DYLO_TradeAgreementPriceAdjContract _contract,
+        DYLO_PriceAdjRunId                  _runId,
+        PriceDiscJournalNum                 _journalNum,
+        List                                _bundleItems,
+        int                                 _bundleNo)
+    {
+        DYLO_TradeAgreementPriceAdjTaskController controller = DYLO_TradeAgreementPriceAdjTaskController::newFromMethod(methodStr(DYLO_TradeAgreementPriceAdjService, processBundle));
+        DYLO_TradeAgreementPriceAdjTaskContract   taskContract = controller.getDataContractObject();
+
+        this.initTaskContract(taskContract, _contract, _runId, _journalNum);
+        taskContract.parmItemIds(_bundleItems);
+        taskContract.parmLineNumBase(_bundleNo * #LineNumBundleSize);
+
+        _batchHeader.addRuntimeTask(controller, _currentTaskId);
+
+        return controller;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>processBundle</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Creates the journal lines for a bundle of items. Writes only journal lines and log rows; never changes a trade agreement.
+    /// </summary>
+    /// <param name = "_taskContract">The task contract with the items of the bundle.</param>
+    public void processBundle(DYLO_TradeAgreementPriceAdjTaskContract _taskContract)
+    {
+        List            items = _taskContract.parmItemIds();
+        ListEnumerator  enumerator;
+        LineNum         lineNum = _taskContract.parmLineNumBase();
+
+        if (!items)
+        {
+            return;
+        }
+
+        enumerator = items.getEnumerator();
+        while (enumerator.moveNext())
+        {
+            lineNum = this.processItem(_taskContract, enumerator.current(), lineNum);
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>processItem</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Creates the journal lines of one item in its own transaction, retrying on deadlocks and update conflicts.
+    /// </summary>
+    /// <param name = "_taskContract">The task contract.</param>
+    /// <param name = "_itemId">The item.</param>
+    /// <param name = "_lineNum">The last line number used.</param>
+    /// <returns>The last line number used after this item.</returns>
+    protected LineNum processItem(DYLO_TradeAgreementPriceAdjTaskContract _taskContract, ItemId _itemId, LineNum _lineNum)
+    {
+        LineNum lineNum = _lineNum;
+
+        try
+        {
+            skipReason = '';
+
+            ttsbegin;
+            lineNum = this.createLinesForItem(_taskContract, _itemId, _lineNum);
+            ttscommit;
+        }
+        catch (Exception::Deadlock)
+        {
+            if (appl.ttsLevel() != 0)
+            {
+                throw Exception::Deadlock;
+            }
+
+            if (xSession::currentRetryCount() >= #MaxRetries)
+            {
+                this.writeLog(_taskContract, _itemId, 0, DYLO_PriceAdjLogStatus::Skipped, "@DYLOExtensions:MassPriceAdjSkipLocked", 0, 0, '');
+                return _lineNum;
+            }
+
+            retry;
+        }
+        catch (Exception::UpdateConflict)
+        {
+            if (appl.ttsLevel() != 0)
+            {
+                throw Exception::UpdateConflict;
+            }
+
+            if (xSession::currentRetryCount() >= #MaxRetries)
+            {
+                this.writeLog(_taskContract, _itemId, 0, DYLO_PriceAdjLogStatus::Skipped, "@DYLOExtensions:MassPriceAdjSkipLocked", 0, 0, '');
+                return _lineNum;
+            }
+
+            retry;
+        }
+        catch (Exception::Error)
+        {
+            this.writeLog(_taskContract, _itemId, 0, DYLO_PriceAdjLogStatus::Skipped,
+                skipReason ? skipReason : "@DYLOExtensions:MassPriceAdjSkipError", 0, 0, '');
+            return _lineNum;
+        }
+
+        return lineNum;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>createLinesForItem</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Creates, for each active matching agreement of the item, the closing line and the new price line.
+    /// </summary>
+    /// <param name = "_taskContract">The task contract.</param>
+    /// <param name = "_itemId">The item.</param>
+    /// <param name = "_lineNum">The last line number used.</param>
+    /// <returns>The last line number used after this item.</returns>
+    protected LineNum createLinesForItem(DYLO_TradeAgreementPriceAdjTaskContract _taskContract, ItemId _itemId, LineNum _lineNum)
+    {
+        PriceDiscTable      priceDiscTable;
+        PriceDiscJournalNum journalNum = _taskContract.parmJournalNum();
+        PriceGroupId        custPriceGroup = _taskContract.parmCustPriceGroup();
+        TransDate           effDate = _taskContract.parmEffectiveFromDate();
+        PriceDiscJournalNum otherJournalNum;
+        Price               newPrice;
+        LineNum             lineNum = _lineNum;
+
+        while select priceDiscTable
+            where priceDiscTable.Module          == ModuleInventCustVend::Cust
+               && priceDiscTable.Relation        == PriceType::PriceSales
+               && priceDiscTable.AccountCode     == PriceDiscPartyCodeType::GroupId
+               && priceDiscTable.AccountRelation == custPriceGroup
+               && priceDiscTable.ItemCode        == PriceDiscProductCodeType::Table
+               && priceDiscTable.ItemRelation    == _itemId
+               && (priceDiscTable.ToDate == dateNull() || priceDiscTable.ToDate >= effDate)
+        {
+            if (priceDiscTable.FromDate >= effDate)
+            {
+                this.writeLog(_taskContract, _itemId, priceDiscTable.RecId, DYLO_PriceAdjLogStatus::Skipped,
+                    "@DYLOExtensions:MassPriceAdjSkipFuture", priceDiscTable.Amount, 0, priceDiscTable.Currency);
+                continue;
+            }
+
+            otherJournalNum = this.findUnpostedJournal(priceDiscTable.RecId, journalNum);
+            if (otherJournalNum)
+            {
+                this.writeLog(_taskContract, _itemId, priceDiscTable.RecId, DYLO_PriceAdjLogStatus::Skipped,
+                    strFmt("@DYLOExtensions:MassPriceAdjSkipUnposted", otherJournalNum), priceDiscTable.Amount, 0, priceDiscTable.Currency);
+                continue;
+            }
+
+            newPrice = DYLO_TradeAgreementPriceAdjCalc::newPrice(
+                priceDiscTable.Amount,
+                _taskContract.parmAdjustmentPct(),
+                _taskContract.parmRoundingRule(),
+                priceDiscTable.Currency);
+
+            if (newPrice <= 0)
+            {
+                this.writeLog(_taskContract, _itemId, priceDiscTable.RecId, DYLO_PriceAdjLogStatus::Skipped,
+                    "@DYLOExtensions:MassPriceAdjSkipZeroPrice", priceDiscTable.Amount, newPrice, priceDiscTable.Currency);
+                continue;
+            }
+
+            // Line A: closes the existing agreement the day before the effective date when the journal is posted.
+            lineNum++;
+            this.insertJournalLine(priceDiscTable, journalNum, lineNum, true, effDate, 0);
+
+            // Line B: the new agreement from the effective date at the adjusted price.
+            lineNum++;
+            this.insertJournalLine(priceDiscTable, journalNum, lineNum, false, effDate, newPrice);
+
+            this.writeLog(_taskContract, _itemId, priceDiscTable.RecId, DYLO_PriceAdjLogStatus::Processed,
+                '', priceDiscTable.Amount, newPrice, priceDiscTable.Currency);
+        }
+
+        return lineNum;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>insertJournalLine</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Inserts one price/discount agreement journal line copied from an agreement.
+    /// </summary>
+    /// <param name = "_priceDiscTable">The existing agreement.</param>
+    /// <param name = "_journalNum">The journal number.</param>
+    /// <param name = "_lineNum">The line number.</param>
+    /// <param name = "_isClosingLine">true for the line that closes the existing agreement; false for the new price line.</param>
+    /// <param name = "_effDate">The effective from date.</param>
+    /// <param name = "_newPrice">The new price; used only for the new price line.</param>
+    protected void insertJournalLine(
+        PriceDiscTable      _priceDiscTable,
+        PriceDiscJournalNum _journalNum,
+        LineNum             _lineNum,
+        boolean             _isClosingLine,
+        TransDate           _effDate,
+        Price               _newPrice)
+    {
+        PriceDiscAdmTrans priceDiscAdmTrans;
+
+        priceDiscAdmTrans.clear();
+        priceDiscAdmTrans.initValue();
+        priceDiscAdmTrans.JournalNum = _journalNum;
+        priceDiscAdmTrans.initFromPriceDiscTable(_priceDiscTable);
+        priceDiscAdmTrans.LineNum = _lineNum;
+
+        if (_isClosingLine)
+        {
+            priceDiscAdmTrans.ToDate = _effDate - 1;
+        }
+        else
+        {
+            priceDiscAdmTrans.PriceDiscTableRef = 0;
+            priceDiscAdmTrans.FromDate          = _effDate;
+            priceDiscAdmTrans.ToDate            = _priceDiscTable.ToDate;
+            priceDiscAdmTrans.Amount            = _newPrice;
+        }
+
+        if (!priceDiscAdmTrans.validateWrite())
+        {
+            skipReason = "@DYLOExtensions:MassPriceAdjSkipValidation";
+            throw Exception::Error;
+        }
+
+        priceDiscAdmTrans.insert();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>findUnpostedJournal</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Finds another unposted journal that already has a line for the agreement.
+    /// </summary>
+    /// <param name = "_priceDiscTableRecId">The RecId of the agreement.</param>
+    /// <param name = "_journalNum">The journal of this run, which is ignored.</param>
+    /// <returns>The number of the other unposted journal; empty when there is none.</returns>
+    protected PriceDiscJournalNum findUnpostedJournal(RefRecId _priceDiscTableRecId, PriceDiscJournalNum _journalNum)
+    {
+        PriceDiscAdmTrans priceDiscAdmTrans;
+        PriceDiscAdmTable priceDiscAdmTable;
+
+        select firstonly JournalNum from priceDiscAdmTrans
+            where priceDiscAdmTrans.PriceDiscTableRef == _priceDiscTableRecId
+               && priceDiscAdmTrans.JournalNum        != _journalNum
+            exists join priceDiscAdmTable
+                where priceDiscAdmTable.JournalNum == priceDiscAdmTrans.JournalNum
+                   && priceDiscAdmTable.Posted     == NoYes::No;
+
+        return priceDiscAdmTrans.JournalNum;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>writeLog</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Writes one log row for an agreement or an item.
+    /// </summary>
+    /// <param name = "_taskContract">The task contract.</param>
+    /// <param name = "_itemId">The item.</param>
+    /// <param name = "_priceDiscTableRef">The RecId of the agreement; 0 when the whole item is skipped.</param>
+    /// <param name = "_status">Processed or skipped.</param>
+    /// <param name = "_reason">The reason it was skipped.</param>
+    /// <param name = "_oldAmount">The current price.</param>
+    /// <param name = "_newAmount">The new price.</param>
+    /// <param name = "_currencyCode">The currency of the agreement.</param>
+    protected void writeLog(
+        DYLO_TradeAgreementPriceAdjTaskContract _taskContract,
+        ItemId                                  _itemId,
+        RefRecId                                _priceDiscTableRef,
+        DYLO_PriceAdjLogStatus                  _status,
+        str                                     _reason,
+        PriceCur                                _oldAmount,
+        PriceCur                                _newAmount,
+        CurrencyCode                            _currencyCode)
+    {
+        DYLO_PriceAdjLog log;
+
+        ttsbegin;
+
+        log.RunId             = _taskContract.parmRunId();
+        log.JournalNum        = _taskContract.parmJournalNum();
+        log.ItemId            = _itemId;
+        log.PriceDiscTableRef = _priceDiscTableRef;
+        log.Status            = _status;
+        log.Reason            = _reason;
+        log.OldAmount         = _oldAmount;
+        log.NewAmount         = _newAmount;
+        log.CurrencyCode      = _currencyCode;
+        log.insert();
+
+        ttscommit;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>finalizeRun</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Summary task: writes the completion infolog and posts the journal when Auto-post is set.
+    /// </summary>
+    /// <param name = "_taskContract">The task contract.</param>
+    public void finalizeRun(DYLO_TradeAgreementPriceAdjTaskContract _taskContract)
+    {
+        DYLO_PriceAdjLog    log;
+        PriceDiscAdmTrans   priceDiscAdmTrans;
+        DYLO_PriceAdjRunId  runId = _taskContract.parmRunId();
+        PriceDiscJournalNum journalNum = _taskContract.parmJournalNum();
+        int64               processedCount;
+        int64               skippedCount;
+        int64               lineCount;
+
+        select count(RecId) from log
+            where log.RunId  == runId
+               && log.Status == DYLO_PriceAdjLogStatus::Processed;
+        processedCount = log.RecId;
+
+        select count(RecId) from log
+            where log.RunId  == runId
+               && log.Status == DYLO_PriceAdjLogStatus::Skipped;
+        skippedCount = log.RecId;
+
+        select count(RecId) from priceDiscAdmTrans
+            where priceDiscAdmTrans.JournalNum == journalNum;
+        lineCount = priceDiscAdmTrans.RecId;
+
+        info(strFmt("@DYLOExtensions:MassPriceAdjSummaryProcessed", processedCount));
+        info(strFmt("@DYLOExtensions:MassPriceAdjSummaryLines", lineCount));
+        info(strFmt("@DYLOExtensions:MassPriceAdjSummaryJournal", journalNum));
+        info(strFmt("@DYLOExtensions:MassPriceAdjSummarySkipped", skippedCount));
+
+        log.clear();
+        while select ItemId, Reason from log
+            where log.RunId  == runId
+               && log.Status == DYLO_PriceAdjLogStatus::Skipped
+        {
+            warning(strFmt("@DYLOExtensions:MassPriceAdjSkippedItem", log.ItemId, log.Reason));
+        }
+
+        this.cleanupLog();
+
+        if (!lineCount)
+        {
+            this.deleteJournal(journalNum);
+            warning(strFmt("@DYLOExtensions:MassPriceAdjEmptyJournalDeleted", journalNum));
+            return;
+        }
+
+        if (_taskContract.parmAutoPost())
+        {
+            this.postJournal(journalNum);
+        }
+        else
+        {
+            info(strFmt("@DYLOExtensions:MassPriceAdjReadyToPost", journalNum));
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>postJournal</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Validates and posts the journal through the standard price/discount journal posting.
+    /// </summary>
+    /// <param name = "_journalNum">The journal number.</param>
+    protected void postJournal(PriceDiscJournalNum _journalNum)
+    {
+        PriceDiscAdmCheckPostInputContract  inputContract = PriceDiscAdmCheckPostInputContract::construct();
+        PriceDiscAdmCheckPostOutputContract outputContract;
+        boolean                             isPosted;
+
+        inputContract.parmJournalNum(_journalNum);
+        inputContract.parmCheckActionType(PriceDiscAdmCheckActionType::ValidateAll);
+        inputContract.parmCheckOnly(false);
+        inputContract.parmAcceptWarnings(true);
+        inputContract.parmPriceDiscAdmTransSetSelected(new Set(Types::Int64));
+
+        try
+        {
+            outputContract = PriceDiscAdmCheckPostOutputContract::create(PriceDiscAdmCheckPost::runFromContract(inputContract.pack()));
+            isPosted = outputContract.parmIsPosted();
+        }
+        catch (Exception::Error)
+        {
+            isPosted = false;
+        }
+
+        if (isPosted)
+        {
+            info(strFmt("@DYLOExtensions:MassPriceAdjPosted", _journalNum));
+        }
+        else
+        {
+            warning(strFmt("@DYLOExtensions:MassPriceAdjNotPosted", _journalNum));
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>deleteJournal</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Deletes the journal of this run and its lines.
+    /// </summary>
+    /// <param name = "_journalNum">The journal number.</param>
+    protected void deleteJournal(PriceDiscJournalNum _journalNum)
+    {
+        PriceDiscAdmTable priceDiscAdmTable;
+
+        ttsbegin;
+
+        PriceDiscAdmTable::deleteJournal(_journalNum);
+
+        priceDiscAdmTable = PriceDiscAdmTable::find(_journalNum, true);
+        if (priceDiscAdmTable.RecId)
+        {
+            priceDiscAdmTable.delete();
+        }
+
+        ttscommit;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>cleanupLog</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Deletes log rows that are older than the retention period.
+    /// </summary>
+    protected void cleanupLog()
+    {
+        DYLO_PriceAdjLog    log;
+        utcdatetime         cutoff = DateTimeUtil::addDays(DateTimeUtil::utcNow(), -#LogRetentionDays);
+
+        ttsbegin;
+
+        delete_from log
+            where log.CreatedDateTime < cutoff;
+
+        ttscommit;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

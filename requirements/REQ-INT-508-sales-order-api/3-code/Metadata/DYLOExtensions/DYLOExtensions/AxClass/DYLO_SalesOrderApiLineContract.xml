@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_SalesOrderApiLineContract</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// One order line of the inbound sales order API request.
+/// </summary>
+[DataContractAttribute]
+public class DYLO_SalesOrderApiLineContract
+{
+    ItemId              itemId;
+    Qty                 qty;
+    UnitOfMeasureSymbol unit;
+    InventSiteId        site;
+    InventLocationId    warehouse;
+    Price               unitPrice;
+    boolean             unitPriceAssigned;
+    str                 hasUnitPriceText;
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>parmItemId</Name>
+				<Source><![CDATA[
+    [DataMemberAttribute('itemId')]
+    public ItemId parmItemId(ItemId _itemId = itemId)
+    {
+        itemId = _itemId;
+        return itemId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmQty</Name>
+				<Source><![CDATA[
+    [DataMemberAttribute('qty')]
+    public Qty parmQty(Qty _qty = qty)
+    {
+        qty = _qty;
+        return qty;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmUnit</Name>
+				<Source><![CDATA[
+    [DataMemberAttribute('unit')]
+    public UnitOfMeasureSymbol parmUnit(UnitOfMeasureSymbol _unit = unit)
+    {
+        unit = _unit;
+        return unit;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmSite</Name>
+				<Source><![CDATA[
+    [DataMemberAttribute('site')]
+    public InventSiteId parmSite(InventSiteId _site = site)
+    {
+        site = _site;
+        return site;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmWarehouse</Name>
+				<Source><![CDATA[
+    [DataMemberAttribute('warehouse')]
+    public InventLocationId parmWarehouse(InventLocationId _warehouse = warehouse)
+    {
+        warehouse = _warehouse;
+        return warehouse;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmUnitPrice</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The unit price override. Assigning a value marks the price as sent, so a price of 0 is told apart from no price.
+    /// </summary>
+    [DataMemberAttribute('unitPrice')]
+    public Price parmUnitPrice(Price _unitPrice = unitPrice)
+    {
+        if (!prmIsDefault(_unitPrice))
+        {
+            unitPrice         = _unitPrice;
+            unitPriceAssigned = true;
+        }
+
+        return unitPrice;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmHasUnitPrice</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Whether a unit price override was sent ('true' or 'false').
+    /// Written to the stored request so that reprocessing reads the same answer back;
+    /// a caller does not need to send it, it follows from unitPrice.
+    /// </summary>
+    [DataMemberAttribute('hasUnitPrice')]
+    public str parmHasUnitPrice(str _hasUnitPrice = hasUnitPriceText)
+    {
+        if (!prmIsDefault(_hasUnitPrice))
+        {
+            hasUnitPriceText = _hasUnitPrice;
+        }
+
+        return this.hasUnitPrice() ? 'true' : 'false';
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>hasUnitPrice</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Determines whether a unit price override was sent.
+    /// </summary>
+    public boolean hasUnitPrice()
+    {
+        if (hasUnitPriceText)
+        {
+            return hasUnitPriceText == 'true';
+        }
+
+        return unitPriceAssigned;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

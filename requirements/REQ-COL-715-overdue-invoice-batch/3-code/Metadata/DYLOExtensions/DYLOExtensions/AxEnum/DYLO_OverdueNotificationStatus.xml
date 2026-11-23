@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxEnum xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_OverdueNotificationStatus</Name>
+	<Label>@DYLOExtensions:OverdueInvNotifStatus</Label>
+	<UseEnumValue>No</UseEnumValue>
+	<EnumValues>
+		<AxEnumValue>
+			<Name>Sent</Name>
+			<Label>@DYLOExtensions:OverdueInvNotifStatusSent</Label>
+		</AxEnumValue>
+		<AxEnumValue>
+			<Name>Failed</Name>
+			<Label>@DYLOExtensions:OverdueInvNotifStatusFailed</Label>
+			<Value>1</Value>
+		</AxEnumValue>
+	</EnumValues>
+</AxEnum>

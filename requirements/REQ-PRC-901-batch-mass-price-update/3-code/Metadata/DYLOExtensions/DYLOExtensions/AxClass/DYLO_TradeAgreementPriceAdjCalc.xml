@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_TradeAgreementPriceAdjCalc</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Calculates the adjusted and rounded price for the mass trade agreement price update.
+/// </summary>
+public final class DYLO_TradeAgreementPriceAdjCalc
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>newPrice</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Calculates the new price from the old price, the adjustment percentage and the rounding rule.
+    /// </summary>
+    /// <param name = "_old">The current price of the agreement.</param>
+    /// <param name = "_pct">The adjustment percentage; may be negative.</param>
+    /// <param name = "_rule">The rounding rule.</param>
+    /// <param name = "_cur">The currency of the agreement.</param>
+    /// <returns>The adjusted and rounded price.</returns>
+    public static Price newPrice(Price _old, real _pct, DYLO_PriceAdjRoundingRule _rule, CurrencyCode _cur)
+    {
+        real  raw = _old * (1 + _pct / 100);
+        Price ret;
+
+        switch (_rule)
+        {
+            case DYLO_PriceAdjRoundingRule::Nearest005:
+                ret = round(raw, 0.05);
+                break;
+
+            case DYLO_PriceAdjRoundingRule::Nearest010:
+                ret = round(raw, 0.10);
+                break;
+
+            default:
+                ret = CurrencyExchangeHelper::amount(raw, _cur);
+                break;
+        }
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

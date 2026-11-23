@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_OpenBackorderRiskContract</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Data contract of the <c>DYLO_OpenBackorderRiskReport</c> report (REQ-AR-410).
+/// </summary>
+[
+    DataContractAttribute,
+    SysOperationContractProcessingAttribute(classStr(DYLO_OpenBackorderRiskUIBuilder))
+]
+public class DYLO_OpenBackorderRiskContract implements SysOperationValidatable, SysOperationInitializable
+{
+    InventSiteId        inventSiteId;
+    InventLocationId    inventLocationId;
+    CustGroupId         custGroup;
+    List                custAccountList;
+    int                 minDaysOverdue;
+    NoYesId             includeCreditHold;
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>initialize</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Sets the default values used when the dialog is opened for the first time.
+    /// </summary>
+    public void initialize()
+    {
+        custAccountList     = new List(Types::String);
+        minDaysOverdue      = 1;
+        includeCreditHold   = NoYes::Yes;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmInventSiteId</Name>
+				<Source><![CDATA[
+    [
+        DataMemberAttribute('InventSiteId'),
+        SysOperationLabelAttribute(literalStr("@DYLOExtensions:OpenBackorderRiskInventSiteId")),
+        SysOperationHelpTextAttribute(literalStr("@DYLOExtensions:OpenBackorderRiskInventSiteIdHelp")),
+        SysOperationDisplayOrderAttribute('1')
+    ]
+    public InventSiteId parmInventSiteId(InventSiteId _inventSiteId = inventSiteId)
+    {
+        inventSiteId = _inventSiteId;
+        return inventSiteId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmInventLocationId</Name>
+				<Source><![CDATA[
+    [
+        DataMemberAttribute('InventLocationId'),
+        SysOperationLabelAttribute(literalStr("@DYLOExtensions:OpenBackorderRiskInventLocationId")),
+        SysOperationHelpTextAttribute(literalStr("@DYLOExtensions:OpenBackorderRiskInventLocationIdHelp")),
+        SysOperationDisplayOrderAttribute('2')
+    ]
+    public InventLocationId parmInventLocationId(InventLocationId _inventLocationId = inventLocationId)
+    {
+        inventLocationId = _inventLocationId;
+        return inventLocationId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmCustGroup</Name>
+				<Source><![CDATA[
+    [
+        DataMemberAttribute('CustGroup'),
+        SysOperationLabelAttribute(literalStr("@DYLOExtensions:OpenBackorderRiskCustGroup")),
+        SysOperationHelpTextAttribute(literalStr("@DYLOExtensions:OpenBackorderRiskCustGroupHelp")),
+        SysOperationDisplayOrderAttribute('3')
+    ]
+    public CustGroupId parmCustGroup(CustGroupId _custGroup = custGroup)
+    {
+        custGroup = _custGroup;
+        return custGroup;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmCustAccountList</Name>
+				<Source><![CDATA[
+    [
+        DataMemberAttribute('CustAccountList'),
+        SysOperationLabelAttribute(literalStr("@DYLOExtensions:OpenBackorderRiskCustAccountList")),
+        SysOperationHelpTextAttribute(literalStr("@DYLOExtensions:OpenBackorderRiskCustAccountListHelp")),
+        SysOperationDisplayOrderAttribute('4'),
+        AifCollectionTypeAttribute('return', Types::String)
+    ]
+    public List parmCustAccountList(List _custAccountList = custAccountList)
+    {
+        custAccountList = _custAccountList;
+        return custAccountList;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmMinDaysOverdue</Name>
+				<Source><![CDATA[
+    [
+        DataMemberAttribute('MinDaysOverdue'),
+        SysOperationLabelAttribute(literalStr("@DYLOExtensions:OpenBackorderRiskMinDaysOverdue")),
+        SysOperationHelpTextAttribute(literalStr("@DYLOExtensions:OpenBackorderRiskMinDaysOverdueHelp")),
+        SysOperationDisplayOrderAttribute('5')
+    ]
+    public int parmMinDaysOverdue(int _minDaysOverdue = minDaysOverdue)
+    {
+        minDaysOverdue = _minDaysOverdue;
+        return minDaysOverdue;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmIncludeCreditHold</Name>
+				<Source><![CDATA[
+    [
+        DataMemberAttribute('IncludeCreditHold'),
+        SysOperationLabelAttribute(literalStr("@DYLOExtensions:OpenBackorderRiskIncludeCreditHold")),
+        SysOperationHelpTextAttribute(literalStr("@DYLOExtensions:OpenBackorderRiskIncludeCreditHoldHelp")),
+        SysOperationDisplayOrderAttribute('6')
+    ]
+    public NoYesId parmIncludeCreditHold(NoYesId _includeCreditHold = includeCreditHold)
+    {
+        includeCreditHold = _includeCreditHold;
+        return includeCreditHold;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>validate</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Validates the parameters entered in the dialog.
+    /// </summary>
+    /// <returns>true if the parameters are valid; otherwise, false.</returns>
+    public boolean validate()
+    {
+        boolean ret = true;
+
+        if (minDaysOverdue < 1)
+        {
+            ret = checkFailed("@DYLOExtensions:OpenBackorderRiskErrMinDays");
+        }
+
+        if (inventSiteId && inventLocationId
+            && InventLocation::find(inventLocationId).InventSiteId != inventSiteId)
+        {
+            ret = checkFailed(strFmt("@DYLOExtensions:OpenBackorderRiskErrWarehouseSite", inventLocationId, inventSiteId));
+        }
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

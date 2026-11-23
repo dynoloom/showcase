@@ -1,0 +1,436 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_MerchHierarchyManager</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Recursive logic of the merchandising hierarchy (REQ-PIM-903): circular reference protection,
+/// recalculation of levels and inherited margins, sibling order, re-parenting and roll-up counts.
+/// </summary>
+public final class DYLO_MerchHierarchyManager
+{
+    private const int MaxDepth = 1000;
+    private const str RootNodeId = 'ROOT';
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>validateNewParent</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Validates that a node may be placed under a new parent node.
+    /// Walks upwards from the new parent; fails when it meets the node itself (circular reference).
+    /// </summary>
+    public static boolean validateNewParent(DYLO_MerchHierarchyNode _node, DYLO_MerchHierarchyNode _newParent)
+    {
+        boolean                 ret = true;
+        DYLO_MerchHierarchyNode current;
+        int                     steps;
+
+        if (!_newParent.RecId)
+        {
+            return checkFailed("@DYLOExtensions:MerchHierParentInvalid");
+        }
+
+        if (_node.RecId && DYLO_MerchHierarchyNode::find(_node.RecId).ParentNode == 0)
+        {
+            return checkFailed("@DYLOExtensions:MerchHierRootNoMove");
+        }
+
+        if (_newParent.RecId == _node.RecId)
+        {
+            return checkFailed(strFmt("@DYLOExtensions:MerchHierSelfParent", _node.NodeId));
+        }
+
+        current = _newParent;
+
+        while (current.RecId && steps < MaxDepth)
+        {
+            if (current.RecId == _node.RecId)
+            {
+                return checkFailed(strFmt("@DYLOExtensions:MerchHierCircularParent", _node.NodeId, _newParent.NodeId));
+            }
+
+            current = DYLO_MerchHierarchyNode::find(current.ParentNode);
+            steps++;
+        }
+
+        if (steps >= MaxDepth)
+        {
+            ret = checkFailed("@DYLOExtensions:MerchHierLoopDetected");
+        }
+
+        if (_newParent.hasProducts())
+        {
+            ret = checkFailed(strFmt("@DYLOExtensions:MerchHierParentHasProducts", _newParent.NodeId));
+        }
+
+        if (!_newParent.Active)
+        {
+            ret = checkFailed(strFmt("@DYLOExtensions:MerchHierParentInactive", _newParent.NodeId));
+        }
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>recalcSubtree</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Recalculates the level and the effective minimum gross margin of all descendants of a node.
+    /// Runs inside the caller's transaction.
+    /// </summary>
+    public static void recalcSubtree(DYLO_MerchHierarchyNode _node)
+    {
+        DYLO_MerchHierarchyManager::recalcChildren(_node, 0);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>recalcChildren</Name>
+				<Source><![CDATA[
+    private static void recalcChildren(DYLO_MerchHierarchyNode _node, int _depth)
+    {
+        DYLO_MerchHierarchyNode child;
+
+        if (_depth >= MaxDepth)
+        {
+            throw error("@DYLOExtensions:MerchHierLoopDetected");
+        }
+
+        ttsbegin;
+
+        while select forupdate child
+            where child.ParentNode == _node.RecId
+        {
+            child.HierarchyLevel = _node.HierarchyLevel + 1;
+
+            if (child.MinGrossMarginPct != 0)
+            {
+                child.EffectiveMinGrossMarginPct = child.MinGrossMarginPct;
+                child.InheritedFromNode          = child.RecId;
+            }
+            else
+            {
+                child.EffectiveMinGrossMarginPct = _node.EffectiveMinGrossMarginPct;
+                child.InheritedFromNode          = _node.InheritedFromNode;
+            }
+
+            // doUpdate: the table's update() would recalculate the subtree again.
+            child.doUpdate();
+
+            DYLO_MerchHierarchyManager::recalcChildren(child, _depth + 1);
+        }
+
+        ttscommit;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>reparent</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Moves a node, with its subtree, under a new parent node.
+    /// </summary>
+    /// <returns>true if the node was moved; otherwise, false.</returns>
+    public static boolean reparent(DYLO_MerchHierarchyNode _node, RecId _newParentRecId)
+    {
+        DYLO_MerchHierarchyNode newParent = DYLO_MerchHierarchyNode::find(_newParentRecId);
+        DYLO_MerchHierarchyNode node      = DYLO_MerchHierarchyNode::find(_node.RecId);
+
+        if (!node.RecId || !DYLO_MerchHierarchyManager::validateNewParent(node, newParent))
+        {
+            return false;
+        }
+
+        if (node.ParentNode == newParent.RecId)
+        {
+            return true;
+        }
+
+        ttsbegin;
+
+        node = DYLO_MerchHierarchyNode::find(_node.RecId, true);
+        node.ParentNode = newParent.RecId;
+        node.SortOrder  = DYLO_MerchHierarchyManager::nextSortOrder(newParent.RecId);
+        // update() recalculates the level and the effective margin from the new parent, then the subtree.
+        node.update();
+
+        ttscommit;
+
+        return true;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>findSibling</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Finds the previous (_up = true) or the next sibling of a node by sort order.
+    /// </summary>
+    public static DYLO_MerchHierarchyNode findSibling(DYLO_MerchHierarchyNode _node, boolean _up, boolean _forUpdate = false)
+    {
+        DYLO_MerchHierarchyNode sibling;
+
+        if (!_node.RecId || !_node.ParentNode)
+        {
+            return sibling;
+        }
+
+        sibling.selectForUpdate(_forUpdate);
+
+        if (_up)
+        {
+            select firstonly sibling
+                order by SortOrder desc
+                where sibling.ParentNode == _node.ParentNode
+                   && sibling.SortOrder  <  _node.SortOrder
+                   && sibling.RecId      != _node.RecId;
+        }
+        else
+        {
+            select firstonly sibling
+                order by SortOrder asc
+                where sibling.ParentNode == _node.ParentNode
+                   && sibling.SortOrder  >  _node.SortOrder
+                   && sibling.RecId      != _node.RecId;
+        }
+
+        return sibling;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>moveUp</Name>
+				<Source><![CDATA[
+    public static boolean moveUp(DYLO_MerchHierarchyNode _node)
+    {
+        return DYLO_MerchHierarchyManager::swapWithSibling(_node, true);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>moveDown</Name>
+				<Source><![CDATA[
+    public static boolean moveDown(DYLO_MerchHierarchyNode _node)
+    {
+        return DYLO_MerchHierarchyManager::swapWithSibling(_node, false);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>swapWithSibling</Name>
+				<Source><![CDATA[
+    private static boolean swapWithSibling(DYLO_MerchHierarchyNode _node, boolean _up)
+    {
+        DYLO_MerchHierarchyNode node;
+        DYLO_MerchHierarchyNode sibling;
+        DYLO_MerchSortOrder     sortOrder;
+        boolean                 moved;
+
+        ttsbegin;
+
+        node    = DYLO_MerchHierarchyNode::find(_node.RecId, true);
+        sibling = DYLO_MerchHierarchyManager::findSibling(node, _up, true);
+
+        if (node.RecId && sibling.RecId)
+        {
+            sortOrder         = node.SortOrder;
+            node.SortOrder    = sibling.SortOrder;
+            sibling.SortOrder = sortOrder;
+
+            node.doUpdate();
+            sibling.doUpdate();
+
+            moved = true;
+        }
+
+        ttscommit;
+
+        return moved;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>nextSortOrder</Name>
+				<Source><![CDATA[
+    public static DYLO_MerchSortOrder nextSortOrder(RecId _parentRecId)
+    {
+        DYLO_MerchHierarchyNode child;
+
+        select maxof(SortOrder) from child
+            where child.ParentNode == _parentRecId;
+
+        return child.SortOrder + 1;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>subtreeNodeRecIds</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Returns the RecIds of a node and all its descendants.
+    /// </summary>
+    public static Set subtreeNodeRecIds(RecId _nodeRecId)
+    {
+        Set nodes = new Set(Types::Int64);
+
+        if (_nodeRecId)
+        {
+            DYLO_MerchHierarchyManager::addSubtree(_nodeRecId, nodes, 0);
+        }
+
+        return nodes;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>addSubtree</Name>
+				<Source><![CDATA[
+    private static void addSubtree(RecId _nodeRecId, Set _nodes, int _depth)
+    {
+        DYLO_MerchHierarchyNode child;
+
+        if (_depth >= MaxDepth || _nodes.in(_nodeRecId))
+        {
+            return;
+        }
+
+        _nodes.add(_nodeRecId);
+
+        while select RecId from child
+            where child.ParentNode == _nodeRecId
+        {
+            DYLO_MerchHierarchyManager::addSubtree(child.RecId, _nodes, _depth + 1);
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>rollupProductCount</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Counts the products assigned to a node and all its descendants.
+    /// </summary>
+    public static Counter rollupProductCount(RecId _nodeRecId)
+    {
+        DYLO_MerchHierarchyProduct  product;
+        SetEnumerator               enumerator = DYLO_MerchHierarchyManager::subtreeNodeRecIds(_nodeRecId).getEnumerator();
+        RecId                       nodeRecId;
+        Counter                     total;
+
+        while (enumerator.moveNext())
+        {
+            nodeRecId = enumerator.current();
+
+            select count(RecId) from product
+                where product.Node == nodeRecId;
+
+            total += int642int(product.RecId);
+        }
+
+        return total;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>canAddChild</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Checks that a child node may be created under a node: it is active and has no products.
+    /// </summary>
+    public static boolean canAddChild(DYLO_MerchHierarchyNode _parent, boolean _showMessages = true)
+    {
+        boolean ret = true;
+
+        if (!_parent.RecId)
+        {
+            return _showMessages ? checkFailed("@DYLOExtensions:MerchHierParentInvalid") : false;
+        }
+
+        if (_parent.hasProducts())
+        {
+            ret = _showMessages ? checkFailed(strFmt("@DYLOExtensions:MerchHierParentHasProducts", _parent.NodeId)) : false;
+        }
+
+        if (!_parent.Active)
+        {
+            ret = _showMessages ? checkFailed(strFmt("@DYLOExtensions:MerchHierParentInactive", _parent.NodeId)) : false;
+        }
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>newChildNodeId</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Proposes a node code for a new child node that is not used yet: parent code, a hyphen and a number.
+    /// </summary>
+    public static DYLO_MerchNodeId newChildNodeId(DYLO_MerchHierarchyNode _parent, DYLO_MerchSortOrder _sortOrder)
+    {
+        DYLO_MerchNodeId    nodeId;
+        int                 counter = _sortOrder;
+        int                 attempts;
+        int                 maxLength = new SysDictType(extendedTypeNum(DYLO_MerchNodeId)).stringLen();
+        str                 suffix;
+
+        do
+        {
+            suffix = strFmt('-%1', counter);
+            nodeId = subStr(_parent.NodeId, 1, maxLength - strLen(suffix)) + suffix;
+            counter++;
+            attempts++;
+        }
+        while (DYLO_MerchHierarchyNode::exist(nodeId) && attempts < MaxDepth);
+
+        return nodeId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>createRootIfMissing</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Creates the root node of the current legal entity if it does not exist yet.
+    /// </summary>
+    public static DYLO_MerchHierarchyNode createRootIfMissing()
+    {
+        DYLO_MerchHierarchyNode root = DYLO_MerchHierarchyNode::findRoot();
+
+        if (!root.RecId && hasTableAccess(tableNum(DYLO_MerchHierarchyNode), AccessType::Add))
+        {
+            ttsbegin;
+
+            root.initValue();
+            root.NodeId = RootNodeId;
+            root.Name   = "@DYLOExtensions:MerchHierRootName";
+            root.insert();
+
+            ttscommit;
+        }
+
+        return root;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

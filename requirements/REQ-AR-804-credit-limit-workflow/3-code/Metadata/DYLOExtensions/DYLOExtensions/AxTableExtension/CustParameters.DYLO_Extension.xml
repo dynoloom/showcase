@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxTableExtension xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>CustParameters.DYLO_Extension</Name>
+	<FieldGroupExtensions />
+	<FieldGroups>
+		<AxTableFieldGroup>
+			<Name>DYLO_CreditLimitApproval</Name>
+			<Label>@DYLOExtensions:CreditLimitReqApprovalTab</Label>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>DYLO_CreditLimitIncreaseThreshold</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>DYLO_CreditLimitNewLimitThreshold</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+	</FieldGroups>
+	<FieldModifications />
+	<Fields>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldReal">
+			<Name>DYLO_CreditLimitIncreaseThreshold</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>AmountMST</ExtendedDataType>
+			<HelpText>@DYLOExtensions:CreditLimitReqIncreaseThresholdHelp</HelpText>
+			<Label>@DYLOExtensions:CreditLimitReqIncreaseThreshold</Label>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldReal">
+			<Name>DYLO_CreditLimitNewLimitThreshold</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>AmountMST</ExtendedDataType>
+			<HelpText>@DYLOExtensions:CreditLimitReqNewLimitThresholdHelp</HelpText>
+			<Label>@DYLOExtensions:CreditLimitReqNewLimitThreshold</Label>
+		</AxTableField>
+	</Fields>
+	<Indexes />
+	<Mappings />
+	<PropertyModifications />
+	<Relations />
+</AxTableExtension>

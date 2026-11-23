@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_SalesOrderApiReprocess</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Reprocesses a failed inbound sales order API call from its stored request JSON.
+/// </summary>
+public class DYLO_SalesOrderApiReprocess
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>construct</Name>
+				<Source><![CDATA[
+    public static DYLO_SalesOrderApiReprocess construct()
+    {
+        return new DYLO_SalesOrderApiReprocess();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>main</Name>
+				<Source><![CDATA[
+    public static void main(Args _args)
+    {
+        DYLO_SalesOrderApiTrace callerTrace;
+
+        if (!_args || !_args.record() || _args.dataset() != tableNum(DYLO_SalesOrderApiTrace))
+        {
+            throw error("@DYLOExtensions:SOApiReprocessNoRecord");
+        }
+
+        callerTrace = _args.record();
+
+        DYLO_SalesOrderApiReprocess::construct().reprocess(callerTrace);
+
+        if (FormDataUtil::isFormDataSource(callerTrace))
+        {
+            FormDataUtil::getFormDataSource(callerTrace).research(true);
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>reprocess</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Reprocesses a failed trace record in the company it was logged in.
+    /// </summary>
+    /// <param name = "_trace">The trace record.</param>
+    /// <returns>The response of the reprocessing.</returns>
+    public DYLO_SalesOrderApiResponseContract reprocess(DYLO_SalesOrderApiTrace _trace)
+    {
+        DYLO_SalesOrderApiResponseContract response;
+
+        changecompany(_trace.DataAreaId)
+        {
+            DYLO_SalesOrderApiTrace             trace = DYLO_SalesOrderApiTrace::findRecId(_trace.RecId);
+            DYLO_SalesOrderApiRequestContract   request;
+            System.Diagnostics.Stopwatch        stopwatch;
+            int                                 infologStart;
+
+            if (!trace.canReprocess())
+            {
+                throw error("@DYLOExtensions:SOApiReprocessNotFailed");
+            }
+
+            stopwatch = new System.Diagnostics.Stopwatch();
+            stopwatch.Start();
+            infologStart = infologLine();
+
+            try
+            {
+                request  = FormJsonSerializer::deserializeObject(classNum(DYLO_SalesOrderApiRequestContract), trace.RequestJson);
+                response = DYLO_SalesOrderApiProcessor::process(request);
+            }
+            catch (Exception::CLRError)
+            {
+                response = DYLO_SalesOrderApiProcessor::newUnexpectedResponse(request, infologStart, true);
+            }
+            catch
+            {
+                response = DYLO_SalesOrderApiProcessor::newUnexpectedResponse(request, infologStart);
+            }
+
+            stopwatch.Stop();
+
+            DYLO_SalesOrderApiTraceLogger::logRetry(trace, response, stopwatch.ElapsedMilliseconds);
+        }
+
+        if (response.parmSuccess())
+        {
+            info(strFmt("@DYLOExtensions:SOApiReprocessSucceeded", response.parmSalesId()));
+        }
+        else
+        {
+            warning(strFmt("@DYLOExtensions:SOApiReprocessFailed", response.parmMessage()));
+        }
+
+        return response;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

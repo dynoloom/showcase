@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_PrintMgmtDocType_EventHandler</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// REQ-INV-105: makes DYLO_SalesInvoice.Report the default report format of the Customer invoice document.
+/// </summary>
+class DYLO_PrintMgmtDocType_EventHandler
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>getDefaultReportFormatDelegate</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Returns DYLO_SalesInvoice.Report as the default format for sales order invoices.
+    /// </summary>
+    /// <param name = "_docType">The print management document type.</param>
+    /// <param name = "_result">The result that receives the default report format.</param>
+    [SubscribesTo(classStr(PrintMgmtDocType), delegateStr(PrintMgmtDocType, getDefaultReportFormatDelegate))]
+    public static void getDefaultReportFormatDelegate(PrintMgmtDocumentType _docType, EventHandlerResult _result)
+    {
+        if (_docType == PrintMgmtDocumentType::SalesOrderInvoice)
+        {
+            _result.result(ssrsReportStr(DYLO_SalesInvoice, Report));
+        }
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

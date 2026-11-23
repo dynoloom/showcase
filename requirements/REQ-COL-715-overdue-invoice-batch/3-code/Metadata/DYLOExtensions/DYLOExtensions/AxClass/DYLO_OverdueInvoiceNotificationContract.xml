@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_OverdueInvoiceNotificationContract</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Data contract of the overdue invoice notification batch job.
+/// </summary>
+[
+    DataContractAttribute,
+    SysOperationGroupAttribute('Parameters', "@DYLOExtensions:OverdueInvNotifParametersGroup", '1')
+]
+public class DYLO_OverdueInvoiceNotificationContract implements SysOperationValidatable
+{
+    Days        gracePeriodDays;
+    CustGroupId custGroupId;
+    Email       recipientEmail;
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>parmGracePeriodDays</Name>
+				<Source><![CDATA[
+    [
+        DataMemberAttribute('GracePeriodDays'),
+        SysOperationLabelAttribute(literalStr("@DYLOExtensions:OverdueInvNotifGracePeriod")),
+        SysOperationHelpTextAttribute(literalStr("@DYLOExtensions:OverdueInvNotifGracePeriodHelp")),
+        SysOperationGroupMemberAttribute('Parameters'),
+        SysOperationDisplayOrderAttribute('1')
+    ]
+    public Days parmGracePeriodDays(Days _gracePeriodDays = gracePeriodDays)
+    {
+        gracePeriodDays = _gracePeriodDays;
+        return gracePeriodDays;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmCustGroupId</Name>
+				<Source><![CDATA[
+    [
+        DataMemberAttribute('CustGroupId'),
+        SysOperationLabelAttribute(literalStr("@DYLOExtensions:OverdueInvNotifCustGroup")),
+        SysOperationHelpTextAttribute(literalStr("@DYLOExtensions:OverdueInvNotifCustGroupHelp")),
+        SysOperationGroupMemberAttribute('Parameters'),
+        SysOperationDisplayOrderAttribute('2')
+    ]
+    public CustGroupId parmCustGroupId(CustGroupId _custGroupId = custGroupId)
+    {
+        custGroupId = _custGroupId;
+        return custGroupId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmRecipientEmail</Name>
+				<Source><![CDATA[
+    [
+        DataMemberAttribute('RecipientEmail'),
+        SysOperationLabelAttribute(literalStr("@DYLOExtensions:OverdueInvNotifRecipient")),
+        SysOperationHelpTextAttribute(literalStr("@DYLOExtensions:OverdueInvNotifRecipientHelp")),
+        SysOperationGroupMemberAttribute('Parameters'),
+        SysOperationDisplayOrderAttribute('3')
+    ]
+    public Email parmRecipientEmail(Email _recipientEmail = recipientEmail)
+    {
+        recipientEmail = _recipientEmail;
+        return recipientEmail;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>validate</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Validates the parameters of the batch job.
+    /// </summary>
+    /// <returns>true if the parameters are valid; otherwise, false.</returns>
+    public boolean validate()
+    {
+        boolean ret = true;
+
+        if (gracePeriodDays < 0)
+        {
+            ret = checkFailed("@DYLOExtensions:OverdueInvNotifErrGrace");
+        }
+
+        if (!recipientEmail)
+        {
+            ret = checkFailed("@DYLOExtensions:OverdueInvNotifErrRecipientBlank");
+        }
+        else if (!DYLO_OverdueInvoiceNotificationContract::isValidEmail(recipientEmail))
+        {
+            ret = checkFailed(strFmt("@DYLOExtensions:OverdueInvNotifErrInvalidEmail", recipientEmail));
+        }
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>isValidEmail</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Checks whether a text is a valid email address.
+    /// </summary>
+    /// <param name = "_address">The address to check.</param>
+    /// <returns>true if the address is valid; otherwise, false.</returns>
+    public static boolean isValidEmail(Email _address)
+    {
+        System.Net.Mail.MailAddress mailAddress;
+        boolean                     ret = true;
+
+        try
+        {
+            mailAddress = new System.Net.Mail.MailAddress(_address);
+        }
+        catch (Exception::CLRError)
+        {
+            ret = false;
+        }
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

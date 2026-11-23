@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxWorkflowApproval xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V2">
+	<Name>DYLO_CustCreditLimitReqApproval</Name>
+	<CanceledEventHandler>DYLO_CustCreditLimitReqApprovalEventHandler</CanceledEventHandler>
+	<DelegateMenuItem>DYLO_CustCreditLimitReqApprovalDelegate</DelegateMenuItem>
+	<Document>DYLO_CustCreditLimitReqWFDocument</Document>
+	<DocumentMenuItem>DYLO_CustCreditLimitRequest</DocumentMenuItem>
+	<DocumentPreviewFieldGroup>Overview</DocumentPreviewFieldGroup>
+	<HelpText>@DYLOExtensions:CreditLimitReqApprovalHelp</HelpText>
+	<Label>@DYLOExtensions:CreditLimitReqApprovalLabel</Label>
+	<ResubmitMenuItem>DYLO_CustCreditLimitReqApprovalResubmit</ResubmitMenuItem>
+	<StartedEventHandler>DYLO_CustCreditLimitReqApprovalEventHandler</StartedEventHandler>
+	<WorkItemsCreatedEventHandler>DYLO_CustCreditLimitReqApprovalEventHandler</WorkItemsCreatedEventHandler>
+	<Approve>
+		<Name xmlns="">Approve</Name>
+		<ActionMenuItem xmlns="">DYLO_CustCreditLimitReqApprovalApprove</ActionMenuItem>
+		<EventHandler xmlns="">DYLO_CustCreditLimitReqApprovalEventHandler</EventHandler>
+	</Approve>
+	<Deny>
+		<Name xmlns="">Deny</Name>
+		<Enabled xmlns="">No</Enabled>
+		<Type xmlns="">Deny</Type>
+	</Deny>
+	<Reject>
+		<Name xmlns="">Reject</Name>
+		<ActionMenuItem xmlns="">DYLO_CustCreditLimitReqApprovalReject</ActionMenuItem>
+		<EventHandler xmlns="">DYLO_CustCreditLimitReqApprovalEventHandler</EventHandler>
+		<Type xmlns="">Return</Type>
+	</Reject>
+	<RequestChange>
+		<Name xmlns="">RequestChange</Name>
+		<ActionMenuItem xmlns="">DYLO_CustCreditLimitReqApprovalRequestChange</ActionMenuItem>
+		<EventHandler xmlns="">DYLO_CustCreditLimitReqApprovalEventHandler</EventHandler>
+		<Type xmlns="">RequestChange</Type>
+	</RequestChange>
+</AxWorkflowApproval>

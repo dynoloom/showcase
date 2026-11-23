@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_NumberSeqModuleCustomer_Extension</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Adds the credit limit request ID number sequence reference to the Accounts receivable module.
+/// </summary>
+[ExtensionOf(classStr(NumberSeqModuleCustomer))]
+final class DYLO_NumberSeqModuleCustomer_Extension
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>loadModule</Name>
+				<Source><![CDATA[
+    protected void loadModule()
+    {
+        next loadModule();
+
+        NumberSeqDatatype datatype = NumberSeqDatatype::construct();
+
+        datatype.parmDatatypeId(extendedTypeNum(DYLO_CustCreditLimitRequestId));
+        datatype.parmReferenceHelp(literalStr("@DYLOExtensions:CreditLimitReqNumSeqHelp"));
+        datatype.parmWizardIsContinuous(false);
+        datatype.parmWizardIsManual(NoYes::No);
+        datatype.parmWizardFetchAheadQty(10);
+        datatype.parmWizardIsChangeDownAllowed(NoYes::No);
+        datatype.parmWizardIsChangeUpAllowed(NoYes::No);
+        datatype.parmWizardHighest(999999);
+        datatype.parmSortField(200);
+
+        datatype.addParameterType(NumberSeqParameterType::DataArea, true, false);
+        this.create(datatype);
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

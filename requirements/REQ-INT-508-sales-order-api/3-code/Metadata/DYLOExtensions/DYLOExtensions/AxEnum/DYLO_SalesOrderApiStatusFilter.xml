@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxEnum xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_SalesOrderApiStatusFilter</Name>
+	<Label>@DYLOExtensions:SOApiStatusFilter</Label>
+	<UseEnumValue>No</UseEnumValue>
+	<EnumValues>
+		<AxEnumValue>
+			<Name>All</Name>
+			<Label>@DYLOExtensions:SOApiStatusFilterAll</Label>
+		</AxEnumValue>
+		<AxEnumValue>
+			<Name>Success</Name>
+			<Label>@DYLOExtensions:SOApiStatusSuccess</Label>
+			<Value>1</Value>
+		</AxEnumValue>
+		<AxEnumValue>
+			<Name>Failed</Name>
+			<Label>@DYLOExtensions:SOApiStatusFailed</Label>
+			<Value>2</Value>
+		</AxEnumValue>
+		<AxEnumValue>
+			<Name>Reprocessed</Name>
+			<Label>@DYLOExtensions:SOApiStatusReprocessed</Label>
+			<Value>3</Value>
+		</AxEnumValue>
+	</EnumValues>
+</AxEnum>

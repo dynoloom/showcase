@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_SalesOrderApiOrderCreator</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Creates the sales order of a validated inbound sales order API request, in one transaction.
+/// </summary>
+public class DYLO_SalesOrderApiOrderCreator
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>construct</Name>
+				<Source><![CDATA[
+    public static DYLO_SalesOrderApiOrderCreator construct()
+    {
+        return new DYLO_SalesOrderApiOrderCreator();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>create</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Creates the sales order header and lines.
+    /// </summary>
+    /// <param name = "_request">The validated request.</param>
+    /// <returns>The ID of the new sales order.</returns>
+    public SalesId create(DYLO_SalesOrderApiRequestContract _request)
+    {
+        SalesTable      salesTable;
+        ListEnumerator  enumerator;
+
+        ttsbegin;
+
+        salesTable.clear();
+        salesTable.initValue();
+        salesTable.SalesId     = NumberSeq::newGetNum(SalesParameters::numRefSalesId()).num();
+        salesTable.CustAccount = _request.parmCustomerAccount();
+        salesTable.initFromCustTable();
+
+        if (_request.parmCurrency())
+        {
+            salesTable.CurrencyCode = _request.parmCurrency();
+        }
+
+        salesTable.PurchOrderFormNum = _request.parmCustomerPoReference();
+
+        if (_request.parmRequestedShipDate())
+        {
+            salesTable.ShippingDateRequested = _request.parmRequestedShipDate();
+        }
+
+        if (!salesTable.validateWrite())
+        {
+            throw error(strFmt("@DYLOExtensions:SOApiErrHeaderRejected", salesTable.CustAccount));
+        }
+
+        salesTable.insert();
+
+        enumerator = _request.parmLines().getEnumerator();
+        while (enumerator.moveNext())
+        {
+            this.createLine(salesTable, enumerator.current(), _request.parmRequestedShipDate());
+        }
+
+        ttscommit;
+
+        return salesTable.SalesId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>createLine</Name>
+				<Source><![CDATA[
+    private void createLine(SalesTable _salesTable, DYLO_SalesOrderApiLineContract _line, TransDate _requestedShipDate)
+    {
+        SalesLine   salesLine;
+        InventDim   inventDim;
+
+        salesLine.clear();
+        salesLine.SalesId = _salesTable.SalesId;
+        salesLine.ItemId  = _line.parmItemId();
+
+        if (_line.parmSite() || _line.parmWarehouse())
+        {
+            if (_line.parmSite())
+            {
+                inventDim.InventSiteId = _line.parmSite();
+            }
+
+            if (_line.parmWarehouse())
+            {
+                inventDim.InventLocationId = _line.parmWarehouse();
+            }
+
+            salesLine.InventDimId = InventDim::findOrCreate(inventDim).inventDimId;
+        }
+
+        salesLine.SalesQty = _line.parmQty();
+
+        if (_line.parmUnit())
+        {
+            salesLine.SalesUnit = _line.parmUnit();
+        }
+
+        if (_requestedShipDate)
+        {
+            salesLine.ShippingDateRequested = _requestedShipDate;
+        }
+
+        salesLine.createLine(true, true, true, true, true, true);
+
+        if (_line.hasUnitPrice())
+        {
+            salesLine = SalesLine::findRecId(salesLine.RecId, true);
+            salesLine.SalesPrice = _line.parmUnitPrice();
+            salesLine.PriceUnit  = 1;
+            salesLine.LineAmount = salesLine.calcLineAmount();
+            salesLine.update();
+        }
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

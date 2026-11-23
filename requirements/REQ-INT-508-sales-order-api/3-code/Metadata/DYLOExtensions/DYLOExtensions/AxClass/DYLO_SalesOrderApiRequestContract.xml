@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_SalesOrderApiRequestContract</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// The request of the inbound sales order API.
+/// </summary>
+[DataContractAttribute]
+public class DYLO_SalesOrderApiRequestContract
+{
+    DYLO_CorrelationId      correlationId;
+    DYLO_ExternalOrderRef   externalOrderId;
+    DataAreaId              legalEntity;
+    CustAccount             customerAccount;
+    CurrencyCode            currency;
+    TransDate               requestedShipDate;
+    CustPurchaseOrder       customerPoReference;
+    List                    lines;
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>parmCorrelationId</Name>
+				<Source><![CDATA[
+    [DataMemberAttribute('correlationId')]
+    public DYLO_CorrelationId parmCorrelationId(DYLO_CorrelationId _correlationId = correlationId)
+    {
+        correlationId = _correlationId;
+        return correlationId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmExternalOrderId</Name>
+				<Source><![CDATA[
+    [DataMemberAttribute('externalOrderId')]
+    public DYLO_ExternalOrderRef parmExternalOrderId(DYLO_ExternalOrderRef _externalOrderId = externalOrderId)
+    {
+        externalOrderId = _externalOrderId;
+        return externalOrderId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmLegalEntity</Name>
+				<Source><![CDATA[
+    [DataMemberAttribute('legalEntity')]
+    public DataAreaId parmLegalEntity(DataAreaId _legalEntity = legalEntity)
+    {
+        legalEntity = _legalEntity;
+        return legalEntity;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmCustomerAccount</Name>
+				<Source><![CDATA[
+    [DataMemberAttribute('customerAccount')]
+    public CustAccount parmCustomerAccount(CustAccount _customerAccount = customerAccount)
+    {
+        customerAccount = _customerAccount;
+        return customerAccount;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmCurrency</Name>
+				<Source><![CDATA[
+    [DataMemberAttribute('currency')]
+    public CurrencyCode parmCurrency(CurrencyCode _currency = currency)
+    {
+        currency = _currency;
+        return currency;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmRequestedShipDate</Name>
+				<Source><![CDATA[
+    [DataMemberAttribute('requestedShipDate')]
+    public TransDate parmRequestedShipDate(TransDate _requestedShipDate = requestedShipDate)
+    {
+        requestedShipDate = _requestedShipDate;
+        return requestedShipDate;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmCustomerPoReference</Name>
+				<Source><![CDATA[
+    [DataMemberAttribute('customerPoReference')]
+    public CustPurchaseOrder parmCustomerPoReference(CustPurchaseOrder _customerPoReference = customerPoReference)
+    {
+        customerPoReference = _customerPoReference;
+        return customerPoReference;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmLines</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The order lines, a list of <c>DYLO_SalesOrderApiLineContract</c>.
+    /// </summary>
+    [
+        DataMemberAttribute('lines'),
+        AifCollectionTypeAttribute('_lines', Types::Class, classStr(DYLO_SalesOrderApiLineContract)),
+        AifCollectionTypeAttribute('return', Types::Class, classStr(DYLO_SalesOrderApiLineContract)),
+        DataCollectionAttribute(Types::Class, classStr(DYLO_SalesOrderApiLineContract))
+    ]
+    public List parmLines(List _lines = lines)
+    {
+        lines = _lines;
+        return lines;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>lineCount</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets the number of order lines.
+    /// </summary>
+    public int lineCount()
+    {
+        return lines ? lines.elements() : 0;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

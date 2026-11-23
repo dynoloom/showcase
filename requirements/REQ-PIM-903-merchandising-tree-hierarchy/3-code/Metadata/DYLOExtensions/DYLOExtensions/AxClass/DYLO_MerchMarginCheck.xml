@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_MerchMarginCheck</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Checks the sales price lines of a trade agreement journal against the minimum gross margin
+/// of the item's merchandising node (REQ-PIM-903). Only writes warnings; never stops posting.
+/// </summary>
+public final class DYLO_MerchMarginCheck
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>construct</Name>
+				<Source><![CDATA[
+    public static DYLO_MerchMarginCheck construct()
+    {
+        return new DYLO_MerchMarginCheck();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>checkJournal</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Checks every sales price line for a single item of the journal whose item is in the hierarchy.
+    /// </summary>
+    public void checkJournal(PriceDiscJournalNum _journalNum)
+    {
+        PriceDiscAdmTrans           priceDiscAdmTrans;
+        DYLO_MerchHierarchyProduct  product;
+
+        if (!_journalNum)
+        {
+            return;
+        }
+
+        while select priceDiscAdmTrans
+            where priceDiscAdmTrans.JournalNum == _journalNum
+               && priceDiscAdmTrans.relation   == PriceType::PriceSales
+               && priceDiscAdmTrans.ItemCode   == PriceDiscProductCodeType::Table
+            exists join product
+                where product.ItemId == priceDiscAdmTrans.ItemRelation
+        {
+            this.checkLine(priceDiscAdmTrans);
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>checkLine</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Warns when the line's gross margin is below the effective minimum of the item's node.
+    /// </summary>
+    public void checkLine(PriceDiscAdmTrans _priceDiscAdmTrans)
+    {
+        DYLO_MerchHierarchyNode     node = DYLO_MerchHierarchyNode::find(
+                                                DYLO_MerchHierarchyProduct::findByItemId(_priceDiscAdmTrans.ItemRelation).Node);
+        DYLO_MerchMinGrossMarginPct threshold = node.EffectiveMinGrossMarginPct;
+        real                        marginPct;
+
+        if (!node.RecId || threshold == 0)
+        {
+            return;
+        }
+
+        if (!this.canConvertUnit(_priceDiscAdmTrans))
+        {
+            warning(strFmt("@DYLOExtensions:MerchHierUnitNotConvertible",
+                _priceDiscAdmTrans.ItemRelation,
+                _priceDiscAdmTrans.UnitId));
+            return;
+        }
+
+        marginPct = this.calcMarginPct(_priceDiscAdmTrans);
+
+        if (marginPct < threshold)
+        {
+            warning(strFmt("@DYLOExtensions:MerchHierMarginBelowMinimum",
+                _priceDiscAdmTrans.ItemRelation,
+                this.priceDate(_priceDiscAdmTrans),
+                strFmt('%1/%2', _priceDiscAdmTrans.AccountCode, _priceDiscAdmTrans.AccountRelation),
+                num2Str(round(marginPct, 0.01), 0, 2, 1, 0),
+                num2Str(threshold, 0, 2, 1, 0),
+                node.nodeDisplay()));
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>priceDate</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The date of the price: the line's From date, or today when it is blank.
+    /// </summary>
+    public TransDate priceDate(PriceDiscAdmTrans _priceDiscAdmTrans)
+    {
+        return _priceDiscAdmTrans.FromDate
+            ? _priceDiscAdmTrans.FromDate
+            : DateTimeUtil::getSystemDate(DateTimeUtil::getUserPreferredTimeZone());
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>inventUnitId</Name>
+				<Source><![CDATA[
+    private UnitOfMeasureSymbol inventUnitId(ItemId _itemId)
+    {
+        return InventTableModule::find(_itemId, ModuleInventPurchSales::Invent).UnitId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>needsUnitConversion</Name>
+				<Source><![CDATA[
+    private boolean needsUnitConversion(PriceDiscAdmTrans _priceDiscAdmTrans)
+    {
+        UnitOfMeasureSymbol inventUnitId = this.inventUnitId(_priceDiscAdmTrans.ItemRelation);
+
+        return _priceDiscAdmTrans.UnitId
+            && inventUnitId
+            && _priceDiscAdmTrans.UnitId != inventUnitId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>canConvertUnit</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Checks that the line's unit can be converted to the item's inventory unit.
+    /// </summary>
+    public boolean canConvertUnit(PriceDiscAdmTrans _priceDiscAdmTrans)
+    {
+        if (!this.needsUnitConversion(_priceDiscAdmTrans))
+        {
+            return true;
+        }
+
+        return EcoResProductUnitConverter::canBeConvertedForReleasedProduct(
+            _priceDiscAdmTrans.ItemRelation,
+            _priceDiscAdmTrans.InventDimId,
+            UnitOfMeasure::unitOfMeasureIdBySymbol(this.inventUnitId(_priceDiscAdmTrans.ItemRelation)),
+            UnitOfMeasure::unitOfMeasureIdBySymbol(_priceDiscAdmTrans.UnitId));
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>calcMarginPct</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Calculates the gross margin % of a sales price line against the item's active cost price:
+    /// (unit sales price - unit cost) / unit sales price x 100, both per inventory unit in the accounting currency.
+    /// </summary>
+    public real calcMarginPct(PriceDiscAdmTrans _priceDiscAdmTrans)
+    {
+        ItemId              itemId    = _priceDiscAdmTrans.ItemRelation;
+        TransDate           priceDate = this.priceDate(_priceDiscAdmTrans);
+        real                unitPrice = _priceDiscAdmTrans.Amount / (_priceDiscAdmTrans.PriceUnit ? _priceDiscAdmTrans.PriceUnit : 1);
+        real                salesUnitsPerInventUnit;
+        real                unitPriceMST;
+        real                unitCost;
+        InventItemPrice     inventItemPrice;
+
+        if (this.needsUnitConversion(_priceDiscAdmTrans))
+        {
+            salesUnitsPerInventUnit = EcoResProductUnitConverter::convertForReleasedProduct(
+                itemId,
+                _priceDiscAdmTrans.InventDimId,
+                1,
+                UnitOfMeasure::unitOfMeasureIdBySymbol(this.inventUnitId(itemId)),
+                UnitOfMeasure::unitOfMeasureIdBySymbol(_priceDiscAdmTrans.UnitId),
+                NoYes::No,
+                NoYes::No);
+
+            unitPrice = unitPrice * salesUnitsPerInventUnit;
+        }
+
+        unitPriceMST = _priceDiscAdmTrans.Currency
+            ? CurrencyExchangeHelper::amountCur2MST(unitPrice, _priceDiscAdmTrans.Currency, 0, priceDate)
+            : unitPrice;
+
+        inventItemPrice = InventItemPrice::findCurrent(itemId, CostingVersionPriceType::Cost, _priceDiscAdmTrans.InventDimId, priceDate);
+
+        unitCost = inventItemPrice.RecId
+            ? inventItemPrice.pcsPrice()
+            : InventTableModule::find(itemId, ModuleInventPurchSales::Invent).pcsPrice();
+
+        if (unitPriceMST <= 0)
+        {
+            return -100;
+        }
+
+        return (unitPriceMST - unitCost) / unitPriceMST * 100;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxSecurityDuty xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_SalesOrderApiIntegrate</Name>
+	<Label>@DYLOExtensions:SOApiDutyIntegrate</Label>
+	<Privileges>
+		<AxSecurityPrivilegeReference>
+			<Name>DYLO_SalesOrderApiInvoke</Name>
+		</AxSecurityPrivilegeReference>
+	</Privileges>
+</AxSecurityDuty>

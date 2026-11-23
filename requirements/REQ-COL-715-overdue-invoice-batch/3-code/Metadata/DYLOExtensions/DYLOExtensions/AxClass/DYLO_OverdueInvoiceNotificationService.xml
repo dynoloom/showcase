@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_OverdueInvoiceNotificationService</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Service of the overdue invoice notification batch job. Finds the open customer invoices that reached an
+/// overdue tier and sends one notification per invoice and tier.
+/// </summary>
+public class DYLO_OverdueInvoiceNotificationService extends SysOperationServiceBase
+{
+    TransDate   runDate;
+    Email       recipientEmail;
+    int         checkedCount;
+    int         sentCount;
+    int         failedCount;
+    int         skippedCount;
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>process</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Runs the overdue invoice notification job.
+    /// </summary>
+    /// <param name = "_contract">The parameters of the job.</param>
+    public void process(DYLO_OverdueInvoiceNotificationContract _contract)
+    {
+        CustTransOpen       custTransOpen;
+        CustTrans           custTrans;
+        CustInvoiceJour     custInvoiceJour;
+        CustGroupId         custGroupId = _contract.parmCustGroupId();
+        TransDate           cutoffDate;
+
+        if (!_contract.validate())
+        {
+            throw Exception::Error;
+        }
+
+        if (!DYLO_OverdueNotificationTier::hasActiveTier())
+        {
+            throw error("@DYLOExtensions:OverdueInvNotifErrNoTiers");
+        }
+
+        runDate        = DateTimeUtil::getSystemDate(DateTimeUtil::getCompanyTimeZone());
+        cutoffDate     = runDate - _contract.parmGracePeriodDays();
+        recipientEmail = _contract.parmRecipientEmail();
+
+        // One row per open invoice transaction, with the earliest due date of its open lines past the cut-off.
+        while select RefRecId, minof(DueDate) from custTransOpen
+            group by custTransOpen.RefRecId
+            where custTransOpen.DueDate < cutoffDate
+               && custTransOpen.DueDate != dateNull()
+            exists join custTrans
+                where custTrans.RecId     == custTransOpen.RefRecId
+                   && custTrans.AmountCur > 0
+            exists join custInvoiceJour
+                where custInvoiceJour.InvoiceId      == custTrans.Invoice
+                   && custInvoiceJour.InvoiceAccount == custTrans.AccountNum
+                   && custInvoiceJour.InvoiceDate    == custTrans.TransDate
+                   && custInvoiceJour.LedgerVoucher  == custTrans.Voucher
+        {
+            this.processInvoice(custTransOpen.RefRecId, custTransOpen.DueDate, custGroupId);
+        }
+
+        info(strFmt("@DYLOExtensions:OverdueInvNotifSummaryChecked", checkedCount));
+        info(strFmt("@DYLOExtensions:OverdueInvNotifSummarySent", sentCount));
+        info(strFmt("@DYLOExtensions:OverdueInvNotifSummaryFailed", failedCount));
+        info(strFmt("@DYLOExtensions:OverdueInvNotifSummarySkipped", skippedCount));
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>processInvoice</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Checks one open invoice and sends its notification when it reached a tier that was not notified yet.
+    /// </summary>
+    /// <param name = "_custTransRecId">The record ID of the customer transaction of the invoice.</param>
+    /// <param name = "_dueDate">The earliest open due date of the invoice.</param>
+    /// <param name = "_custGroupId">The customer group filter; empty for all customers.</param>
+    private void processInvoice(RefRecId _custTransRecId, DueDate _dueDate, CustGroupId _custGroupId)
+    {
+        CustTrans                           custTrans;
+        CustInvoiceJour                     custInvoiceJour;
+        DYLO_OverdueInvoiceNotificationLog  log;
+        int                                 daysOverdue;
+        Days                                tierDays;
+
+        select firstonly custTrans
+            where custTrans.RecId == _custTransRecId;
+
+        select firstonly custInvoiceJour
+            where custInvoiceJour.InvoiceId      == custTrans.Invoice
+               && custInvoiceJour.InvoiceAccount == custTrans.AccountNum
+               && custInvoiceJour.InvoiceDate    == custTrans.TransDate
+               && custInvoiceJour.LedgerVoucher  == custTrans.Voucher;
+
+        if (!custInvoiceJour.RecId)
+        {
+            return;
+        }
+
+        if (_custGroupId && CustTable::find(custInvoiceJour.InvoiceAccount).CustGroup != _custGroupId)
+        {
+            return;
+        }
+
+        checkedCount++;
+
+        daysOverdue = runDate - _dueDate;
+        tierDays    = DYLO_OverdueNotificationTier::highestReachedTier(daysOverdue);
+
+        if (!tierDays)
+        {
+            skippedCount++;
+            return;
+        }
+
+        try
+        {
+            log = DYLO_OverdueInvoiceNotificationLog::findByInvoiceTier(custInvoiceJour.RecId, tierDays);
+
+            if (log.RecId && log.Status == DYLO_OverdueNotificationStatus::Sent)
+            {
+                skippedCount++;
+                return;
+            }
+
+            if (!log.RecId)
+            {
+                log = this.createLog(custTrans, custInvoiceJour, _dueDate, daysOverdue, tierDays);
+            }
+
+            if (DYLO_OverdueInvoiceNotificationEmail::sendAndLog(log))
+            {
+                sentCount++;
+            }
+            else
+            {
+                failedCount++;
+            }
+        }
+        catch (Exception::Error)
+        {
+            failedCount++;
+            error(strFmt("@DYLOExtensions:OverdueInvNotifInvoiceFailed", custInvoiceJour.InvoiceId));
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>createLog</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Creates the notification log line of an invoice and tier, with the email that is sent.
+    /// </summary>
+    /// <param name = "_custTrans">The customer transaction of the invoice.</param>
+    /// <param name = "_custInvoiceJour">The customer invoice journal.</param>
+    /// <param name = "_dueDate">The earliest open due date.</param>
+    /// <param name = "_daysOverdue">The days the invoice is overdue.</param>
+    /// <param name = "_tierDays">The tier reached.</param>
+    /// <returns>The inserted log line.</returns>
+    private DYLO_OverdueInvoiceNotificationLog createLog(
+        CustTrans       _custTrans,
+        CustInvoiceJour _custInvoiceJour,
+        DueDate         _dueDate,
+        int             _daysOverdue,
+        Days            _tierDays)
+    {
+        DYLO_OverdueInvoiceNotificationLog  log;
+        CustTransOpen                       custTransOpen;
+
+        select sum(AmountCur) from custTransOpen
+            where custTransOpen.RefRecId == _custTrans.RecId;
+
+        log.CustInvoiceJourRecId = _custInvoiceJour.RecId;
+        log.InvoiceId            = _custInvoiceJour.InvoiceId;
+        log.InvoiceDate          = _custInvoiceJour.InvoiceDate;
+        log.CustAccount          = _custInvoiceJour.InvoiceAccount;
+        log.CustName             = CustTable::find(_custInvoiceJour.InvoiceAccount).name();
+        log.DueDate              = _dueDate;
+        log.DaysOverdue          = _daysOverdue;
+        log.TierDays             = _tierDays;
+        log.InvoiceAmount        = _custInvoiceJour.InvoiceAmount;
+        log.RemainingAmount      = custTransOpen.AmountCur;
+        log.CurrencyCode         = _custInvoiceJour.CurrencyCode;
+        log.RecipientEmail       = recipientEmail;
+        log.EmailSubject         = DYLO_OverdueInvoiceNotificationEmail::buildSubject(log);
+        log.EmailBody            = DYLO_OverdueInvoiceNotificationEmail::buildBody(log);
+        log.Status               = DYLO_OverdueNotificationStatus::Failed;
+
+        ttsbegin;
+        log.insert();
+        ttscommit;
+
+        return log;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

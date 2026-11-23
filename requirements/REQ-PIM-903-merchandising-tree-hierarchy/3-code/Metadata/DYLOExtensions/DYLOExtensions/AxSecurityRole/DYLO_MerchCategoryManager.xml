@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxSecurityRole xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_MerchCategoryManager</Name>
+	<Description>@DYLOExtensions:MerchHierRoleDesc</Description>
+	<Label>@DYLOExtensions:MerchHierRole</Label>
+	<DirectAccessPermissions />
+	<Duties>
+		<AxSecurityDutyReference>
+			<Name>DYLO_MerchHierarchyMaintain</Name>
+		</AxSecurityDutyReference>
+		<AxSecurityDutyReference>
+			<Name>DYLO_MerchHierarchyInquire</Name>
+		</AxSecurityDutyReference>
+	</Duties>
+	<Privileges />
+	<SubRoles />
+</AxSecurityRole>

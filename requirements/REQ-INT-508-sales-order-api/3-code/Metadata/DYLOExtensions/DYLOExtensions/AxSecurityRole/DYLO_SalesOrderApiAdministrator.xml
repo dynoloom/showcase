@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxSecurityRole xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_SalesOrderApiAdministrator</Name>
+	<Description>@DYLOExtensions:SOApiRoleAdministratorDesc</Description>
+	<Label>@DYLOExtensions:SOApiRoleAdministrator</Label>
+	<DirectAccessPermissions />
+	<Duties>
+		<AxSecurityDutyReference>
+			<Name>DYLO_SalesOrderApiMonitor</Name>
+		</AxSecurityDutyReference>
+		<AxSecurityDutyReference>
+			<Name>DYLO_SalesOrderApiMaintain</Name>
+		</AxSecurityDutyReference>
+	</Duties>
+	<Privileges />
+	<SubRoles />
+</AxSecurityRole>

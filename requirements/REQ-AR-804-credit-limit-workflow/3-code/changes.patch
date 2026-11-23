@@ -1,0 +1,2658 @@
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustCreditLimitReqApprovalEventHandler.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustCreditLimitReqApprovalEventHandler.xml
+new file mode 100644
+index 0000000..d9d8c79
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustCreditLimitReqApprovalEventHandler.xml
+@@ -0,0 +1,130 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_CustCreditLimitReqApprovalEventHandler</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// The event handler of the Approve credit limit change workflow approval.
++/// </summary>
++public final class DYLO_CustCreditLimitReqApprovalEventHandler implements WorkflowElementCanceledEventHandler,
++    WorkflowElemChangeRequestedEventHandler,
++    WorkflowElementCompletedEventHandler,
++    WorkflowElementReturnedEventHandler,
++    WorkflowElementStartedEventHandler,
++    WorkflowElementDeniedEventHandler,
++    WorkflowWorkItemsCreatedEventHandler
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>started</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// The approval has started: the request is pending approval.
++    /// </summary>
++    /// <param name = "_workflowElementEventArgs">The arguments object for the event handler.</param>
++    public void started(WorkflowElementEventArgs _workflowElementEventArgs)
++    {
++        DYLO_CustCreditLimitRequestWFProcessor::setStatus(
++            _workflowElementEventArgs.parmWorkflowContext().parmRecId(),
++            DYLO_CustCreditLimitRequestStatus::PendingApproval);
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>canceled</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// The approval was canceled: the request is canceled.
++    /// </summary>
++    /// <param name = "_workflowElementEventArgs">The arguments object for the event handler.</param>
++    public void canceled(WorkflowElementEventArgs _workflowElementEventArgs)
++    {
++        DYLO_CustCreditLimitRequestWFProcessor::setStatus(
++            _workflowElementEventArgs.parmWorkflowContext().parmRecId(),
++            DYLO_CustCreditLimitRequestStatus::Canceled);
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>completed</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// The approval has completed. The workflow type's completed event applies the approval.
++    /// </summary>
++    /// <param name = "_workflowElementEventArgs">The arguments object for the event handler.</param>
++    public void completed(WorkflowElementEventArgs _workflowElementEventArgs)
++    {
++        // The workflow type's completed event finalises the request.
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>denied</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// The Deny outcome is not enabled for this approval.
++    /// </summary>
++    /// <param name = "_workflowElementEventArgs">The arguments object for the event handler.</param>
++    public void denied(WorkflowElementEventArgs _workflowElementEventArgs)
++    {
++        // Deny is disabled on the approval.
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>changeRequested</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// The approver requested a change: the request returns to Draft for the submitter.
++    /// </summary>
++    /// <param name = "_workflowElementEventArgs">The arguments object for the event handler.</param>
++    public void changeRequested(WorkflowElementEventArgs _workflowElementEventArgs)
++    {
++        DYLO_CustCreditLimitRequestWFProcessor::setStatus(
++            _workflowElementEventArgs.parmWorkflowContext().parmRecId(),
++            DYLO_CustCreditLimitRequestStatus::Draft);
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>returned</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// The approver rejected the request.
++    /// </summary>
++    /// <param name = "_workflowElementEventArgs">The arguments object for the event handler.</param>
++    public void returned(WorkflowElementEventArgs _workflowElementEventArgs)
++    {
++        DYLO_CustCreditLimitRequestWFProcessor::setStatus(
++            _workflowElementEventArgs.parmWorkflowContext().parmRecId(),
++            DYLO_CustCreditLimitRequestStatus::Rejected);
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>created</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Work items were assigned to approvers: the request is pending approval.
++    /// </summary>
++    /// <param name = "_workflowWorkItemsEventArgs">The arguments object for the event handler.</param>
++    public void created(WorkflowWorkItemsEventArgs _workflowWorkItemsEventArgs)
++    {
++        DYLO_CustCreditLimitRequestWFProcessor::setStatus(
++            _workflowWorkItemsEventArgs.parmWorkflowElementEventArgs().parmWorkflowContext().parmRecId(),
++            DYLO_CustCreditLimitRequestStatus::PendingApproval);
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustCreditLimitReqApprovalResubmitActionMgr.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustCreditLimitReqApprovalResubmitActionMgr.xml
+new file mode 100644
+index 0000000..b485fbd
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustCreditLimitReqApprovalResubmitActionMgr.xml
+@@ -0,0 +1,72 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_CustCreditLimitReqApprovalResubmitActionMgr</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Resubmits a credit limit request after an approver requested a change.
++/// </summary>
++public class DYLO_CustCreditLimitReqApprovalResubmitActionMgr
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>main</Name>
++				<Source><![CDATA[
++    public static void main(Args _args)
++    {
++        RecId recId = _args.record().RecId;
++        WorkflowWorkItemTable workItem = _args.caller().getActiveWorkflowWorkItem();
++
++        if (workItem)
++        {
++            try
++            {
++                WorkflowWorkItemActionDialog dialog = WorkflowWorkItemActionDialog::construct(
++                    workItem,
++                    WorkflowWorkItemActionType::Resubmit,
++                    new MenuFunction(_args.menuItemName(), _args.menuItemType()));
++                dialog.run();
++
++                if (dialog.parmIsClosedOK())
++                {
++                    ttsbegin;
++
++                    // Refreshes, validates and recalculates the approval path; throws when the request is not valid.
++                    DYLO_CustCreditLimitRequestWFProcessor::prepareSubmit(recId);
++
++                    workItem = _args.caller().getActiveWorkflowWorkItem();
++                    WorkflowWorkItemActionManager::dispatchWorkItemAction(
++                        workItem,
++                        dialog.parmWorkflowComment(),
++                        dialog.parmTargetUser(),
++                        WorkflowWorkItemActionType::Resubmit,
++                        _args.menuItemName());
++
++                    ttscommit;
++
++                    info("@DYLOExtensions:CreditLimitReqResubmitted");
++                }
++            }
++            catch (Exception::Error)
++            {
++                // The validation messages are already in the infolog.
++            }
++        }
++
++        // Make sure the changes in status are reflected on the caller.
++        FormDataSource callerDS = _args.record().dataSource();
++        if (callerDS)
++        {
++            callerDS.reread();
++            callerDS.refresh();
++        }
++        _args.caller().updateWorkflowControls();
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustCreditLimitReqWFDocument.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustCreditLimitReqWFDocument.xml
+new file mode 100644
+index 0000000..82c0aeb
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustCreditLimitReqWFDocument.xml
+@@ -0,0 +1,30 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_CustCreditLimitReqWFDocument</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// The workflow document of the credit limit change approval workflow.
++/// </summary>
++class DYLO_CustCreditLimitReqWFDocument extends WorkflowDocument
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>getQueryName</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Returns the query name of the workflow document.
++    /// </summary>
++    /// <returns>The name of the query <c>DYLO_CustCreditLimitReqWFQuery</c>.</returns>
++    public queryName getQueryName()
++    {
++        return querystr(DYLO_CustCreditLimitReqWFQuery);
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustCreditLimitReqWFTypeEventHandler.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustCreditLimitReqWFTypeEventHandler.xml
+new file mode 100644
+index 0000000..9c990bd
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustCreditLimitReqWFTypeEventHandler.xml
+@@ -0,0 +1,68 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_CustCreditLimitReqWFTypeEventHandler</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// The event handler of the credit limit change approval workflow type.
++/// </summary>
++public final class DYLO_CustCreditLimitReqWFTypeEventHandler implements WorkflowCanceledEventHandler,
++    WorkflowCompletedEventHandler,
++    WorkflowStartedEventHandler
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>started</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// The workflow has started: the request is submitted.
++    /// </summary>
++    /// <param name = "_workflowEventArgs">The arguments object for the event handler.</param>
++    public void started(WorkflowEventArgs _workflowEventArgs)
++    {
++        DYLO_CustCreditLimitRequestWFProcessor::setStatus(
++            _workflowEventArgs.parmWorkflowContext().parmRecId(),
++            DYLO_CustCreditLimitRequestStatus::Submitted);
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>canceled</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// The workflow was canceled or recalled: the request is canceled.
++    /// </summary>
++    /// <param name = "_workflowEventArgs">The arguments object for the event handler.</param>
++    public void canceled(WorkflowEventArgs _workflowEventArgs)
++    {
++        DYLO_CustCreditLimitRequestWFProcessor::setStatus(
++            _workflowEventArgs.parmWorkflowContext().parmRecId(),
++            DYLO_CustCreditLimitRequestStatus::Canceled);
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>completed</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// The workflow has completed: an approved request updates the customer's credit limit.
++    /// </summary>
++    /// <param name = "_workflowEventArgs">The arguments object for the event handler.</param>
++    public void completed(WorkflowEventArgs _workflowEventArgs)
++    {
++        WorkflowContext workflowContext = _workflowEventArgs.parmWorkflowContext();
++
++        DYLO_CustCreditLimitRequestWFProcessor::complete(
++            workflowContext.parmRecId(),
++            workflowContext.parmWorkflowCorrelationId());
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustCreditLimitReqWFTypeSubmitManager.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustCreditLimitReqWFTypeSubmitManager.xml
+new file mode 100644
+index 0000000..7e604ed
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustCreditLimitReqWFTypeSubmitManager.xml
+@@ -0,0 +1,63 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_CustCreditLimitReqWFTypeSubmitManager</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Submits a credit limit request to the credit limit change approval workflow.
++/// </summary>
++public class DYLO_CustCreditLimitReqWFTypeSubmitManager
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>main</Name>
++				<Source><![CDATA[
++    public static void main(Args _args)
++    {
++        RecId recId = _args.record().RecId;
++        WorkflowTypeName workflowTypeName = workFlowTypeStr(DYLO_CustCreditLimitReqWFType);
++
++        // Opens the submit to workflow dialog.
++        WorkflowSubmitDialog workflowSubmitDialog = WorkflowSubmitDialog::construct(_args.caller().getActiveWorkflowConfiguration());
++        workflowSubmitDialog.run();
++
++        if (workflowSubmitDialog.parmIsClosedOK())
++        {
++            WorkflowComment initialNote = workflowSubmitDialog.parmWorkflowComment();
++
++            try
++            {
++                ttsbegin;
++
++                // Refreshes, validates and sets the approval path; throws when the request is not valid.
++                DYLO_CustCreditLimitRequestWFProcessor::prepareSubmit(recId);
++
++                Workflow::activateFromWorkflowType(workflowTypeName, recId, initialNote, NoYes::No);
++
++                ttscommit;
++
++                info("@DYLOExtensions:CreditLimitReqSubmitted");
++            }
++            catch (Exception::Error)
++            {
++                // The validation messages are already in the infolog.
++            }
++
++            // Make sure the changes in status are reflected on the caller.
++            FormDataSource callerDS = _args.record().dataSource();
++            if (callerDS)
++            {
++                callerDS.reread();
++                callerDS.refresh();
++            }
++            _args.caller().updateWorkflowControls();
++        }
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustCreditLimitRequestWFProcessor.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustCreditLimitRequestWFProcessor.xml
+new file mode 100644
+index 0000000..d8df301
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustCreditLimitRequestWFProcessor.xml
+@@ -0,0 +1,245 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_CustCreditLimitRequestWFProcessor</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Business logic of the credit limit change approval workflow: submit validation,
++/// approval path, status changes and the update of the customer's credit limit.
++/// </summary>
++public final class DYLO_CustCreditLimitRequestWFProcessor
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>canEditCreditLimit</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Determines whether the current user may edit a customer's credit limit directly.
++    /// </summary>
++    /// <returns>true if the user has access to the Edit customer credit limit menu item; otherwise, false.</returns>
++    public static boolean canEditCreditLimit()
++    {
++        return hasMenuItemAccess(menuItemDisplayStr(DYLO_CustCreditLimitEdit), MenuItemType::Display);
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>calcApprovalPath</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Calculates the approval path of a request from the thresholds of the legal entity.
++    /// </summary>
++    /// <param name = "_net">The net change of the credit limit.</param>
++    /// <param name = "_new">The requested new credit limit.</param>
++    /// <param name = "_parameters">The Accounts receivable parameters.</param>
++    /// <returns>The approval path.</returns>
++    public static DYLO_CustCreditLimitApprovalPath calcApprovalPath(AmountMST _net, CustCreditMaxMST _new, CustParameters _parameters)
++    {
++        if (_net < 0)
++        {
++            return DYLO_CustCreditLimitApprovalPath::Decrease;
++        }
++
++        if (_net > _parameters.DYLO_CreditLimitIncreaseThreshold
++            || _new > _parameters.DYLO_CreditLimitNewLimitThreshold)
++        {
++            return DYLO_CustCreditLimitApprovalPath::TwoStep;
++        }
++
++        return DYLO_CustCreditLimitApprovalPath::SingleStep;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>validateSubmit</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Validates a request before it is submitted to workflow.
++    /// </summary>
++    /// <param name = "_request">The request.</param>
++    /// <returns>true if the request can be submitted; otherwise, false.</returns>
++    public static boolean validateSubmit(DYLO_CustCreditLimitRequest _request)
++    {
++        boolean ret = true;
++
++        if (!_request.CustAccount)
++        {
++            ret = checkFailed("@DYLOExtensions:CreditLimitReqErrCustomer");
++        }
++
++        if (!_request.Justification)
++        {
++            ret = checkFailed("@DYLOExtensions:CreditLimitReqErrJustification");
++        }
++
++        if (_request.RequestedCreditMax < 0)
++        {
++            ret = checkFailed("@DYLOExtensions:CreditLimitReqErrNegative");
++        }
++
++        if (_request.RequestedCreditMax == _request.CurrentCreditMax)
++        {
++            ret = checkFailed("@DYLOExtensions:CreditLimitReqErrNoChange");
++        }
++
++        DYLO_CustCreditLimitRequest openRequest = DYLO_CustCreditLimitRequest::findOpenRequest(_request.CustAccount, _request.RecId);
++        if (openRequest.RecId)
++        {
++            ret = checkFailed(strFmt("@DYLOExtensions:CreditLimitReqErrOpenRequest", _request.CustAccount, openRequest.RequestId));
++        }
++
++        return ret;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>prepareSubmit</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Refreshes, validates and prepares a request for submission or resubmission to workflow.
++    /// </summary>
++    /// <param name = "_recId">The record ID of the request.</param>
++    /// <remarks>
++    /// Throws an error when the request is not valid, so the submission is not made.
++    /// </remarks>
++    public static void prepareSubmit(RefRecId _recId)
++    {
++        ttsbegin;
++
++        DYLO_CustCreditLimitRequest request = DYLO_CustCreditLimitRequest::findRecId(_recId, true);
++
++        request.CurrentCreditMax = CustTable::find(request.CustAccount).CreditMax;
++        request.NetChange        = request.RequestedCreditMax - request.CurrentCreditMax;
++
++        if (!DYLO_CustCreditLimitRequestWFProcessor::validateSubmit(request))
++        {
++            throw error("@SYS18447");
++        }
++
++        request.ApprovalPath   = DYLO_CustCreditLimitRequestWFProcessor::calcApprovalPath(
++            request.NetChange,
++            request.RequestedCreditMax,
++            CustParameters::find());
++        request.ApprovalStatus = DYLO_CustCreditLimitRequestStatus::Submitted;
++        request.update();
++
++        ttscommit;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>setStatus</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Sets the approval status of a request.
++    /// </summary>
++    /// <param name = "_recId">The record ID of the request.</param>
++    /// <param name = "_status">The new status.</param>
++    public static void setStatus(RefRecId _recId, DYLO_CustCreditLimitRequestStatus _status)
++    {
++        ttsbegin;
++
++        DYLO_CustCreditLimitRequest request = DYLO_CustCreditLimitRequest::findRecId(_recId, true);
++
++        if (request.RecId && request.ApprovalStatus != _status)
++        {
++            request.ApprovalStatus = _status;
++            request.update();
++        }
++
++        ttscommit;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>complete</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Applies a finally approved request: updates the customer's credit limit and stamps the approval.
++    /// </summary>
++    /// <param name = "_recId">The record ID of the request.</param>
++    /// <param name = "_correlationId">The correlation ID of the workflow.</param>
++    public static void complete(RefRecId _recId, WorkflowCorrelationId _correlationId)
++    {
++        ttsbegin;
++
++        DYLO_CustCreditLimitRequest request = DYLO_CustCreditLimitRequest::findRecId(_recId, true);
++
++        if (!request.RecId
++            || request.ApprovalStatus == DYLO_CustCreditLimitRequestStatus::Approved
++            || request.ApprovalStatus == DYLO_CustCreditLimitRequestStatus::Rejected
++            || request.ApprovalStatus == DYLO_CustCreditLimitRequestStatus::Canceled)
++        {
++            ttscommit;
++            return;
++        }
++
++        CustTable custTable = CustTable::find(request.CustAccount, true);
++
++        if (custTable.CreditMax != request.CurrentCreditMax)
++        {
++            info(strFmt("@DYLOExtensions:CreditLimitReqApproverChanged",
++                custTable.AccountNum,
++                request.CurrentCreditMax,
++                custTable.CreditMax,
++                request.RequestedCreditMax));
++        }
++
++        using (var context = new DYLO_CustCreditLimitUpdateContext())
++        {
++            custTable.CreditMax = request.RequestedCreditMax;
++
++            if (!custTable.validateWrite())
++            {
++                throw error("@SYS18447");
++            }
++
++            custTable.update();
++        }
++
++        request.ApprovalStatus  = DYLO_CustCreditLimitRequestStatus::Approved;
++        request.ApprovalDate    = DateTimeUtil::getSystemDate(DateTimeUtil::getUserPreferredTimeZone());
++        request.FinalApproverId = DYLO_CustCreditLimitRequestWFProcessor::findFinalApprover(_correlationId);
++        request.update();
++
++        ttscommit;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>findFinalApprover</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Finds the user who last approved a work item of the workflow.
++    /// </summary>
++    /// <param name = "_correlationId">The correlation ID of the workflow.</param>
++    /// <returns>The user ID of the final approver; the current user if none is found.</returns>
++    private static UserId findFinalApprover(WorkflowCorrelationId _correlationId)
++    {
++        WorkflowTrackingTable       tracking;
++        WorkflowTrackingStatusTable trackingStatus;
++
++        select firstonly User from tracking
++            order by RecId desc
++            where tracking.TrackingContext == WorkflowTrackingContext::WorkItem
++               && tracking.TrackingType    == WorkflowTrackingType::Approval
++            exists join trackingStatus
++                where trackingStatus.RecId         == tracking.WorkflowTrackingStatusTable
++                   && trackingStatus.CorrelationId == _correlationId;
++
++        return tracking.User ? tracking.User : curUserId();
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustCreditLimitUpdateContext.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustCreditLimitUpdateContext.xml
+new file mode 100644
+index 0000000..7e06b67
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustCreditLimitUpdateContext.xml
+@@ -0,0 +1,60 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_CustCreditLimitUpdateContext</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Marks the update of a customer's credit limit by the credit limit approval workflow,
++/// so that the credit limit lock on the customer lets it through.
++/// </summary>
++/// <remarks>
++/// Use it in a using block: using (var context = new DYLO_CustCreditLimitUpdateContext()) { ... }
++/// </remarks>
++public final class DYLO_CustCreditLimitUpdateContext implements System.IDisposable
++{
++    private static DYLO_CustCreditLimitUpdateContext instance;
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>new</Name>
++				<Source><![CDATA[
++    public void new()
++    {
++        if (instance)
++        {
++            throw error(Error::wrongUseOfFunction(classStr(DYLO_CustCreditLimitUpdateContext)));
++        }
++
++        instance = this;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>dispose</Name>
++				<Source><![CDATA[
++    public void dispose()
++    {
++        instance = null;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>isActive</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Determines whether the workflow is updating a customer's credit limit.
++    /// </summary>
++    /// <returns>true while the context is open; otherwise, false.</returns>
++    public static boolean isActive()
++    {
++        return instance != null;
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustParameters_Extension.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustParameters_Extension.xml
+new file mode 100644
+index 0000000..c65c410
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustParameters_Extension.xml
+@@ -0,0 +1,31 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_CustParameters_Extension</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Extension of <c>CustParameters</c> for credit limit requests.
++/// </summary>
++[ExtensionOf(tableStr(CustParameters))]
++final class DYLO_CustParameters_Extension
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>DYLO_numRefCustCreditLimitRequestId</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// The number sequence reference of the credit limit request ID.
++    /// </summary>
++    /// <returns>The number sequence reference.</returns>
++    public static NumberSequenceReference DYLO_numRefCustCreditLimitRequestId()
++    {
++        return NumberSeqReference::findReference(extendedTypeNum(DYLO_CustCreditLimitRequestId));
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustTableFormCustTableDS_Extension.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustTableFormCustTableDS_Extension.xml
+new file mode 100644
+index 0000000..931064e
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustTableFormCustTableDS_Extension.xml
+@@ -0,0 +1,34 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_CustTableFormCustTableDS_Extension</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Makes Credit limit read-only on the Customers form, except for an existing customer
++/// and a user with the Edit customer credit limit privilege.
++/// </summary>
++[ExtensionOf(formDataSourceStr(CustTable, CustTable))]
++final class DYLO_CustTableFormCustTableDS_Extension
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>active</Name>
++				<Source><![CDATA[
++    public int active()
++    {
++        int ret = next active();
++
++        CustTable custTableRecord = this.cursor();
++        this.object(fieldNum(CustTable, CreditMax)).allowEdit(
++            custTableRecord.RecId != 0 && DYLO_CustCreditLimitRequestWFProcessor::canEditCreditLimit());
++
++        return ret;
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustTable_Extension.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustTable_Extension.xml
+new file mode 100644
+index 0000000..de53ddc
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustTable_Extension.xml
+@@ -0,0 +1,46 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_CustTable_Extension</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Locks the credit limit of a customer: it is changed through a credit limit request,
++/// or directly only by a user with the Edit customer credit limit privilege.
++/// </summary>
++[ExtensionOf(tableStr(CustTable))]
++final class DYLO_CustTable_Extension
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>validateWrite</Name>
++				<Source><![CDATA[
++    public boolean validateWrite()
++    {
++        boolean ret = next validateWrite();
++
++        if (ret && !DYLO_CustCreditLimitUpdateContext::isActive())
++        {
++            if (this.RecId == 0)
++            {
++                if (this.CreditMax != 0)
++                {
++                    ret = checkFailed("@DYLOExtensions:CreditLimitReqCustLockedCreate");
++                }
++            }
++            else if (this.CreditMax != this.orig().CreditMax
++                && !DYLO_CustCreditLimitRequestWFProcessor::canEditCreditLimit())
++            {
++                ret = checkFailed("@DYLOExtensions:CreditLimitReqCustLockedChange");
++            }
++        }
++
++        return ret;
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_NumberSeqModuleCustomer_Extension.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_NumberSeqModuleCustomer_Extension.xml
+new file mode 100644
+index 0000000..04bbbf3
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_NumberSeqModuleCustomer_Extension.xml
+@@ -0,0 +1,42 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_NumberSeqModuleCustomer_Extension</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Adds the credit limit request ID number sequence reference to the Accounts receivable module.
++/// </summary>
++[ExtensionOf(classStr(NumberSeqModuleCustomer))]
++final class DYLO_NumberSeqModuleCustomer_Extension
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>loadModule</Name>
++				<Source><![CDATA[
++    protected void loadModule()
++    {
++        next loadModule();
++
++        NumberSeqDatatype datatype = NumberSeqDatatype::construct();
++
++        datatype.parmDatatypeId(extendedTypeNum(DYLO_CustCreditLimitRequestId));
++        datatype.parmReferenceHelp(literalStr("@DYLOExtensions:CreditLimitReqNumSeqHelp"));
++        datatype.parmWizardIsContinuous(false);
++        datatype.parmWizardIsManual(NoYes::No);
++        datatype.parmWizardFetchAheadQty(10);
++        datatype.parmWizardIsChangeDownAllowed(NoYes::No);
++        datatype.parmWizardIsChangeUpAllowed(NoYes::No);
++        datatype.parmWizardHighest(999999);
++        datatype.parmSortField(200);
++
++        datatype.addParameterType(NumberSeqParameterType::DataArea, true, false);
++        this.create(datatype);
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_CustCreditLimitJustification.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_CustCreditLimitJustification.xml
+new file mode 100644
+index 0000000..bb15fcd
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_CustCreditLimitJustification.xml
+@@ -0,0 +1,10 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxEdt xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns=""
++	i:type="AxEdtString">
++	<Name>DYLO_CustCreditLimitJustification</Name>
++	<Label>@DYLOExtensions:CreditLimitReqBusinessJustification</Label>
++	<ArrayElements />
++	<Relations />
++	<TableReferences />
++	<StringSize>1000</StringSize>
++</AxEdt>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_CustCreditLimitRequestId.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_CustCreditLimitRequestId.xml
+new file mode 100644
+index 0000000..9fb4929
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_CustCreditLimitRequestId.xml
+@@ -0,0 +1,16 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxEdt xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns=""
++	i:type="AxEdtString">
++	<Name>DYLO_CustCreditLimitRequestId</Name>
++	<Extends>Num</Extends>
++	<Label>@DYLOExtensions:CreditLimitReqRequestId</Label>
++	<ReferenceTable>DYLO_CustCreditLimitRequest</ReferenceTable>
++	<ArrayElements />
++	<Relations />
++	<TableReferences>
++		<AxEdtTableReference>
++			<RelatedField>RequestId</RelatedField>
++			<Table>DYLO_CustCreditLimitRequest</Table>
++		</AxEdtTableReference>
++	</TableReferences>
++</AxEdt>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxEnum/DYLO_CustCreditLimitApprovalPath.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxEnum/DYLO_CustCreditLimitApprovalPath.xml
+new file mode 100644
+index 0000000..c6a8988
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxEnum/DYLO_CustCreditLimitApprovalPath.xml
+@@ -0,0 +1,26 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxEnum xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_CustCreditLimitApprovalPath</Name>
++	<Label>@DYLOExtensions:CreditLimitReqApprovalPath</Label>
++	<UseEnumValue>No</UseEnumValue>
++	<EnumValues>
++		<AxEnumValue>
++			<Name>None</Name>
++		</AxEnumValue>
++		<AxEnumValue>
++			<Name>Decrease</Name>
++			<Label>@DYLOExtensions:CreditLimitReqPathDecrease</Label>
++			<Value>1</Value>
++		</AxEnumValue>
++		<AxEnumValue>
++			<Name>SingleStep</Name>
++			<Label>@DYLOExtensions:CreditLimitReqPathSingleStep</Label>
++			<Value>2</Value>
++		</AxEnumValue>
++		<AxEnumValue>
++			<Name>TwoStep</Name>
++			<Label>@DYLOExtensions:CreditLimitReqPathTwoStep</Label>
++			<Value>3</Value>
++		</AxEnumValue>
++	</EnumValues>
++</AxEnum>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxEnum/DYLO_CustCreditLimitRequestStatus.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxEnum/DYLO_CustCreditLimitRequestStatus.xml
+new file mode 100644
+index 0000000..6ab9ebe
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxEnum/DYLO_CustCreditLimitRequestStatus.xml
+@@ -0,0 +1,37 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxEnum xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_CustCreditLimitRequestStatus</Name>
++	<Label>@DYLOExtensions:CreditLimitReqStatus</Label>
++	<UseEnumValue>No</UseEnumValue>
++	<EnumValues>
++		<AxEnumValue>
++			<Name>Draft</Name>
++			<Label>@DYLOExtensions:CreditLimitReqStatusDraft</Label>
++		</AxEnumValue>
++		<AxEnumValue>
++			<Name>Submitted</Name>
++			<Label>@DYLOExtensions:CreditLimitReqStatusSubmitted</Label>
++			<Value>1</Value>
++		</AxEnumValue>
++		<AxEnumValue>
++			<Name>PendingApproval</Name>
++			<Label>@DYLOExtensions:CreditLimitReqStatusPendingApproval</Label>
++			<Value>2</Value>
++		</AxEnumValue>
++		<AxEnumValue>
++			<Name>Approved</Name>
++			<Label>@DYLOExtensions:CreditLimitReqStatusApproved</Label>
++			<Value>3</Value>
++		</AxEnumValue>
++		<AxEnumValue>
++			<Name>Rejected</Name>
++			<Label>@DYLOExtensions:CreditLimitReqStatusRejected</Label>
++			<Value>4</Value>
++		</AxEnumValue>
++		<AxEnumValue>
++			<Name>Canceled</Name>
++			<Label>@DYLOExtensions:CreditLimitReqStatusCanceled</Label>
++			<Value>5</Value>
++		</AxEnumValue>
++	</EnumValues>
++</AxEnum>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxForm/DYLO_CustCreditLimitRequest.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxForm/DYLO_CustCreditLimitRequest.xml
+new file mode 100644
+index 0000000..c678bc1
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxForm/DYLO_CustCreditLimitRequest.xml
+@@ -0,0 +1,414 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxForm xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V6">
++	<Name>DYLO_CustCreditLimitRequest</Name>
++	<SourceCode>
++		<Methods xmlns="">
++			<Method>
++				<Name>classDeclaration</Name>
++				<Source><![CDATA[
++[Form]
++public class DYLO_CustCreditLimitRequest extends FormRun
++{
++}
++]]></Source>
++			</Method>
++		</Methods>
++		<DataSources xmlns="">
++			<DataSource>
++				<Name>DYLO_CustCreditLimitRequest</Name>
++				<Methods>
++					<Method>
++						<Name>active</Name>
++						<Source><![CDATA[
++        public int active()
++        {
++            int ret = super();
++
++            boolean isDraft = DYLO_CustCreditLimitRequest.ApprovalStatus == DYLO_CustCreditLimitRequestStatus::Draft;
++            this.allowEdit(isDraft);
++            this.allowDelete(isDraft);
++
++            return ret;
++        }
++
++]]></Source>
++					</Method>
++				</Methods>
++				<Fields />
++			</DataSource>
++		</DataSources>
++		<DataControls xmlns="" />
++		<Members xmlns="" />
++	</SourceCode>
++	<DataSources>
++		<AxFormDataSource xmlns="">
++			<Name>DYLO_CustCreditLimitRequest</Name>
++			<Table>DYLO_CustCreditLimitRequest</Table>
++			<Fields>
++				<AxFormDataSourceField>
++					<DataField>ApprovalDate</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>ApprovalPath</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>ApprovalStatus</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>CurrentCreditMax</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>CustAccount</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>FinalApproverId</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>Justification</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>NetChange</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>RecId</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>RequestedBy</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>RequestedCreditMax</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>RequestId</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>TableId</DataField>
++				</AxFormDataSourceField>
++			</Fields>
++			<ReferencedDataSources />
++			<InsertAtEnd>No</InsertAtEnd>
++			<InsertIfEmpty>No</InsertIfEmpty>
++			<DataSourceLinks />
++			<DerivedDataSources />
++		</AxFormDataSource>
++	</DataSources>
++	<Design>
++		<Caption xmlns="">@DYLOExtensions:CreditLimitReqMenuItem</Caption>
++		<DataSource xmlns="">DYLO_CustCreditLimitRequest</DataSource>
++		<Pattern xmlns="">SimpleListDetails</Pattern>
++		<PatternVersion xmlns="">1.3</PatternVersion>
++		<Style xmlns="">SimpleListDetails</Style>
++		<TitleDataSource xmlns="">DYLO_CustCreditLimitRequest</TitleDataSource>
++		<WorkflowDataSource xmlns="">DYLO_CustCreditLimitRequest</WorkflowDataSource>
++		<WorkflowEnabled xmlns="">Yes</WorkflowEnabled>
++		<WorkflowType xmlns="">DYLO_CustCreditLimitReqWFType</WorkflowType>
++		<Controls xmlns="">
++			<AxFormControl xmlns=""
++				i:type="AxFormActionPaneControl">
++				<Name>ActionPane</Name>
++				<Type>ActionPane</Type>
++				<FormControlExtension
++					i:nil="true" />
++				<Controls>
++					<AxFormControl xmlns=""
++						i:type="AxFormButtonGroupControl">
++						<Name>RequestActions</Name>
++						<Type>ButtonGroup</Type>
++						<FormControlExtension
++							i:nil="true" />
++						<Controls>
++							<AxFormControl xmlns=""
++								i:type="AxFormMenuFunctionButtonControl">
++								<Name>CustomerButton</Name>
++								<Type>MenuFunctionButton</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataSource>DYLO_CustCreditLimitRequest</DataSource>
++								<MenuItemName>CustTable</MenuItemName>
++								<Text>@DYLOExtensions:CreditLimitReqCustomerButton</Text>
++							</AxFormControl>
++						</Controls>
++					</AxFormControl>
++				</Controls>
++			</AxFormControl>
++			<AxFormControl xmlns=""
++				i:type="AxFormGroupControl">
++				<Name>NavigationListGroup</Name>
++				<HeightMode>SizeToAvailable</HeightMode>
++				<Type>Group</Type>
++				<FormControlExtension
++					i:nil="true" />
++				<Controls>
++					<AxFormControl>
++						<Name>QuickFilterControl</Name>
++						<WidthMode>SizeToAvailable</WidthMode>
++						<FormControlExtension>
++							<Name>QuickFilterControl</Name>
++							<ExtensionComponents />
++							<ExtensionProperties>
++								<AxFormControlExtensionProperty>
++									<Name>targetControlName</Name>
++									<Type>String</Type>
++									<Value>NavigationListGrid</Value>
++								</AxFormControlExtensionProperty>
++								<AxFormControlExtensionProperty>
++									<Name>placeholderText</Name>
++									<Type>String</Type>
++								</AxFormControlExtensionProperty>
++								<AxFormControlExtensionProperty>
++									<Name>defaultColumnName</Name>
++									<Type>String</Type>
++									<Value>Grid_RequestId</Value>
++								</AxFormControlExtensionProperty>
++							</ExtensionProperties>
++						</FormControlExtension>
++					</AxFormControl>
++					<AxFormControl xmlns=""
++						i:type="AxFormGridControl">
++						<Name>NavigationListGrid</Name>
++						<AllowEdit>No</AllowEdit>
++						<Type>Grid</Type>
++						<WidthMode>SizeToContent</WidthMode>
++						<FormControlExtension
++							i:nil="true" />
++						<Controls>
++							<AxFormControl xmlns=""
++								i:type="AxFormStringControl">
++								<Name>Grid_RequestId</Name>
++								<Type>String</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataField>RequestId</DataField>
++								<DataSource>DYLO_CustCreditLimitRequest</DataSource>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormStringControl">
++								<Name>Grid_CustAccount</Name>
++								<Type>String</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataField>CustAccount</DataField>
++								<DataSource>DYLO_CustCreditLimitRequest</DataSource>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormStringControl">
++								<Name>Grid_CustName</Name>
++								<Type>String</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataMethod>custName</DataMethod>
++								<DataSource>DYLO_CustCreditLimitRequest</DataSource>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormRealControl">
++								<Name>Grid_RequestedCreditMax</Name>
++								<Type>Real</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataField>RequestedCreditMax</DataField>
++								<DataSource>DYLO_CustCreditLimitRequest</DataSource>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormComboBoxControl">
++								<Name>Grid_ApprovalStatus</Name>
++								<Type>ComboBox</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataField>ApprovalStatus</DataField>
++								<DataSource>DYLO_CustCreditLimitRequest</DataSource>
++								<Items />
++							</AxFormControl>
++						</Controls>
++						<DataSource>DYLO_CustCreditLimitRequest</DataSource>
++						<MultiSelect>No</MultiSelect>
++						<ShowRowLabels>No</ShowRowLabels>
++						<Style>List</Style>
++					</AxFormControl>
++				</Controls>
++				<FrameType>None</FrameType>
++				<Style>SidePanel</Style>
++			</AxFormControl>
++			<AxFormControl xmlns=""
++				i:type="AxFormGroupControl">
++				<Name>DetailsHeaderGroup</Name>
++				<Pattern>FieldsFieldGroups</Pattern>
++				<PatternVersion>1.1</PatternVersion>
++				<Type>Group</Type>
++				<WidthMode>SizeToAvailable</WidthMode>
++				<FormControlExtension
++					i:nil="true" />
++				<Controls>
++					<AxFormControl xmlns=""
++						i:type="AxFormStringControl">
++						<Name>Header_RequestId</Name>
++						<Type>String</Type>
++						<FormControlExtension
++							i:nil="true" />
++						<DataField>RequestId</DataField>
++						<DataSource>DYLO_CustCreditLimitRequest</DataSource>
++					</AxFormControl>
++					<AxFormControl xmlns=""
++						i:type="AxFormStringControl">
++						<Name>Header_CustAccount</Name>
++						<Type>String</Type>
++						<FormControlExtension
++							i:nil="true" />
++						<DataField>CustAccount</DataField>
++						<DataSource>DYLO_CustCreditLimitRequest</DataSource>
++					</AxFormControl>
++					<AxFormControl xmlns=""
++						i:type="AxFormStringControl">
++						<Name>Header_CustName</Name>
++						<Type>String</Type>
++						<FormControlExtension
++							i:nil="true" />
++						<DataMethod>custName</DataMethod>
++						<DataSource>DYLO_CustCreditLimitRequest</DataSource>
++					</AxFormControl>
++				</Controls>
++				<ColumnsMode>Fill</ColumnsMode>
++				<FrameType>None</FrameType>
++			</AxFormControl>
++			<AxFormControl xmlns=""
++				i:type="AxFormTabControl">
++				<Name>DetailsTab</Name>
++				<Type>Tab</Type>
++				<FormControlExtension
++					i:nil="true" />
++				<Controls>
++					<AxFormControl xmlns=""
++						i:type="AxFormTabPageControl">
++						<Name>General</Name>
++						<Pattern>FieldsFieldGroups</Pattern>
++						<PatternVersion>1.1</PatternVersion>
++						<Type>TabPage</Type>
++						<FormControlExtension
++							i:nil="true" />
++						<Controls>
++							<AxFormControl xmlns=""
++								i:type="AxFormGroupControl">
++								<Name>RequestGroup</Name>
++								<Type>Group</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<Controls>
++									<AxFormControl xmlns=""
++										i:type="AxFormRealControl">
++										<Name>Request_CurrentCreditMax</Name>
++										<Type>Real</Type>
++										<FormControlExtension
++											i:nil="true" />
++										<DataField>CurrentCreditMax</DataField>
++										<DataSource>DYLO_CustCreditLimitRequest</DataSource>
++									</AxFormControl>
++								</Controls>
++								<Caption>@DYLOExtensions:CreditLimitReqRequestGroup</Caption>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormGroupControl">
++								<Name>ChangeGroup</Name>
++								<Type>Group</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<Controls>
++									<AxFormControl xmlns=""
++										i:type="AxFormRealControl">
++										<Name>Change_RequestedCreditMax</Name>
++										<Type>Real</Type>
++										<FormControlExtension
++											i:nil="true" />
++										<DataField>RequestedCreditMax</DataField>
++										<DataSource>DYLO_CustCreditLimitRequest</DataSource>
++									</AxFormControl>
++									<AxFormControl xmlns=""
++										i:type="AxFormRealControl">
++										<Name>Change_NetChange</Name>
++										<Type>Real</Type>
++										<FormControlExtension
++											i:nil="true" />
++										<DataField>NetChange</DataField>
++										<DataSource>DYLO_CustCreditLimitRequest</DataSource>
++									</AxFormControl>
++									<AxFormControl xmlns=""
++										i:type="AxFormComboBoxControl">
++										<Name>Change_ApprovalStatus</Name>
++										<Type>ComboBox</Type>
++										<FormControlExtension
++											i:nil="true" />
++										<DataField>ApprovalStatus</DataField>
++										<DataSource>DYLO_CustCreditLimitRequest</DataSource>
++										<Items />
++									</AxFormControl>
++									<AxFormControl xmlns=""
++										i:type="AxFormStringControl">
++										<Name>Change_Justification</Name>
++										<Type>String</Type>
++										<FormControlExtension
++											i:nil="true" />
++										<DataField>Justification</DataField>
++										<DataSource>DYLO_CustCreditLimitRequest</DataSource>
++										<DisplayHeight>4</DisplayHeight>
++										<DisplayHeightMode>Fixed</DisplayHeightMode>
++										<MultiLine>Yes</MultiLine>
++									</AxFormControl>
++								</Controls>
++								<Caption>@DYLOExtensions:CreditLimitReqChangeGroup</Caption>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormGroupControl">
++								<Name>WorkflowGroup</Name>
++								<Type>Group</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<Controls>
++									<AxFormControl xmlns=""
++										i:type="AxFormStringControl">
++										<Name>Workflow_RequestedBy</Name>
++										<Type>String</Type>
++										<FormControlExtension
++											i:nil="true" />
++										<DataField>RequestedBy</DataField>
++										<DataSource>DYLO_CustCreditLimitRequest</DataSource>
++									</AxFormControl>
++									<AxFormControl xmlns=""
++										i:type="AxFormComboBoxControl">
++										<Name>Workflow_ApprovalPath</Name>
++										<Type>ComboBox</Type>
++										<FormControlExtension
++											i:nil="true" />
++										<DataField>ApprovalPath</DataField>
++										<DataSource>DYLO_CustCreditLimitRequest</DataSource>
++										<Items />
++									</AxFormControl>
++									<AxFormControl xmlns=""
++										i:type="AxFormDateControl">
++										<Name>Workflow_ApprovalDate</Name>
++										<Type>Date</Type>
++										<FormControlExtension
++											i:nil="true" />
++										<DataField>ApprovalDate</DataField>
++										<DataSource>DYLO_CustCreditLimitRequest</DataSource>
++									</AxFormControl>
++									<AxFormControl xmlns=""
++										i:type="AxFormStringControl">
++										<Name>Workflow_FinalApproverId</Name>
++										<Type>String</Type>
++										<FormControlExtension
++											i:nil="true" />
++										<DataField>FinalApproverId</DataField>
++										<DataSource>DYLO_CustCreditLimitRequest</DataSource>
++									</AxFormControl>
++								</Controls>
++								<Caption>@DYLOExtensions:CreditLimitReqWorkflowGroup</Caption>
++							</AxFormControl>
++						</Controls>
++						<ColumnsMode>Fill</ColumnsMode>
++						<Caption>@SYS2952</Caption>
++					</AxFormControl>
++				</Controls>
++				<Style>FastTabs</Style>
++			</AxFormControl>
++		</Controls>
++	</Design>
++	<Parts />
++</AxForm>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxFormExtension/CustParameters.DYLO_Extension.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxFormExtension/CustParameters.DYLO_Extension.xml
+new file mode 100644
+index 0000000..6d721fd
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxFormExtension/CustParameters.DYLO_Extension.xml
+@@ -0,0 +1,105 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxFormExtension xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V6">
++	<Name>CustParameters.DYLO_Extension</Name>
++	<ControlModifications />
++	<Controls>
++		<AxFormExtensionControl xmlns="">
++			<Name>DYLO_TabCreditLimitApprovalExtension</Name>
++			<FormControl xmlns=""
++				i:type="AxFormTabPageControl">
++				<Name>DYLO_TabCreditLimitApproval</Name>
++				<Type>TabPage</Type>
++				<FormControlExtension
++					i:nil="true" />
++				<Controls>
++					<AxFormControl xmlns=""
++						i:type="AxFormGroupControl">
++						<Name>DYLO_CreditLimitApprovalTitle</Name>
++						<Skip>Yes</Skip>
++						<Type>Group</Type>
++						<WidthMode>SizeToAvailable</WidthMode>
++						<FormControlExtension
++							i:nil="true" />
++						<Controls>
++							<AxFormControl xmlns=""
++								i:type="AxFormStaticTextControl">
++								<Name>DYLO_CreditLimitApprovalMainInstruction</Name>
++								<Skip>Yes</Skip>
++								<Type>StaticText</Type>
++								<WidthMode>SizeToAvailable</WidthMode>
++								<FormControlExtension
++									i:nil="true" />
++								<Style>MainInstruction</Style>
++								<Text>@DYLOExtensions:CreditLimitReqApprovalTitle</Text>
++							</AxFormControl>
++						</Controls>
++						<AllowUserSetup>No</AllowUserSetup>
++						<FrameType>None</FrameType>
++						<Style>TOCTitleContainer</Style>
++					</AxFormControl>
++					<AxFormControl xmlns=""
++						i:type="AxFormTabControl">
++						<Name>DYLO_CreditLimitApprovalFastTab</Name>
++						<Type>Tab</Type>
++						<FormControlExtension
++							i:nil="true" />
++						<Controls>
++							<AxFormControl xmlns=""
++								i:type="AxFormTabPageControl">
++								<Name>DYLO_CreditLimitApprovalGeneralTabPage</Name>
++								<Pattern>FieldsFieldGroups</Pattern>
++								<PatternVersion>1.1</PatternVersion>
++								<Type>TabPage</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<Controls>
++									<AxFormControl xmlns=""
++										i:type="AxFormGroupControl">
++										<Name>DYLO_CreditLimitApproval</Name>
++										<Type>Group</Type>
++										<FormControlExtension
++											i:nil="true" />
++										<Controls>
++											<AxFormControl xmlns=""
++												i:type="AxFormRealControl">
++												<Name>DYLO_CreditLimitApproval_DYLO_CreditLimitIncreaseThreshold</Name>
++												<Type>Real</Type>
++												<FormControlExtension
++													i:nil="true" />
++												<DataField>DYLO_CreditLimitIncreaseThreshold</DataField>
++												<DataSource>CustParameters</DataSource>
++											</AxFormControl>
++											<AxFormControl xmlns=""
++												i:type="AxFormRealControl">
++												<Name>DYLO_CreditLimitApproval_DYLO_CreditLimitNewLimitThreshold</Name>
++												<Type>Real</Type>
++												<FormControlExtension
++													i:nil="true" />
++												<DataField>DYLO_CreditLimitNewLimitThreshold</DataField>
++												<DataSource>CustParameters</DataSource>
++											</AxFormControl>
++										</Controls>
++										<DataGroup>DYLO_CreditLimitApproval</DataGroup>
++										<DataSource>CustParameters</DataSource>
++									</AxFormControl>
++								</Controls>
++								<ColumnsMode>Fill</ColumnsMode>
++								<Caption>@SYS2952</Caption>
++							</AxFormControl>
++						</Controls>
++						<Style>FastTabs</Style>
++					</AxFormControl>
++				</Controls>
++				<Caption>@DYLOExtensions:CreditLimitReqApprovalTab</Caption>
++			</FormControl>
++			<Parent>Tab</Parent>
++			<PositionType>AfterItem</PositionType>
++			<PreviousSibling>TabGeneral</PreviousSibling>
++		</AxFormExtensionControl>
++	</Controls>
++	<DataSourceModifications />
++	<DataSourceReferences />
++	<DataSources />
++	<Parts />
++	<PropertyModifications />
++</AxFormExtension>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxLabelFile/LabelResources/en-US/DYLOExtensions.en-US.label.txt b/Metadata/DYLOExtensions/DYLOExtensions/AxLabelFile/LabelResources/en-US/DYLOExtensions.en-US.label.txt
+index d4051e5..6e2fa96 100644
+--- a/Metadata/DYLOExtensions/DYLOExtensions/AxLabelFile/LabelResources/en-US/DYLOExtensions.en-US.label.txt
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxLabelFile/LabelResources/en-US/DYLOExtensions.en-US.label.txt
+@@ -1,4 +1,65 @@
+-﻿WarrantyProvisionAccrualTxt=Warranty accrual - %1
++﻿CreditLimitReqApprovalDate=Approval date
++CreditLimitReqApprovalHelp=Approval of a credit limit change request.
++CreditLimitReqApprovalLabel=Approve credit limit change
++CreditLimitReqApprovalPath=Approval path
++CreditLimitReqApprovalTab=Credit limit approval
++CreditLimitReqApprovalTitle=Set the thresholds that decide which credit limit requests need two-step approval
++CreditLimitReqApproverChanged=The credit limit of customer %1 was changed from %2 to %3 after the request was submitted. It is now set to the approved limit %4.
++CreditLimitReqBusinessJustification=Business justification
++CreditLimitReqChangeGroup=Change
++CreditLimitReqCurrentCreditMax=Current credit limit
++CreditLimitReqCustLockedChange=Credit limit can only be changed through a credit limit request.
++CreditLimitReqCustLockedCreate=A new customer is created with credit limit 0; use a credit limit request to set it.
++CreditLimitReqCustomerButton=Customer
++CreditLimitReqDutyApprove=Approve credit limit requests
++CreditLimitReqDutyEditLimit=Maintain customer credit limit
++CreditLimitReqDutyMaintain=Maintain credit limit requests
++CreditLimitReqEditLimitMenuItem=Edit customer credit limit
++CreditLimitReqErrCustomer=Customer account must be filled in.
++CreditLimitReqErrJustification=Business justification must be filled in.
++CreditLimitReqErrNegative=Requested new limit cannot be negative.
++CreditLimitReqErrNoChange=Requested new limit must differ from the current credit limit.
++CreditLimitReqErrNotDraft=The request can only be changed or deleted while its status is Draft.
++CreditLimitReqErrOpenRequest=Customer %1 already has an open credit limit request (%2).
++CreditLimitReqFinalApprover=Final approver
++CreditLimitReqIncreaseThreshold=Net increase threshold
++CreditLimitReqIncreaseThresholdHelp=Requests with a larger net increase need two-step approval
++CreditLimitReqMenuItem=Credit limit increase requests
++CreditLimitReqNetChange=Net change
++CreditLimitReqNewLimitThreshold=New limit threshold
++CreditLimitReqNewLimitThresholdHelp=Requests for a larger new limit need two-step approval
++CreditLimitReqNumSeqHelp=Credit limit request ID
++CreditLimitReqPathDecrease=Decrease
++CreditLimitReqPathSingleStep=Single-step
++CreditLimitReqPathTwoStep=Two-step
++CreditLimitReqPrivApprove=Approve credit limit requests
++CreditLimitReqPrivEditLimit=Edit customer credit limit
++CreditLimitReqPrivMaintain=Maintain credit limit requests
++CreditLimitReqRequestGroup=Request
++CreditLimitReqRequestId=Request ID
++CreditLimitReqRequestedBy=Requested by
++CreditLimitReqRequestedCreditMax=Requested new limit
++CreditLimitReqResubmitted=The credit limit request was resubmitted to workflow.
++CreditLimitReqRoleARTeamLead=DYLO AR Team Lead
++CreditLimitReqRoleARTeamLeadDesc=Approves credit limit requests as the first approval step.
++CreditLimitReqRoleFinanceDirector=DYLO Finance Director
++CreditLimitReqRoleFinanceDirectorDesc=Approves credit limit requests as the second approval step and may edit a customer's credit limit directly.
++CreditLimitReqRoleRequester=DYLO Credit limit requester
++CreditLimitReqRoleRequesterDesc=Raises credit limit requests and submits them to workflow.
++CreditLimitReqStatus=Approval status
++CreditLimitReqStatusApproved=Approved
++CreditLimitReqStatusCanceled=Canceled
++CreditLimitReqStatusDraft=Draft
++CreditLimitReqStatusPendingApproval=Pending approval
++CreditLimitReqStatusRejected=Rejected
++CreditLimitReqStatusSubmitted=Submitted
++CreditLimitReqSubmitted=The credit limit request was submitted to workflow.
++CreditLimitReqTable=Credit limit increase request
++CreditLimitReqTableDevDoc=The DYLO_CustCreditLimitRequest table holds requests to change a customer's credit limit through the credit limit approval workflow.
++CreditLimitReqWorkflowGroup=Workflow
++CreditLimitReqWorkflowType=Credit limit change approval
++CreditLimitReqWorkflowTypeHelp=Approval workflow for customer credit limit change requests.
++WarrantyProvisionAccrualTxt=Warranty accrual - %1
+  ;Voucher line text of the warranty expense line. %1 = invoice number
+ WarrantyProvisionEligible=Warranty eligible
+  ;Released product field
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxMenuExtension/AccountsReceivable.DYLO_Extension.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuExtension/AccountsReceivable.DYLO_Extension.xml
+new file mode 100644
+index 0000000..aa50698
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuExtension/AccountsReceivable.DYLO_Extension.xml
+@@ -0,0 +1,19 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxMenuExtension xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V1">
++	<Name>AccountsReceivable.DYLO_Extension</Name>
++	<Customizations />
++	<Elements>
++		<AxMenuExtensionElement xmlns="">
++			<Parent>Customers</Parent>
++			<PositionType>AfterItem</PositionType>
++			<PreviousSibling>CustTablePastDueListPage</PreviousSibling>
++			<MenuElement xmlns=""
++				i:type="AxMenuElementMenuItem">
++				<Name>DYLO_CustCreditLimitRequest</Name>
++				<MenuItemName>DYLO_CustCreditLimitRequest</MenuItemName>
++			</MenuElement>
++		</AxMenuExtensionElement>
++	</Elements>
++	<MenuElementModifications />
++	<PropertyModifications />
++</AxMenuExtension>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_CustCreditLimitReqApprovalApprove.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_CustCreditLimitReqApprovalApprove.xml
+new file mode 100644
+index 0000000..5cd0bf1
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_CustCreditLimitReqApprovalApprove.xml
+@@ -0,0 +1,7 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxMenuItemAction xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V1">
++	<Name>DYLO_CustCreditLimitReqApprovalApprove</Name>
++	<Label>@SYS38598</Label>
++	<Object>WorkflowWorkItemActionManager</Object>
++	<ObjectType>Class</ObjectType>
++</AxMenuItemAction>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_CustCreditLimitReqApprovalDelegate.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_CustCreditLimitReqApprovalDelegate.xml
+new file mode 100644
+index 0000000..d772e64
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_CustCreditLimitReqApprovalDelegate.xml
+@@ -0,0 +1,7 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxMenuItemAction xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V1">
++	<Name>DYLO_CustCreditLimitReqApprovalDelegate</Name>
++	<Label>@SYS109047</Label>
++	<Object>WorkflowWorkItemActionManager</Object>
++	<ObjectType>Class</ObjectType>
++</AxMenuItemAction>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_CustCreditLimitReqApprovalReject.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_CustCreditLimitReqApprovalReject.xml
+new file mode 100644
+index 0000000..86eb8d5
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_CustCreditLimitReqApprovalReject.xml
+@@ -0,0 +1,7 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxMenuItemAction xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V1">
++	<Name>DYLO_CustCreditLimitReqApprovalReject</Name>
++	<Label>@SYS105445</Label>
++	<Object>WorkflowWorkItemActionManager</Object>
++	<ObjectType>Class</ObjectType>
++</AxMenuItemAction>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_CustCreditLimitReqApprovalRequestChange.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_CustCreditLimitReqApprovalRequestChange.xml
+new file mode 100644
+index 0000000..365c7bb
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_CustCreditLimitReqApprovalRequestChange.xml
+@@ -0,0 +1,7 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxMenuItemAction xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V1">
++	<Name>DYLO_CustCreditLimitReqApprovalRequestChange</Name>
++	<Label>@SYS105446</Label>
++	<Object>WorkflowWorkItemActionManager</Object>
++	<ObjectType>Class</ObjectType>
++</AxMenuItemAction>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_CustCreditLimitReqApprovalResubmit.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_CustCreditLimitReqApprovalResubmit.xml
+new file mode 100644
+index 0000000..fc3f63a
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_CustCreditLimitReqApprovalResubmit.xml
+@@ -0,0 +1,7 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxMenuItemAction xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V1">
++	<Name>DYLO_CustCreditLimitReqApprovalResubmit</Name>
++	<Label>@SYS301648</Label>
++	<Object>DYLO_CustCreditLimitReqApprovalResubmitActionMgr</Object>
++	<ObjectType>Class</ObjectType>
++</AxMenuItemAction>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_CustCreditLimitReqWFTypeCancelMenuItem.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_CustCreditLimitReqWFTypeCancelMenuItem.xml
+new file mode 100644
+index 0000000..16602aa
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_CustCreditLimitReqWFTypeCancelMenuItem.xml
+@@ -0,0 +1,7 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxMenuItemAction xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V1">
++	<Name>DYLO_CustCreditLimitReqWFTypeCancelMenuItem</Name>
++	<Label>@SYS30312</Label>
++	<Object>WorkflowCancelManager</Object>
++	<ObjectType>Class</ObjectType>
++</AxMenuItemAction>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_CustCreditLimitReqWFTypeSubmitMenuItem.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_CustCreditLimitReqWFTypeSubmitMenuItem.xml
+new file mode 100644
+index 0000000..74dd974
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_CustCreditLimitReqWFTypeSubmitMenuItem.xml
+@@ -0,0 +1,7 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxMenuItemAction xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V1">
++	<Name>DYLO_CustCreditLimitReqWFTypeSubmitMenuItem</Name>
++	<Label>@SYS72169</Label>
++	<Object>DYLO_CustCreditLimitReqWFTypeSubmitManager</Object>
++	<ObjectType>Class</ObjectType>
++</AxMenuItemAction>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemDisplay/DYLO_CustCreditLimitEdit.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemDisplay/DYLO_CustCreditLimitEdit.xml
+new file mode 100644
+index 0000000..f8b81c1
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemDisplay/DYLO_CustCreditLimitEdit.xml
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxMenuItemDisplay xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V1">
++	<Name>DYLO_CustCreditLimitEdit</Name>
++	<Label>@DYLOExtensions:CreditLimitReqEditLimitMenuItem</Label>
++	<Object>CustTable</Object>
++</AxMenuItemDisplay>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemDisplay/DYLO_CustCreditLimitRequest.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemDisplay/DYLO_CustCreditLimitRequest.xml
+new file mode 100644
+index 0000000..ae92751
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemDisplay/DYLO_CustCreditLimitRequest.xml
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxMenuItemDisplay xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V1">
++	<Name>DYLO_CustCreditLimitRequest</Name>
++	<Label>@DYLOExtensions:CreditLimitReqMenuItem</Label>
++	<Object>DYLO_CustCreditLimitRequest</Object>
++</AxMenuItemDisplay>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxQuery/DYLO_CustCreditLimitReqWFQuery.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxQuery/DYLO_CustCreditLimitReqWFQuery.xml
+new file mode 100644
+index 0000000..008f5a8
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxQuery/DYLO_CustCreditLimitReqWFQuery.xml
+@@ -0,0 +1,53 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxQuery xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns=""
++	i:type="AxQuerySimple">
++	<Name>DYLO_CustCreditLimitReqWFQuery</Name>
++	<SourceCode>
++		<Methods>
++			<Method>
++				<Name>classDeclaration</Name>
++				<Source><![CDATA[
++[Query]
++public class DYLO_CustCreditLimitReqWFQuery extends QueryRun
++{
++}
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++	<DataSources>
++		<AxQuerySimpleRootDataSource>
++			<Name>DYLO_CustCreditLimitRequest</Name>
++			<DynamicFields>Yes</DynamicFields>
++			<Table>DYLO_CustCreditLimitRequest</Table>
++			<DataSources>
++				<AxQuerySimpleEmbeddedDataSource>
++					<Name>CustTable</Name>
++					<DynamicFields>No</DynamicFields>
++					<Table>CustTable</Table>
++					<DataSources />
++					<DerivedDataSources />
++					<Fields>
++						<AxQuerySimpleDataSourceField>
++							<Name>AccountNum</Name>
++							<Field>AccountNum</Field>
++						</AxQuerySimpleDataSourceField>
++						<AxQuerySimpleDataSourceField>
++							<Name>CustGroup</Name>
++							<Field>CustGroup</Field>
++						</AxQuerySimpleDataSourceField>
++					</Fields>
++					<Ranges />
++					<UseRelations>Yes</UseRelations>
++					<Relations />
++				</AxQuerySimpleEmbeddedDataSource>
++			</DataSources>
++			<DerivedDataSources />
++			<Fields />
++			<Ranges />
++			<GroupBy />
++			<Having />
++			<OrderBy />
++		</AxQuerySimpleRootDataSource>
++	</DataSources>
++</AxQuery>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityDuty/DYLO_CustCreditLimitMaintain.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityDuty/DYLO_CustCreditLimitMaintain.xml
+new file mode 100644
+index 0000000..b1a2d3b
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityDuty/DYLO_CustCreditLimitMaintain.xml
+@@ -0,0 +1,10 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityDuty xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_CustCreditLimitMaintain</Name>
++	<Label>@DYLOExtensions:CreditLimitReqDutyEditLimit</Label>
++	<Privileges>
++		<AxSecurityPrivilegeReference>
++			<Name>DYLO_CustCreditLimitEdit</Name>
++		</AxSecurityPrivilegeReference>
++	</Privileges>
++</AxSecurityDuty>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityDuty/DYLO_CustCreditLimitRequestApprove.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityDuty/DYLO_CustCreditLimitRequestApprove.xml
+new file mode 100644
+index 0000000..6d41f7b
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityDuty/DYLO_CustCreditLimitRequestApprove.xml
+@@ -0,0 +1,10 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityDuty xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_CustCreditLimitRequestApprove</Name>
++	<Label>@DYLOExtensions:CreditLimitReqDutyApprove</Label>
++	<Privileges>
++		<AxSecurityPrivilegeReference>
++			<Name>DYLO_CustCreditLimitRequestApprove</Name>
++		</AxSecurityPrivilegeReference>
++	</Privileges>
++</AxSecurityDuty>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityDuty/DYLO_CustCreditLimitRequestMaintain.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityDuty/DYLO_CustCreditLimitRequestMaintain.xml
+new file mode 100644
+index 0000000..47d5cd9
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityDuty/DYLO_CustCreditLimitRequestMaintain.xml
+@@ -0,0 +1,10 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityDuty xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_CustCreditLimitRequestMaintain</Name>
++	<Label>@DYLOExtensions:CreditLimitReqDutyMaintain</Label>
++	<Privileges>
++		<AxSecurityPrivilegeReference>
++			<Name>DYLO_CustCreditLimitRequestMaintain</Name>
++		</AxSecurityPrivilegeReference>
++	</Privileges>
++</AxSecurityDuty>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_CustCreditLimitEdit.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_CustCreditLimitEdit.xml
+new file mode 100644
+index 0000000..3b3cdc5
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_CustCreditLimitEdit.xml
+@@ -0,0 +1,19 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityPrivilege xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_CustCreditLimitEdit</Name>
++	<Label>@DYLOExtensions:CreditLimitReqPrivEditLimit</Label>
++	<DataEntityPermissions />
++	<DirectAccessPermissions />
++	<EntryPoints>
++		<AxSecurityEntryPointReference>
++			<Name>DYLO_CustCreditLimitEdit</Name>
++			<Grant>
++				<Read>Allow</Read>
++			</Grant>
++			<ObjectName>DYLO_CustCreditLimitEdit</ObjectName>
++			<ObjectType>MenuItemDisplay</ObjectType>
++			<Forms />
++		</AxSecurityEntryPointReference>
++	</EntryPoints>
++	<FormControlOverrides />
++</AxSecurityPrivilege>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_CustCreditLimitRequestApprove.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_CustCreditLimitRequestApprove.xml
+new file mode 100644
+index 0000000..afb4c43
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_CustCreditLimitRequestApprove.xml
+@@ -0,0 +1,55 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityPrivilege xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_CustCreditLimitRequestApprove</Name>
++	<Label>@DYLOExtensions:CreditLimitReqPrivApprove</Label>
++	<DataEntityPermissions />
++	<DirectAccessPermissions />
++	<EntryPoints>
++		<AxSecurityEntryPointReference>
++			<Name>DYLO_CustCreditLimitRequest</Name>
++			<Grant>
++				<Read>Allow</Read>
++			</Grant>
++			<ObjectName>DYLO_CustCreditLimitRequest</ObjectName>
++			<ObjectType>MenuItemDisplay</ObjectType>
++			<Forms />
++		</AxSecurityEntryPointReference>
++		<AxSecurityEntryPointReference>
++			<Name>DYLO_CustCreditLimitReqApprovalApprove</Name>
++			<Grant>
++				<Read>Allow</Read>
++			</Grant>
++			<ObjectName>DYLO_CustCreditLimitReqApprovalApprove</ObjectName>
++			<ObjectType>MenuItemAction</ObjectType>
++			<Forms />
++		</AxSecurityEntryPointReference>
++		<AxSecurityEntryPointReference>
++			<Name>DYLO_CustCreditLimitReqApprovalReject</Name>
++			<Grant>
++				<Read>Allow</Read>
++			</Grant>
++			<ObjectName>DYLO_CustCreditLimitReqApprovalReject</ObjectName>
++			<ObjectType>MenuItemAction</ObjectType>
++			<Forms />
++		</AxSecurityEntryPointReference>
++		<AxSecurityEntryPointReference>
++			<Name>DYLO_CustCreditLimitReqApprovalRequestChange</Name>
++			<Grant>
++				<Read>Allow</Read>
++			</Grant>
++			<ObjectName>DYLO_CustCreditLimitReqApprovalRequestChange</ObjectName>
++			<ObjectType>MenuItemAction</ObjectType>
++			<Forms />
++		</AxSecurityEntryPointReference>
++		<AxSecurityEntryPointReference>
++			<Name>DYLO_CustCreditLimitReqApprovalDelegate</Name>
++			<Grant>
++				<Read>Allow</Read>
++			</Grant>
++			<ObjectName>DYLO_CustCreditLimitReqApprovalDelegate</ObjectName>
++			<ObjectType>MenuItemAction</ObjectType>
++			<Forms />
++		</AxSecurityEntryPointReference>
++	</EntryPoints>
++	<FormControlOverrides />
++</AxSecurityPrivilege>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_CustCreditLimitRequestMaintain.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_CustCreditLimitRequestMaintain.xml
+new file mode 100644
+index 0000000..25d4730
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_CustCreditLimitRequestMaintain.xml
+@@ -0,0 +1,62 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityPrivilege xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_CustCreditLimitRequestMaintain</Name>
++	<Label>@DYLOExtensions:CreditLimitReqPrivMaintain</Label>
++	<DataEntityPermissions />
++	<DirectAccessPermissions>
++		<AxSecurityDataEntityReference>
++			<Grant>
++				<Correct>Allow</Correct>
++				<Create>Allow</Create>
++				<Delete>Allow</Delete>
++				<Read>Allow</Read>
++				<Update>Allow</Update>
++			</Grant>
++			<Name>DYLO_CustCreditLimitRequest</Name>
++			<Fields />
++		</AxSecurityDataEntityReference>
++	</DirectAccessPermissions>
++	<EntryPoints>
++		<AxSecurityEntryPointReference>
++			<Name>DYLO_CustCreditLimitRequest</Name>
++			<Grant>
++				<Correct>Allow</Correct>
++				<Create>Allow</Create>
++				<Delete>Allow</Delete>
++				<Read>Allow</Read>
++				<Update>Allow</Update>
++			</Grant>
++			<ObjectName>DYLO_CustCreditLimitRequest</ObjectName>
++			<ObjectType>MenuItemDisplay</ObjectType>
++			<Forms />
++		</AxSecurityEntryPointReference>
++		<AxSecurityEntryPointReference>
++			<Name>DYLO_CustCreditLimitReqWFTypeSubmitMenuItem</Name>
++			<Grant>
++				<Read>Allow</Read>
++			</Grant>
++			<ObjectName>DYLO_CustCreditLimitReqWFTypeSubmitMenuItem</ObjectName>
++			<ObjectType>MenuItemAction</ObjectType>
++			<Forms />
++		</AxSecurityEntryPointReference>
++		<AxSecurityEntryPointReference>
++			<Name>DYLO_CustCreditLimitReqWFTypeCancelMenuItem</Name>
++			<Grant>
++				<Read>Allow</Read>
++			</Grant>
++			<ObjectName>DYLO_CustCreditLimitReqWFTypeCancelMenuItem</ObjectName>
++			<ObjectType>MenuItemAction</ObjectType>
++			<Forms />
++		</AxSecurityEntryPointReference>
++		<AxSecurityEntryPointReference>
++			<Name>DYLO_CustCreditLimitReqApprovalResubmit</Name>
++			<Grant>
++				<Read>Allow</Read>
++			</Grant>
++			<ObjectName>DYLO_CustCreditLimitReqApprovalResubmit</ObjectName>
++			<ObjectType>MenuItemAction</ObjectType>
++			<Forms />
++		</AxSecurityEntryPointReference>
++	</EntryPoints>
++	<FormControlOverrides />
++</AxSecurityPrivilege>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityRole/DYLO_ARTeamLead.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityRole/DYLO_ARTeamLead.xml
+new file mode 100644
+index 0000000..d50ffe5
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityRole/DYLO_ARTeamLead.xml
+@@ -0,0 +1,17 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityRole xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_ARTeamLead</Name>
++	<Description>@DYLOExtensions:CreditLimitReqRoleARTeamLeadDesc</Description>
++	<Label>@DYLOExtensions:CreditLimitReqRoleARTeamLead</Label>
++	<DirectAccessPermissions />
++	<Duties>
++		<AxSecurityDutyReference>
++			<Name>DYLO_CustCreditLimitRequestApprove</Name>
++		</AxSecurityDutyReference>
++		<AxSecurityDutyReference>
++			<Name>DYLO_CustCreditLimitRequestMaintain</Name>
++		</AxSecurityDutyReference>
++	</Duties>
++	<Privileges />
++	<SubRoles />
++</AxSecurityRole>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityRole/DYLO_CreditLimitRequester.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityRole/DYLO_CreditLimitRequester.xml
+new file mode 100644
+index 0000000..fdc21ac
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityRole/DYLO_CreditLimitRequester.xml
+@@ -0,0 +1,14 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityRole xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_CreditLimitRequester</Name>
++	<Description>@DYLOExtensions:CreditLimitReqRoleRequesterDesc</Description>
++	<Label>@DYLOExtensions:CreditLimitReqRoleRequester</Label>
++	<DirectAccessPermissions />
++	<Duties>
++		<AxSecurityDutyReference>
++			<Name>DYLO_CustCreditLimitRequestMaintain</Name>
++		</AxSecurityDutyReference>
++	</Duties>
++	<Privileges />
++	<SubRoles />
++</AxSecurityRole>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityRole/DYLO_FinanceDirector.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityRole/DYLO_FinanceDirector.xml
+new file mode 100644
+index 0000000..60370d0
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityRole/DYLO_FinanceDirector.xml
+@@ -0,0 +1,17 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityRole xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_FinanceDirector</Name>
++	<Description>@DYLOExtensions:CreditLimitReqRoleFinanceDirectorDesc</Description>
++	<Label>@DYLOExtensions:CreditLimitReqRoleFinanceDirector</Label>
++	<DirectAccessPermissions />
++	<Duties>
++		<AxSecurityDutyReference>
++			<Name>DYLO_CustCreditLimitRequestApprove</Name>
++		</AxSecurityDutyReference>
++		<AxSecurityDutyReference>
++			<Name>DYLO_CustCreditLimitMaintain</Name>
++		</AxSecurityDutyReference>
++	</Duties>
++	<Privileges />
++	<SubRoles />
++</AxSecurityRole>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxTable/DYLO_CustCreditLimitRequest.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxTable/DYLO_CustCreditLimitRequest.xml
+new file mode 100644
+index 0000000..f5dc4a0
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxTable/DYLO_CustCreditLimitRequest.xml
+@@ -0,0 +1,466 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxTable xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_CustCreditLimitRequest</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// A request to change a customer's credit limit, approved through the credit limit change approval workflow.
++/// </summary>
++public class DYLO_CustCreditLimitRequest extends common
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>initValue</Name>
++				<Source><![CDATA[
++    public void initValue()
++    {
++        super();
++
++        NumberSequenceReference numberSequenceReference = CustParameters::DYLO_numRefCustCreditLimitRequestId();
++        this.RequestId       = NumberSeq::newGetNum(numberSequenceReference).num();
++        this.ApprovalStatus  = DYLO_CustCreditLimitRequestStatus::Draft;
++        this.RequestedBy     = curUserId();
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>modifiedField</Name>
++				<Source><![CDATA[
++    public void modifiedField(FieldId _fieldId)
++    {
++        super(_fieldId);
++
++        switch (_fieldId)
++        {
++            case fieldNum(DYLO_CustCreditLimitRequest, CustAccount):
++                this.CurrentCreditMax = CustTable::find(this.CustAccount).CreditMax;
++                this.NetChange        = this.RequestedCreditMax - this.CurrentCreditMax;
++                break;
++
++            case fieldNum(DYLO_CustCreditLimitRequest, RequestedCreditMax):
++                this.NetChange        = this.RequestedCreditMax - this.CurrentCreditMax;
++                break;
++        }
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>validateWrite</Name>
++				<Source><![CDATA[
++    public boolean validateWrite()
++    {
++        boolean ret = super();
++
++        if (ret && this.RecId != 0
++            && this.orig().ApprovalStatus != DYLO_CustCreditLimitRequestStatus::Draft)
++        {
++            ret = checkFailed("@DYLOExtensions:CreditLimitReqErrNotDraft");
++        }
++
++        if (ret && this.RequestedCreditMax < 0)
++        {
++            ret = checkFailed("@DYLOExtensions:CreditLimitReqErrNegative");
++        }
++
++        if (ret)
++        {
++            DYLO_CustCreditLimitRequest openRequest = DYLO_CustCreditLimitRequest::findOpenRequest(this.CustAccount, this.RecId);
++            if (openRequest.RecId)
++            {
++                ret = checkFailed(strFmt("@DYLOExtensions:CreditLimitReqErrOpenRequest", this.CustAccount, openRequest.RequestId));
++            }
++        }
++
++        return ret;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>validateDelete</Name>
++				<Source><![CDATA[
++    public boolean validateDelete()
++    {
++        boolean ret = super();
++
++        if (ret && this.ApprovalStatus != DYLO_CustCreditLimitRequestStatus::Draft)
++        {
++            ret = checkFailed("@DYLOExtensions:CreditLimitReqErrNotDraft");
++        }
++
++        return ret;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>canSubmitToWorkflow</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Determines whether the request can be submitted to workflow.
++    /// </summary>
++    /// <param name = "_workflowType">The workflow type name.</param>
++    /// <returns>true if the request is saved and in Draft; otherwise, false.</returns>
++    public boolean canSubmitToWorkflow(str _workflowType = '')
++    {
++        return this.RecId != 0
++            && this.ApprovalStatus == DYLO_CustCreditLimitRequestStatus::Draft;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>custName</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// The name of the customer of the request.
++    /// </summary>
++    /// <returns>The customer name.</returns>
++    public display CustName custName()
++    {
++        return CustTable::find(this.CustAccount).name();
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>isOpen</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Determines whether the request is open: Draft, Submitted or Pending approval.
++    /// </summary>
++    /// <returns>true if the request is open; otherwise, false.</returns>
++    public boolean isOpen()
++    {
++        return this.ApprovalStatus == DYLO_CustCreditLimitRequestStatus::Draft
++            || this.ApprovalStatus == DYLO_CustCreditLimitRequestStatus::Submitted
++            || this.ApprovalStatus == DYLO_CustCreditLimitRequestStatus::PendingApproval;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>findOpenRequest</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Finds an open request for a customer other than the given record.
++    /// </summary>
++    /// <param name = "_custAccount">The customer account.</param>
++    /// <param name = "_excludeRecId">The record ID of the request to ignore.</param>
++    /// <returns>The open request, or an empty buffer.</returns>
++    public static DYLO_CustCreditLimitRequest findOpenRequest(CustAccount _custAccount, RecId _excludeRecId)
++    {
++        DYLO_CustCreditLimitRequest request;
++
++        if (_custAccount)
++        {
++            select firstonly request
++                where request.CustAccount == _custAccount
++                   && request.RecId != _excludeRecId
++                   && (request.ApprovalStatus == DYLO_CustCreditLimitRequestStatus::Draft
++                    || request.ApprovalStatus == DYLO_CustCreditLimitRequestStatus::Submitted
++                    || request.ApprovalStatus == DYLO_CustCreditLimitRequestStatus::PendingApproval);
++        }
++
++        return request;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>find</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Finds a request by its ID.
++    /// </summary>
++    /// <param name = "_requestId">The request ID.</param>
++    /// <param name = "_forUpdate">true to select the record for update.</param>
++    /// <returns>The request, or an empty buffer.</returns>
++    public static DYLO_CustCreditLimitRequest find(DYLO_CustCreditLimitRequestId _requestId, boolean _forUpdate = false)
++    {
++        DYLO_CustCreditLimitRequest request;
++
++        if (_requestId)
++        {
++            request.selectForUpdate(_forUpdate);
++            select firstonly request where request.RequestId == _requestId;
++        }
++
++        return request;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>findRecId</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Finds a request by its record ID.
++    /// </summary>
++    /// <param name = "_recId">The record ID.</param>
++    /// <param name = "_forUpdate">true to select the record for update.</param>
++    /// <returns>The request, or an empty buffer.</returns>
++    public static DYLO_CustCreditLimitRequest findRecId(RecId _recId, boolean _forUpdate = false)
++    {
++        DYLO_CustCreditLimitRequest request;
++
++        if (_recId)
++        {
++            request.selectForUpdate(_forUpdate);
++            select firstonly request where request.RecId == _recId;
++        }
++
++        return request;
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++	<DeveloperDocumentation>@DYLOExtensions:CreditLimitReqTableDevDoc</DeveloperDocumentation>
++	<Label>@DYLOExtensions:CreditLimitReqTable</Label>
++	<TableGroup>Main</TableGroup>
++	<TitleField1>RequestId</TitleField1>
++	<TitleField2>CustAccount</TitleField2>
++	<CacheLookup>Found</CacheLookup>
++	<ClusteredIndex>RequestIdIdx</ClusteredIndex>
++	<CreatedBy>Yes</CreatedBy>
++	<CreatedDateTime>Yes</CreatedDateTime>
++	<ModifiedBy>Yes</ModifiedBy>
++	<ModifiedDateTime>Yes</ModifiedDateTime>
++	<Modules>Customer</Modules>
++	<PrimaryIndex>RequestIdIdx</PrimaryIndex>
++	<ReplacementKey>RequestIdIdx</ReplacementKey>
++	<DeleteActions />
++	<FieldGroups>
++		<AxTableFieldGroup>
++			<Name>AutoReport</Name>
++			<Fields />
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoLookup</Name>
++			<Fields />
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoIdentification</Name>
++			<AutoPopulate>Yes</AutoPopulate>
++			<Fields />
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoSummary</Name>
++			<Fields />
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoBrowse</Name>
++			<Fields />
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>Overview</Name>
++			<Fields>
++				<AxTableFieldGroupField>
++					<DataField>RequestId</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>CustAccount</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>custName</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>RequestedCreditMax</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>ApprovalStatus</DataField>
++				</AxTableFieldGroupField>
++			</Fields>
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>Request</Name>
++			<Label>@DYLOExtensions:CreditLimitReqRequestGroup</Label>
++			<Fields>
++				<AxTableFieldGroupField>
++					<DataField>RequestId</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>CustAccount</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>custName</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>CurrentCreditMax</DataField>
++				</AxTableFieldGroupField>
++			</Fields>
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>Change</Name>
++			<Label>@DYLOExtensions:CreditLimitReqChangeGroup</Label>
++			<Fields>
++				<AxTableFieldGroupField>
++					<DataField>RequestedCreditMax</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>NetChange</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>ApprovalStatus</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>Justification</DataField>
++				</AxTableFieldGroupField>
++			</Fields>
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>Workflow</Name>
++			<Label>@DYLOExtensions:CreditLimitReqWorkflowGroup</Label>
++			<Fields>
++				<AxTableFieldGroupField>
++					<DataField>RequestedBy</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>ApprovalPath</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>ApprovalDate</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>FinalApproverId</DataField>
++				</AxTableFieldGroupField>
++			</Fields>
++		</AxTableFieldGroup>
++	</FieldGroups>
++	<Fields>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>RequestId</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>DYLO_CustCreditLimitRequestId</ExtendedDataType>
++			<Mandatory>Yes</Mandatory>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>CustAccount</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>CustAccount</ExtendedDataType>
++			<Mandatory>Yes</Mandatory>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldReal">
++			<Name>CurrentCreditMax</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>CustCreditMaxMST</ExtendedDataType>
++			<Label>@DYLOExtensions:CreditLimitReqCurrentCreditMax</Label>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldReal">
++			<Name>RequestedCreditMax</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>CustCreditMaxMST</ExtendedDataType>
++			<Label>@DYLOExtensions:CreditLimitReqRequestedCreditMax</Label>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldReal">
++			<Name>NetChange</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>AmountMST</ExtendedDataType>
++			<Label>@DYLOExtensions:CreditLimitReqNetChange</Label>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>Justification</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>DYLO_CustCreditLimitJustification</ExtendedDataType>
++			<Mandatory>Yes</Mandatory>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>RequestedBy</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>UserId</ExtendedDataType>
++			<Label>@DYLOExtensions:CreditLimitReqRequestedBy</Label>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldEnum">
++			<Name>ApprovalStatus</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>System Metadata</AssetClassification>
++			<EnumType>DYLO_CustCreditLimitRequestStatus</EnumType>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldEnum">
++			<Name>ApprovalPath</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>System Metadata</AssetClassification>
++			<EnumType>DYLO_CustCreditLimitApprovalPath</EnumType>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldDate">
++			<Name>ApprovalDate</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>TransDate</ExtendedDataType>
++			<Label>@DYLOExtensions:CreditLimitReqApprovalDate</Label>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>FinalApproverId</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>UserId</ExtendedDataType>
++			<Label>@DYLOExtensions:CreditLimitReqFinalApprover</Label>
++		</AxTableField>
++	</Fields>
++	<FullTextIndexes />
++	<Indexes>
++		<AxTableIndex>
++			<Name>RequestIdIdx</Name>
++			<AlternateKey>Yes</AlternateKey>
++			<Fields>
++				<AxTableIndexField>
++					<DataField>RequestId</DataField>
++				</AxTableIndexField>
++			</Fields>
++		</AxTableIndex>
++		<AxTableIndex>
++			<Name>CustStatusIdx</Name>
++			<AllowDuplicates>Yes</AllowDuplicates>
++			<Fields>
++				<AxTableIndexField>
++					<DataField>CustAccount</DataField>
++				</AxTableIndexField>
++				<AxTableIndexField>
++					<DataField>ApprovalStatus</DataField>
++				</AxTableIndexField>
++			</Fields>
++		</AxTableIndex>
++	</Indexes>
++	<Mappings />
++	<Relations>
++		<AxTableRelation xmlns=""
++			i:type="AxTableRelationForeignKey">
++			<Name>CustTable</Name>
++			<Cardinality>ZeroMore</Cardinality>
++			<RelatedTable>CustTable</RelatedTable>
++			<RelatedTableCardinality>ExactlyOne</RelatedTableCardinality>
++			<RelationshipType>Association</RelationshipType>
++			<Constraints>
++				<AxTableRelationConstraint xmlns=""
++					i:type="AxTableRelationConstraintField">
++					<Name>CustAccount</Name>
++					<Field>CustAccount</Field>
++					<RelatedField>AccountNum</RelatedField>
++				</AxTableRelationConstraint>
++			</Constraints>
++			<Index>AccountIdx</Index>
++		</AxTableRelation>
++	</Relations>
++	<StateMachines />
++</AxTable>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxTableExtension/CustParameters.DYLO_Extension.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxTableExtension/CustParameters.DYLO_Extension.xml
+new file mode 100644
+index 0000000..c112dd5
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxTableExtension/CustParameters.DYLO_Extension.xml
+@@ -0,0 +1,42 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxTableExtension xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>CustParameters.DYLO_Extension</Name>
++	<FieldGroupExtensions />
++	<FieldGroups>
++		<AxTableFieldGroup>
++			<Name>DYLO_CreditLimitApproval</Name>
++			<Label>@DYLOExtensions:CreditLimitReqApprovalTab</Label>
++			<Fields>
++				<AxTableFieldGroupField>
++					<DataField>DYLO_CreditLimitIncreaseThreshold</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>DYLO_CreditLimitNewLimitThreshold</DataField>
++				</AxTableFieldGroupField>
++			</Fields>
++		</AxTableFieldGroup>
++	</FieldGroups>
++	<FieldModifications />
++	<Fields>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldReal">
++			<Name>DYLO_CreditLimitIncreaseThreshold</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>AmountMST</ExtendedDataType>
++			<HelpText>@DYLOExtensions:CreditLimitReqIncreaseThresholdHelp</HelpText>
++			<Label>@DYLOExtensions:CreditLimitReqIncreaseThreshold</Label>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldReal">
++			<Name>DYLO_CreditLimitNewLimitThreshold</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>AmountMST</ExtendedDataType>
++			<HelpText>@DYLOExtensions:CreditLimitReqNewLimitThresholdHelp</HelpText>
++			<Label>@DYLOExtensions:CreditLimitReqNewLimitThreshold</Label>
++		</AxTableField>
++	</Fields>
++	<Indexes />
++	<Mappings />
++	<PropertyModifications />
++	<Relations />
++</AxTableExtension>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxWorkflowApproval/DYLO_CustCreditLimitReqApproval.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxWorkflowApproval/DYLO_CustCreditLimitReqApproval.xml
+new file mode 100644
+index 0000000..e60165f
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxWorkflowApproval/DYLO_CustCreditLimitReqApproval.xml
+@@ -0,0 +1,36 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxWorkflowApproval xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V2">
++	<Name>DYLO_CustCreditLimitReqApproval</Name>
++	<CanceledEventHandler>DYLO_CustCreditLimitReqApprovalEventHandler</CanceledEventHandler>
++	<DelegateMenuItem>DYLO_CustCreditLimitReqApprovalDelegate</DelegateMenuItem>
++	<Document>DYLO_CustCreditLimitReqWFDocument</Document>
++	<DocumentMenuItem>DYLO_CustCreditLimitRequest</DocumentMenuItem>
++	<DocumentPreviewFieldGroup>Overview</DocumentPreviewFieldGroup>
++	<HelpText>@DYLOExtensions:CreditLimitReqApprovalHelp</HelpText>
++	<Label>@DYLOExtensions:CreditLimitReqApprovalLabel</Label>
++	<ResubmitMenuItem>DYLO_CustCreditLimitReqApprovalResubmit</ResubmitMenuItem>
++	<StartedEventHandler>DYLO_CustCreditLimitReqApprovalEventHandler</StartedEventHandler>
++	<WorkItemsCreatedEventHandler>DYLO_CustCreditLimitReqApprovalEventHandler</WorkItemsCreatedEventHandler>
++	<Approve>
++		<Name xmlns="">Approve</Name>
++		<ActionMenuItem xmlns="">DYLO_CustCreditLimitReqApprovalApprove</ActionMenuItem>
++		<EventHandler xmlns="">DYLO_CustCreditLimitReqApprovalEventHandler</EventHandler>
++	</Approve>
++	<Deny>
++		<Name xmlns="">Deny</Name>
++		<Enabled xmlns="">No</Enabled>
++		<Type xmlns="">Deny</Type>
++	</Deny>
++	<Reject>
++		<Name xmlns="">Reject</Name>
++		<ActionMenuItem xmlns="">DYLO_CustCreditLimitReqApprovalReject</ActionMenuItem>
++		<EventHandler xmlns="">DYLO_CustCreditLimitReqApprovalEventHandler</EventHandler>
++		<Type xmlns="">Return</Type>
++	</Reject>
++	<RequestChange>
++		<Name xmlns="">RequestChange</Name>
++		<ActionMenuItem xmlns="">DYLO_CustCreditLimitReqApprovalRequestChange</ActionMenuItem>
++		<EventHandler xmlns="">DYLO_CustCreditLimitReqApprovalEventHandler</EventHandler>
++		<Type xmlns="">RequestChange</Type>
++	</RequestChange>
++</AxWorkflowApproval>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxWorkflowTemplate/DYLO_CustCreditLimitReqWFType.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxWorkflowTemplate/DYLO_CustCreditLimitReqWFType.xml
+new file mode 100644
+index 0000000..da71252
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxWorkflowTemplate/DYLO_CustCreditLimitReqWFType.xml
+@@ -0,0 +1,21 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxWorkflowTemplate xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V2">
++	<Name>DYLO_CustCreditLimitReqWFType</Name>
++	<CancelMenuItem>DYLO_CustCreditLimitReqWFTypeCancelMenuItem</CancelMenuItem>
++	<CanceledEventHandler>DYLO_CustCreditLimitReqWFTypeEventHandler</CanceledEventHandler>
++	<Category>CustCategory</Category>
++	<CompletedEventHandler>DYLO_CustCreditLimitReqWFTypeEventHandler</CompletedEventHandler>
++	<Document>DYLO_CustCreditLimitReqWFDocument</Document>
++	<DocumentMenuItem>DYLO_CustCreditLimitRequest</DocumentMenuItem>
++	<HelpText>@DYLOExtensions:CreditLimitReqWorkflowTypeHelp</HelpText>
++	<Label>@DYLOExtensions:CreditLimitReqWorkflowType</Label>
++	<StartedEventHandler>DYLO_CustCreditLimitReqWFTypeEventHandler</StartedEventHandler>
++	<SubmitToWorkflowMenuItem>DYLO_CustCreditLimitReqWFTypeSubmitMenuItem</SubmitToWorkflowMenuItem>
++	<LineItemWorkflows />
++	<SupportedElements>
++		<AxWorkflowElementReference xmlns="">
++			<Name>DYLO_CustCreditLimitReqApproval</Name>
++			<ElementName>DYLO_CustCreditLimitReqApproval</ElementName>
++		</AxWorkflowElementReference>
++	</SupportedElements>
++</AxWorkflowTemplate>

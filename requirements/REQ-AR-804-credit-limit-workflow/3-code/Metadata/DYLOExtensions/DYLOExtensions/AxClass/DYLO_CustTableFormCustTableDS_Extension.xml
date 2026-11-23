@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_CustTableFormCustTableDS_Extension</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Makes Credit limit read-only on the Customers form, except for an existing customer
+/// and a user with the Edit customer credit limit privilege.
+/// </summary>
+[ExtensionOf(formDataSourceStr(CustTable, CustTable))]
+final class DYLO_CustTableFormCustTableDS_Extension
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>active</Name>
+				<Source><![CDATA[
+    public int active()
+    {
+        int ret = next active();
+
+        CustTable custTableRecord = this.cursor();
+        this.object(fieldNum(CustTable, CreditMax)).allowEdit(
+            custTableRecord.RecId != 0 && DYLO_CustCreditLimitRequestWFProcessor::canEditCreditLimit());
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

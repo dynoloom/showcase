@@ -1,0 +1,16 @@
+Copyright (c) 2026 DynoLoom. All rights reserved.
+
+This repository is published so that prospective clients and reviewers can evaluate the output of the DynoLoom platform.
+
+You may view, clone and study the contents of this repository, and load the code into a non-production Dynamics 365
+Finance and Operations environment for the sole purpose of evaluating it.
+
+You may not copy, redistribute, sublicense or sell the contents, or use them in a production environment or in a
+commercial product or service, without prior written permission from DynoLoom (info@dynoloom.com).
+
+THE CONTENTS ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL DYNOLOOM BE LIABLE
+FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM, OUT OF OR IN CONNECTION WITH THE CONTENTS OR THEIR USE.
+
+Microsoft, Dynamics 365 and related names are trademarks of the Microsoft group of companies. Contoso demo data shown in
+documents and screenshots belongs to Microsoft.

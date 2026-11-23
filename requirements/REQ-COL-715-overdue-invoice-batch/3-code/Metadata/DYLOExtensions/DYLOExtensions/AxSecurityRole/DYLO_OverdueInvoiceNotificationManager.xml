@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxSecurityRole xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_OverdueInvoiceNotificationManager</Name>
+	<Description>@DYLOExtensions:OverdueInvNotifManagerRoleDescription</Description>
+	<Label>@DYLOExtensions:OverdueInvNotifManagerRole</Label>
+	<DirectAccessPermissions />
+	<Duties>
+		<AxSecurityDutyReference>
+			<Name>DYLO_OverdueInvoiceNotificationInquire</Name>
+		</AxSecurityDutyReference>
+		<AxSecurityDutyReference>
+			<Name>DYLO_OverdueInvoiceNotificationMaintain</Name>
+		</AxSecurityDutyReference>
+	</Duties>
+	<Privileges />
+	<SubRoles />
+</AxSecurityRole>

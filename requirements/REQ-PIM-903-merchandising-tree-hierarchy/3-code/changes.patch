@@ -1,0 +1,3481 @@
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_MerchHierarchyManager.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_MerchHierarchyManager.xml
+new file mode 100644
+index 0000000..6f64c3a
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_MerchHierarchyManager.xml
+@@ -0,0 +1,436 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_MerchHierarchyManager</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Recursive logic of the merchandising hierarchy (REQ-PIM-903): circular reference protection,
++/// recalculation of levels and inherited margins, sibling order, re-parenting and roll-up counts.
++/// </summary>
++public final class DYLO_MerchHierarchyManager
++{
++    private const int MaxDepth = 1000;
++    private const str RootNodeId = 'ROOT';
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>validateNewParent</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Validates that a node may be placed under a new parent node.
++    /// Walks upwards from the new parent; fails when it meets the node itself (circular reference).
++    /// </summary>
++    public static boolean validateNewParent(DYLO_MerchHierarchyNode _node, DYLO_MerchHierarchyNode _newParent)
++    {
++        boolean                 ret = true;
++        DYLO_MerchHierarchyNode current;
++        int                     steps;
++
++        if (!_newParent.RecId)
++        {
++            return checkFailed("@DYLOExtensions:MerchHierParentInvalid");
++        }
++
++        if (_node.RecId && DYLO_MerchHierarchyNode::find(_node.RecId).ParentNode == 0)
++        {
++            return checkFailed("@DYLOExtensions:MerchHierRootNoMove");
++        }
++
++        if (_newParent.RecId == _node.RecId)
++        {
++            return checkFailed(strFmt("@DYLOExtensions:MerchHierSelfParent", _node.NodeId));
++        }
++
++        current = _newParent;
++
++        while (current.RecId && steps < MaxDepth)
++        {
++            if (current.RecId == _node.RecId)
++            {
++                return checkFailed(strFmt("@DYLOExtensions:MerchHierCircularParent", _node.NodeId, _newParent.NodeId));
++            }
++
++            current = DYLO_MerchHierarchyNode::find(current.ParentNode);
++            steps++;
++        }
++
++        if (steps >= MaxDepth)
++        {
++            ret = checkFailed("@DYLOExtensions:MerchHierLoopDetected");
++        }
++
++        if (_newParent.hasProducts())
++        {
++            ret = checkFailed(strFmt("@DYLOExtensions:MerchHierParentHasProducts", _newParent.NodeId));
++        }
++
++        if (!_newParent.Active)
++        {
++            ret = checkFailed(strFmt("@DYLOExtensions:MerchHierParentInactive", _newParent.NodeId));
++        }
++
++        return ret;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>recalcSubtree</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Recalculates the level and the effective minimum gross margin of all descendants of a node.
++    /// Runs inside the caller's transaction.
++    /// </summary>
++    public static void recalcSubtree(DYLO_MerchHierarchyNode _node)
++    {
++        DYLO_MerchHierarchyManager::recalcChildren(_node, 0);
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>recalcChildren</Name>
++				<Source><![CDATA[
++    private static void recalcChildren(DYLO_MerchHierarchyNode _node, int _depth)
++    {
++        DYLO_MerchHierarchyNode child;
++
++        if (_depth >= MaxDepth)
++        {
++            throw error("@DYLOExtensions:MerchHierLoopDetected");
++        }
++
++        ttsbegin;
++
++        while select forupdate child
++            where child.ParentNode == _node.RecId
++        {
++            child.HierarchyLevel = _node.HierarchyLevel + 1;
++
++            if (child.MinGrossMarginPct != 0)
++            {
++                child.EffectiveMinGrossMarginPct = child.MinGrossMarginPct;
++                child.InheritedFromNode          = child.RecId;
++            }
++            else
++            {
++                child.EffectiveMinGrossMarginPct = _node.EffectiveMinGrossMarginPct;
++                child.InheritedFromNode          = _node.InheritedFromNode;
++            }
++
++            // doUpdate: the table's update() would recalculate the subtree again.
++            child.doUpdate();
++
++            DYLO_MerchHierarchyManager::recalcChildren(child, _depth + 1);
++        }
++
++        ttscommit;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>reparent</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Moves a node, with its subtree, under a new parent node.
++    /// </summary>
++    /// <returns>true if the node was moved; otherwise, false.</returns>
++    public static boolean reparent(DYLO_MerchHierarchyNode _node, RecId _newParentRecId)
++    {
++        DYLO_MerchHierarchyNode newParent = DYLO_MerchHierarchyNode::find(_newParentRecId);
++        DYLO_MerchHierarchyNode node      = DYLO_MerchHierarchyNode::find(_node.RecId);
++
++        if (!node.RecId || !DYLO_MerchHierarchyManager::validateNewParent(node, newParent))
++        {
++            return false;
++        }
++
++        if (node.ParentNode == newParent.RecId)
++        {
++            return true;
++        }
++
++        ttsbegin;
++
++        node = DYLO_MerchHierarchyNode::find(_node.RecId, true);
++        node.ParentNode = newParent.RecId;
++        node.SortOrder  = DYLO_MerchHierarchyManager::nextSortOrder(newParent.RecId);
++        // update() recalculates the level and the effective margin from the new parent, then the subtree.
++        node.update();
++
++        ttscommit;
++
++        return true;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>findSibling</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Finds the previous (_up = true) or the next sibling of a node by sort order.
++    /// </summary>
++    public static DYLO_MerchHierarchyNode findSibling(DYLO_MerchHierarchyNode _node, boolean _up, boolean _forUpdate = false)
++    {
++        DYLO_MerchHierarchyNode sibling;
++
++        if (!_node.RecId || !_node.ParentNode)
++        {
++            return sibling;
++        }
++
++        sibling.selectForUpdate(_forUpdate);
++
++        if (_up)
++        {
++            select firstonly sibling
++                order by SortOrder desc
++                where sibling.ParentNode == _node.ParentNode
++                   && sibling.SortOrder  <  _node.SortOrder
++                   && sibling.RecId      != _node.RecId;
++        }
++        else
++        {
++            select firstonly sibling
++                order by SortOrder asc
++                where sibling.ParentNode == _node.ParentNode
++                   && sibling.SortOrder  >  _node.SortOrder
++                   && sibling.RecId      != _node.RecId;
++        }
++
++        return sibling;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>moveUp</Name>
++				<Source><![CDATA[
++    public static boolean moveUp(DYLO_MerchHierarchyNode _node)
++    {
++        return DYLO_MerchHierarchyManager::swapWithSibling(_node, true);
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>moveDown</Name>
++				<Source><![CDATA[
++    public static boolean moveDown(DYLO_MerchHierarchyNode _node)
++    {
++        return DYLO_MerchHierarchyManager::swapWithSibling(_node, false);
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>swapWithSibling</Name>
++				<Source><![CDATA[
++    private static boolean swapWithSibling(DYLO_MerchHierarchyNode _node, boolean _up)
++    {
++        DYLO_MerchHierarchyNode node;
++        DYLO_MerchHierarchyNode sibling;
++        DYLO_MerchSortOrder     sortOrder;
++        boolean                 moved;
++
++        ttsbegin;
++
++        node    = DYLO_MerchHierarchyNode::find(_node.RecId, true);
++        sibling = DYLO_MerchHierarchyManager::findSibling(node, _up, true);
++
++        if (node.RecId && sibling.RecId)
++        {
++            sortOrder         = node.SortOrder;
++            node.SortOrder    = sibling.SortOrder;
++            sibling.SortOrder = sortOrder;
++
++            node.doUpdate();
++            sibling.doUpdate();
++
++            moved = true;
++        }
++
++        ttscommit;
++
++        return moved;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>nextSortOrder</Name>
++				<Source><![CDATA[
++    public static DYLO_MerchSortOrder nextSortOrder(RecId _parentRecId)
++    {
++        DYLO_MerchHierarchyNode child;
++
++        select maxof(SortOrder) from child
++            where child.ParentNode == _parentRecId;
++
++        return child.SortOrder + 1;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>subtreeNodeRecIds</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Returns the RecIds of a node and all its descendants.
++    /// </summary>
++    public static Set subtreeNodeRecIds(RecId _nodeRecId)
++    {
++        Set nodes = new Set(Types::Int64);
++
++        if (_nodeRecId)
++        {
++            DYLO_MerchHierarchyManager::addSubtree(_nodeRecId, nodes, 0);
++        }
++
++        return nodes;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>addSubtree</Name>
++				<Source><![CDATA[
++    private static void addSubtree(RecId _nodeRecId, Set _nodes, int _depth)
++    {
++        DYLO_MerchHierarchyNode child;
++
++        if (_depth >= MaxDepth || _nodes.in(_nodeRecId))
++        {
++            return;
++        }
++
++        _nodes.add(_nodeRecId);
++
++        while select RecId from child
++            where child.ParentNode == _nodeRecId
++        {
++            DYLO_MerchHierarchyManager::addSubtree(child.RecId, _nodes, _depth + 1);
++        }
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>rollupProductCount</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Counts the products assigned to a node and all its descendants.
++    /// </summary>
++    public static Counter rollupProductCount(RecId _nodeRecId)
++    {
++        DYLO_MerchHierarchyProduct  product;
++        SetEnumerator               enumerator = DYLO_MerchHierarchyManager::subtreeNodeRecIds(_nodeRecId).getEnumerator();
++        RecId                       nodeRecId;
++        Counter                     total;
++
++        while (enumerator.moveNext())
++        {
++            nodeRecId = enumerator.current();
++
++            select count(RecId) from product
++                where product.Node == nodeRecId;
++
++            total += int642int(product.RecId);
++        }
++
++        return total;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>canAddChild</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Checks that a child node may be created under a node: it is active and has no products.
++    /// </summary>
++    public static boolean canAddChild(DYLO_MerchHierarchyNode _parent, boolean _showMessages = true)
++    {
++        boolean ret = true;
++
++        if (!_parent.RecId)
++        {
++            return _showMessages ? checkFailed("@DYLOExtensions:MerchHierParentInvalid") : false;
++        }
++
++        if (_parent.hasProducts())
++        {
++            ret = _showMessages ? checkFailed(strFmt("@DYLOExtensions:MerchHierParentHasProducts", _parent.NodeId)) : false;
++        }
++
++        if (!_parent.Active)
++        {
++            ret = _showMessages ? checkFailed(strFmt("@DYLOExtensions:MerchHierParentInactive", _parent.NodeId)) : false;
++        }
++
++        return ret;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>newChildNodeId</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Proposes a node code for a new child node that is not used yet: parent code, a hyphen and a number.
++    /// </summary>
++    public static DYLO_MerchNodeId newChildNodeId(DYLO_MerchHierarchyNode _parent, DYLO_MerchSortOrder _sortOrder)
++    {
++        DYLO_MerchNodeId    nodeId;
++        int                 counter = _sortOrder;
++        int                 attempts;
++        int                 maxLength = new SysDictType(extendedTypeNum(DYLO_MerchNodeId)).stringLen();
++        str                 suffix;
++
++        do
++        {
++            suffix = strFmt('-%1', counter);
++            nodeId = subStr(_parent.NodeId, 1, maxLength - strLen(suffix)) + suffix;
++            counter++;
++            attempts++;
++        }
++        while (DYLO_MerchHierarchyNode::exist(nodeId) && attempts < MaxDepth);
++
++        return nodeId;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>createRootIfMissing</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Creates the root node of the current legal entity if it does not exist yet.
++    /// </summary>
++    public static DYLO_MerchHierarchyNode createRootIfMissing()
++    {
++        DYLO_MerchHierarchyNode root = DYLO_MerchHierarchyNode::findRoot();
++
++        if (!root.RecId && hasTableAccess(tableNum(DYLO_MerchHierarchyNode), AccessType::Add))
++        {
++            ttsbegin;
++
++            root.initValue();
++            root.NodeId = RootNodeId;
++            root.Name   = "@DYLOExtensions:MerchHierRootName";
++            root.insert();
++
++            ttscommit;
++        }
++
++        return root;
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_MerchHierarchyTreeDatasource.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_MerchHierarchyTreeDatasource.xml
+new file mode 100644
+index 0000000..2372cbc
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_MerchHierarchyTreeDatasource.xml
+@@ -0,0 +1,354 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_MerchHierarchyTreeDatasource</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Drives the tree control of the merchandising hierarchy form (REQ-PIM-903).
++/// The tree's root item is the hierarchy's root node record; item data is the node's RecId.
++/// </summary>
++public class DYLO_MerchHierarchyTreeDatasource extends CcFormTreeDatasource
++{
++    QueryBuildRange nodeRecIdRange;
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>new</Name>
++				<Source><![CDATA[
++    public void new(FormDataSource _formDataSource, FormTreeControl _formTreeControl)
++    {
++        Query                   query = _formDataSource.query();
++        QueryBuildDataSource    qbds  = query.dataSourceTable(tableNum(DYLO_MerchHierarchyNode));
++
++        nodeRecIdRange = qbds.findRange(fieldNum(DYLO_MerchHierarchyNode, RecId));
++
++        if (!nodeRecIdRange)
++        {
++            nodeRecIdRange = qbds.addRange(fieldNum(DYLO_MerchHierarchyNode, RecId));
++        }
++
++        super(_formDataSource,
++              _formTreeControl,
++              fieldNum(DYLO_MerchHierarchyNode, RecId),
++              fieldNum(DYLO_MerchHierarchyNode, ParentNode),
++              fieldNum(DYLO_MerchHierarchyNode, Name),
++              false,
++              false,
++              fieldNum(DYLO_MerchHierarchyNode, NodeId),
++              fieldNum(DYLO_MerchHierarchyNode, SortOrder));
++
++        nodeRecIdRange.value(queryValue(DYLO_MerchHierarchyNode::findRoot().RecId));
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>construct</Name>
++				<Source><![CDATA[
++    public static DYLO_MerchHierarchyTreeDatasource construct(FormDataSource _formDataSource, FormTreeControl _formTreeControl)
++    {
++        return new DYLO_MerchHierarchyTreeDatasource(_formDataSource, _formTreeControl);
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>loadPosition</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Starts at the root node. Overridden because the base sets the selected data to a string,
++    /// which does not compare with the RecId item data.
++    /// </summary>
++    public void loadPosition()
++    {
++        selectedData = DYLO_MerchHierarchyNode::findRoot().RecId;
++        this.getRelations(selectedData);
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>initTree</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Builds the tree from the root node, expands the path to a node and selects it.
++    /// </summary>
++    /// <param name = "_selectRecId">The node to select; 0 selects the default.</param>
++    public void initTree(RecId _selectRecId = 0)
++    {
++        DYLO_MerchHierarchyNode root = DYLO_MerchHierarchyNode::findRoot();
++
++        if (!root.RecId)
++        {
++            tree.deleteAll();
++            return;
++        }
++
++        selectIdx      = 0;
++        selectionStack = new Stack();
++
++        if (_selectRecId && _selectRecId != root.RecId)
++        {
++            // Push the path target..root; the root itself is the tree's root item, so drop it again.
++            this.getRelations(_selectRecId);
++            selectionStack.pop();
++        }
++        else
++        {
++            // Consumed when the root item is expanded.
++            selectionStack.push([root.RecId]);
++        }
++
++        this.initRoot(this.itemText(root.RecId, ''), root.RecId, this.image());
++
++        if (_selectRecId == root.RecId)
++        {
++            tree.select(tree.getRoot());
++        }
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>itemText</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// The tree text of a node: "NodeId - Name", with "(inactive)" for an inactive node.
++    /// </summary>
++    public str itemText(anytype _idTxt, anytype _descriptionTxt)
++    {
++        RecId nodeRecId = _idTxt;
++
++        return DYLO_MerchHierarchyNode::find(nodeRecId).treeText();
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>selectedNode</Name>
++				<Source><![CDATA[
++    public DYLO_MerchHierarchyNode selectedNode()
++    {
++        FormTreeItem    item = tree.getItem(tree.getSelection());
++        RecId           nodeRecId;
++
++        if (item)
++        {
++            nodeRecId = item.data();
++        }
++
++        return DYLO_MerchHierarchyNode::find(nodeRecId);
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>selectionChanged</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Shows the selected node in the form data source.
++    /// </summary>
++    public void selectionChanged(FormTreeItem _oldItem, FormTreeItem _newItem)
++    {
++        RecId nodeRecId;
++
++        if (_oldItem)
++        {
++            oldIdx = _oldItem.idx();
++        }
++
++        if (_newItem)
++        {
++            newIdx       = _newItem.idx();
++            selectedData = _newItem.data();
++            nodeRecId    = _newItem.data();
++            this.setDatasourceStatus(newIdx);
++        }
++
++        nodeRecIdRange.value(queryValue(nodeRecId));
++        formDataSource.executeQuery();
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>selectionChanging</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Vetoes the selection change when the current node cannot be saved.
++    /// </summary>
++    public boolean selectionChanging(FormTreeItem _oldItem, FormTreeItem _newItem, FormTreeSelect _how)
++    {
++        return !formDataSource.leaveRecord();
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>setDatasourceStatus</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// The root item is a real node here: it can be edited but not deleted.
++    /// </summary>
++    public void setDatasourceStatus(int _idx)
++    {
++        formDataSource.allowDelete(_idx != tree.getRoot());
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>create</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Creates a child node under the selected node and selects it.
++    /// </summary>
++    public void create()
++    {
++        int                     idx = tree.getSelection();
++        FormTreeItem            parentItem = tree.getItem(idx);
++        DYLO_MerchHierarchyNode parent;
++        DYLO_MerchHierarchyNode node;
++        RecId                   parentRecId;
++        int                     idxNew;
++
++        if (!parentItem || !formDataSource.leaveRecord())
++        {
++            return;
++        }
++
++        parentRecId = parentItem.data();
++        parent      = DYLO_MerchHierarchyNode::find(parentRecId);
++
++        if (!DYLO_MerchHierarchyManager::canAddChild(parent))
++        {
++            return;
++        }
++
++        node.initValue();
++        node.initFromParent(parent);
++        node.NodeId = DYLO_MerchHierarchyManager::newChildNodeId(parent, node.SortOrder);
++        node.Name   = "@DYLOExtensions:MerchHierNewNodeName";
++
++        if (node.validateWrite())
++        {
++            ttsbegin;
++            node.insert();
++            ttscommit;
++
++            basicRecId = node.RecId;
++            idxNew = this.buildSubTree(idx, parentRecId, true);
++            tree.expand(idx, FormTreeExpand::Expand);
++
++            if (idxNew)
++            {
++                tree.select(idxNew);
++            }
++        }
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>delete</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Deletes the selected node after the delete guard (no root, no child nodes, no products).
++    /// </summary>
++    public void delete()
++    {
++        int                     idx  = tree.getSelection();
++        FormTreeItem            item = tree.getItem(idx);
++        int                     idxParent;
++        RecId                   nodeRecId;
++        DYLO_MerchHierarchyNode node;
++
++        if (!item)
++        {
++            return;
++        }
++
++        nodeRecId = item.data();
++        node      = DYLO_MerchHierarchyNode::find(nodeRecId, true);
++
++        if (!node.RecId || !node.validateDelete())
++        {
++            return;
++        }
++
++        if (Box::yesNo(strFmt("@DYLOExtensions:MerchHierDeleteConfirm", item.text()), DialogButton::No) == DialogButton::Yes)
++        {
++            idxParent = tree.getParent(idx);
++
++            ttsbegin;
++            node = DYLO_MerchHierarchyNode::find(nodeRecId, true);
++            node.delete();
++            ttscommit;
++
++            tree.delete(idx);
++
++            if (idxParent)
++            {
++                item = tree.getItem(idxParent);
++                item.children(tree.getChild(idxParent));
++                tree.setItem(item);
++                tree.select(idxParent);
++            }
++        }
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>refreshSubtree</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Rebuilds the branch under a tree item and selects a node in it.
++    /// </summary>
++    public int refreshSubtree(int _idx, RecId _selectRecId = 0)
++    {
++        FormTreeItem    item = tree.getItem(_idx);
++        int             idxSelect;
++
++        if (!item)
++        {
++            return 0;
++        }
++
++        basicRecId = _selectRecId;
++        idxSelect  = this.buildSubTree(_idx, item.data(), true);
++        tree.expand(_idx, FormTreeExpand::Expand);
++
++        if (idxSelect)
++        {
++            tree.select(idxSelect);
++        }
++
++        return idxSelect;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>refreshSelectedText</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Refreshes the text of the selected tree item from the database.
++    /// </summary>
++    public void refreshSelectedText()
++    {
++        FormTreeItem item = tree.getItem(tree.getSelection());
++
++        if (item)
++        {
++            item.text(this.itemText(item.data(), ''));
++            tree.setItem(item);
++        }
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_MerchMarginCheck.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_MerchMarginCheck.xml
+new file mode 100644
+index 0000000..c582c7e
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_MerchMarginCheck.xml
+@@ -0,0 +1,210 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_MerchMarginCheck</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Checks the sales price lines of a trade agreement journal against the minimum gross margin
++/// of the item's merchandising node (REQ-PIM-903). Only writes warnings; never stops posting.
++/// </summary>
++public final class DYLO_MerchMarginCheck
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>construct</Name>
++				<Source><![CDATA[
++    public static DYLO_MerchMarginCheck construct()
++    {
++        return new DYLO_MerchMarginCheck();
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>checkJournal</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Checks every sales price line for a single item of the journal whose item is in the hierarchy.
++    /// </summary>
++    public void checkJournal(PriceDiscJournalNum _journalNum)
++    {
++        PriceDiscAdmTrans           priceDiscAdmTrans;
++        DYLO_MerchHierarchyProduct  product;
++
++        if (!_journalNum)
++        {
++            return;
++        }
++
++        while select priceDiscAdmTrans
++            where priceDiscAdmTrans.JournalNum == _journalNum
++               && priceDiscAdmTrans.relation   == PriceType::PriceSales
++               && priceDiscAdmTrans.ItemCode   == PriceDiscProductCodeType::Table
++            exists join product
++                where product.ItemId == priceDiscAdmTrans.ItemRelation
++        {
++            this.checkLine(priceDiscAdmTrans);
++        }
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>checkLine</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Warns when the line's gross margin is below the effective minimum of the item's node.
++    /// </summary>
++    public void checkLine(PriceDiscAdmTrans _priceDiscAdmTrans)
++    {
++        DYLO_MerchHierarchyNode     node = DYLO_MerchHierarchyNode::find(
++                                                DYLO_MerchHierarchyProduct::findByItemId(_priceDiscAdmTrans.ItemRelation).Node);
++        DYLO_MerchMinGrossMarginPct threshold = node.EffectiveMinGrossMarginPct;
++        real                        marginPct;
++
++        if (!node.RecId || threshold == 0)
++        {
++            return;
++        }
++
++        if (!this.canConvertUnit(_priceDiscAdmTrans))
++        {
++            warning(strFmt("@DYLOExtensions:MerchHierUnitNotConvertible",
++                _priceDiscAdmTrans.ItemRelation,
++                _priceDiscAdmTrans.UnitId));
++            return;
++        }
++
++        marginPct = this.calcMarginPct(_priceDiscAdmTrans);
++
++        if (marginPct < threshold)
++        {
++            warning(strFmt("@DYLOExtensions:MerchHierMarginBelowMinimum",
++                _priceDiscAdmTrans.ItemRelation,
++                this.priceDate(_priceDiscAdmTrans),
++                strFmt('%1/%2', _priceDiscAdmTrans.AccountCode, _priceDiscAdmTrans.AccountRelation),
++                num2Str(round(marginPct, 0.01), 0, 2, 1, 0),
++                num2Str(threshold, 0, 2, 1, 0),
++                node.nodeDisplay()));
++        }
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>priceDate</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// The date of the price: the line's From date, or today when it is blank.
++    /// </summary>
++    public TransDate priceDate(PriceDiscAdmTrans _priceDiscAdmTrans)
++    {
++        return _priceDiscAdmTrans.FromDate
++            ? _priceDiscAdmTrans.FromDate
++            : DateTimeUtil::getSystemDate(DateTimeUtil::getUserPreferredTimeZone());
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>inventUnitId</Name>
++				<Source><![CDATA[
++    private UnitOfMeasureSymbol inventUnitId(ItemId _itemId)
++    {
++        return InventTableModule::find(_itemId, ModuleInventPurchSales::Invent).UnitId;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>needsUnitConversion</Name>
++				<Source><![CDATA[
++    private boolean needsUnitConversion(PriceDiscAdmTrans _priceDiscAdmTrans)
++    {
++        UnitOfMeasureSymbol inventUnitId = this.inventUnitId(_priceDiscAdmTrans.ItemRelation);
++
++        return _priceDiscAdmTrans.UnitId
++            && inventUnitId
++            && _priceDiscAdmTrans.UnitId != inventUnitId;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>canConvertUnit</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Checks that the line's unit can be converted to the item's inventory unit.
++    /// </summary>
++    public boolean canConvertUnit(PriceDiscAdmTrans _priceDiscAdmTrans)
++    {
++        if (!this.needsUnitConversion(_priceDiscAdmTrans))
++        {
++            return true;
++        }
++
++        return EcoResProductUnitConverter::canBeConvertedForReleasedProduct(
++            _priceDiscAdmTrans.ItemRelation,
++            _priceDiscAdmTrans.InventDimId,
++            UnitOfMeasure::unitOfMeasureIdBySymbol(this.inventUnitId(_priceDiscAdmTrans.ItemRelation)),
++            UnitOfMeasure::unitOfMeasureIdBySymbol(_priceDiscAdmTrans.UnitId));
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>calcMarginPct</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Calculates the gross margin % of a sales price line against the item's active cost price:
++    /// (unit sales price - unit cost) / unit sales price x 100, both per inventory unit in the accounting currency.
++    /// </summary>
++    public real calcMarginPct(PriceDiscAdmTrans _priceDiscAdmTrans)
++    {
++        ItemId              itemId    = _priceDiscAdmTrans.ItemRelation;
++        TransDate           priceDate = this.priceDate(_priceDiscAdmTrans);
++        real                unitPrice = _priceDiscAdmTrans.Amount / (_priceDiscAdmTrans.PriceUnit ? _priceDiscAdmTrans.PriceUnit : 1);
++        real                salesUnitsPerInventUnit;
++        real                unitPriceMST;
++        real                unitCost;
++        InventItemPrice     inventItemPrice;
++
++        if (this.needsUnitConversion(_priceDiscAdmTrans))
++        {
++            salesUnitsPerInventUnit = EcoResProductUnitConverter::convertForReleasedProduct(
++                itemId,
++                _priceDiscAdmTrans.InventDimId,
++                1,
++                UnitOfMeasure::unitOfMeasureIdBySymbol(this.inventUnitId(itemId)),
++                UnitOfMeasure::unitOfMeasureIdBySymbol(_priceDiscAdmTrans.UnitId),
++                NoYes::No,
++                NoYes::No);
++
++            unitPrice = unitPrice * salesUnitsPerInventUnit;
++        }
++
++        unitPriceMST = _priceDiscAdmTrans.Currency
++            ? CurrencyExchangeHelper::amountCur2MST(unitPrice, _priceDiscAdmTrans.Currency, 0, priceDate)
++            : unitPrice;
++
++        inventItemPrice = InventItemPrice::findCurrent(itemId, CostingVersionPriceType::Cost, _priceDiscAdmTrans.InventDimId, priceDate);
++
++        unitCost = inventItemPrice.RecId
++            ? inventItemPrice.pcsPrice()
++            : InventTableModule::find(itemId, ModuleInventPurchSales::Invent).pcsPrice();
++
++        if (unitPriceMST <= 0)
++        {
++            return -100;
++        }
++
++        return (unitPriceMST - unitCost) / unitPriceMST * 100;
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/PriceDiscAdmCheckPost_DYLO_Extension.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/PriceDiscAdmCheckPost_DYLO_Extension.xml
+new file mode 100644
+index 0000000..94cc0e6
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/PriceDiscAdmCheckPost_DYLO_Extension.xml
+@@ -0,0 +1,30 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>PriceDiscAdmCheckPost_DYLO_Extension</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// REQ-PIM-903: warns, when a trade agreement journal is posted, about sales prices below the
++/// minimum gross margin of the item's merchandising node. Posting continues.
++/// </summary>
++[ExtensionOf(classStr(PriceDiscAdmCheckPost))]
++final class PriceDiscAdmCheckPost_DYLO_Extension
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>createOrUpdatePriceDiscTableRecords</Name>
++				<Source><![CDATA[
++    protected void createOrUpdatePriceDiscTableRecords()
++    {
++        DYLO_MerchMarginCheck::construct().checkJournal(journalNum);
++
++        next createOrUpdatePriceDiscTableRecords();
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_MerchHierarchyLevel.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_MerchHierarchyLevel.xml
+new file mode 100644
+index 0000000..9d3ede1
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_MerchHierarchyLevel.xml
+@@ -0,0 +1,10 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxEdt xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns=""
++	i:type="AxEdtInt">
++	<Name>DYLO_MerchHierarchyLevel</Name>
++	<Extends>Integer</Extends>
++	<Label>@DYLOExtensions:MerchHierLevel</Label>
++	<ArrayElements />
++	<Relations />
++	<TableReferences />
++</AxEdt>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_MerchMinGrossMarginPct.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_MerchMinGrossMarginPct.xml
+new file mode 100644
+index 0000000..1f2e3eb
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_MerchMinGrossMarginPct.xml
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxEdt xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns=""
++	i:type="AxEdtReal">
++	<Name>DYLO_MerchMinGrossMarginPct</Name>
++	<Extends>Percent</Extends>
++	<HelpText>@DYLOExtensions:MerchHierMinGrossMarginPctHelp</HelpText>
++	<Label>@DYLOExtensions:MerchHierMinGrossMarginPct</Label>
++	<ArrayElements />
++	<Relations />
++	<TableReferences />
++</AxEdt>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_MerchNodeId.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_MerchNodeId.xml
+new file mode 100644
+index 0000000..d116ecb
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_MerchNodeId.xml
+@@ -0,0 +1,10 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxEdt xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns=""
++	i:type="AxEdtString">
++	<Name>DYLO_MerchNodeId</Name>
++	<Label>@DYLOExtensions:MerchHierNodeCode</Label>
++	<ArrayElements />
++	<Relations />
++	<TableReferences />
++	<StringSize>20</StringSize>
++</AxEdt>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_MerchNodeName.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_MerchNodeName.xml
+new file mode 100644
+index 0000000..478c624
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_MerchNodeName.xml
+@@ -0,0 +1,10 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxEdt xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns=""
++	i:type="AxEdtString">
++	<Name>DYLO_MerchNodeName</Name>
++	<Extends>Name</Extends>
++	<Label>@DYLOExtensions:MerchHierNodeName</Label>
++	<ArrayElements />
++	<Relations />
++	<TableReferences />
++</AxEdt>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_MerchNodeRefRecId.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_MerchNodeRefRecId.xml
+new file mode 100644
+index 0000000..5d0d2d2
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_MerchNodeRefRecId.xml
+@@ -0,0 +1,16 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxEdt xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns=""
++	i:type="AxEdtInt64">
++	<Name>DYLO_MerchNodeRefRecId</Name>
++	<Extends>RefRecId</Extends>
++	<Label>@DYLOExtensions:MerchHierNode</Label>
++	<ReferenceTable>DYLO_MerchHierarchyNode</ReferenceTable>
++	<ArrayElements />
++	<Relations />
++	<TableReferences>
++		<AxEdtTableReference>
++			<RelatedField>RecId</RelatedField>
++			<Table>DYLO_MerchHierarchyNode</Table>
++		</AxEdtTableReference>
++	</TableReferences>
++</AxEdt>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_MerchSortOrder.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_MerchSortOrder.xml
+new file mode 100644
+index 0000000..6ed378c
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_MerchSortOrder.xml
+@@ -0,0 +1,10 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxEdt xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns=""
++	i:type="AxEdtInt">
++	<Name>DYLO_MerchSortOrder</Name>
++	<Extends>Integer</Extends>
++	<Label>@DYLOExtensions:MerchHierSortOrder</Label>
++	<ArrayElements />
++	<Relations />
++	<TableReferences />
++</AxEdt>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxForm/DYLO_MerchHierarchy.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxForm/DYLO_MerchHierarchy.xml
+new file mode 100644
+index 0000000..3e6d8ab
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxForm/DYLO_MerchHierarchy.xml
+@@ -0,0 +1,840 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxForm xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V6">
++	<Name>DYLO_MerchHierarchy</Name>
++	<SourceCode>
++		<Methods xmlns="">
++			<Method>
++				<Name>classDeclaration</Name>
++				<Source><![CDATA[
++/// <summary>
++/// Merchandising hierarchy (REQ-PIM-903): the hierarchy as a tree, the selected node's details
++/// and inherited margin rules, and the released products assigned to the node and its sub-nodes.
++/// </summary>
++[Form]
++public class DYLO_MerchHierarchy extends FormRun
++{
++    DYLO_MerchHierarchyTreeDatasource treeHelper;
++}
++]]></Source>
++			</Method>
++			<Method>
++				<Name>init</Name>
++				<Source><![CDATA[
++    public void init()
++    {
++        DYLO_MerchHierarchyManager::createRootIfMissing();
++
++        super();
++
++        treeHelper = DYLO_MerchHierarchyTreeDatasource::construct(DYLO_MerchHierarchyNode_ds, HierarchyTree);
++        treeHelper.initTree();
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>updateDesign</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Sets the captions and enables the buttons for the selected node.
++    /// </summary>
++    public void updateDesign()
++    {
++        DYLO_MerchHierarchyNode node        = DYLO_MerchHierarchyNode;
++        boolean                 hasNode     = node.RecId != 0;
++        boolean                 isRoot      = node.isRoot();
++        boolean                 hasProducts = node.hasProducts();
++        boolean                 isLeaf      = node.isLeaf();
++
++        NewChildNode.enabled(hasNode && node.Active && !hasProducts);
++        MoveUp.enabled(hasNode && !isRoot && DYLO_MerchHierarchyManager::findSibling(node, true).RecId != 0);
++        MoveDown.enabled(hasNode && !isRoot && DYLO_MerchHierarchyManager::findSibling(node, false).RecId != 0);
++        ReparentNode.enabled(hasNode && !isRoot);
++        DeleteNode.enabled(hasNode && !isRoot);
++        AddProduct.enabled(hasNode && node.Active && isLeaf);
++        RemoveProduct.enabled(DYLO_MerchHierarchyProduct.RecId != 0);
++
++        DetailsGroup.caption(strFmt("@DYLOExtensions:MerchHierDetailsCaption", node.nodeDisplay()));
++        ProductsGroup.caption(strFmt("@DYLOExtensions:MerchHierProductsCaption",
++            DYLO_MerchHierarchyManager::rollupProductCount(node.RecId)));
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>afterReparent</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Called by the re-parent dialog: rebuilds the tree and selects the moved node.
++    /// </summary>
++    public void afterReparent(RecId _nodeRecId)
++    {
++        treeHelper.initTree(_nodeRecId);
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++		<DataSources xmlns="">
++			<DataSource>
++				<Name>DYLO_MerchHierarchyNode</Name>
++				<Methods>
++					<Method>
++						<Name>active</Name>
++						<Source><![CDATA[
++        public int active()
++        {
++            int ret = super();
++
++            DYLO_MerchHierarchyProduct_ds.executeQuery();
++            element.updateDesign();
++
++            return ret;
++        }
++
++]]></Source>
++					</Method>
++					<Method>
++						<Name>written</Name>
++						<Source><![CDATA[
++        public void written()
++        {
++            super();
++
++            // The effective margin, level and inheritance are calculated on save.
++            this.reread();
++            this.refresh();
++
++            if (treeHelper)
++            {
++                treeHelper.refreshSelectedText();
++            }
++
++            DYLO_MerchHierarchyProduct_ds.executeQuery();
++            element.updateDesign();
++        }
++
++]]></Source>
++					</Method>
++				</Methods>
++				<Fields />
++			</DataSource>
++			<DataSource>
++				<Name>DYLO_MerchHierarchyProduct</Name>
++				<Methods>
++					<Method>
++						<Name>initValue</Name>
++						<Source><![CDATA[
++        public void initValue()
++        {
++            super();
++
++            DYLO_MerchHierarchyProduct.Node = DYLO_MerchHierarchyNode.RecId;
++        }
++
++]]></Source>
++					</Method>
++					<Method>
++						<Name>executeQuery</Name>
++						<Source><![CDATA[
++        /// <summary>
++        /// Shows the products of the selected node and all its sub-nodes (roll-up).
++        /// </summary>
++        public void executeQuery()
++        {
++            QueryBuildDataSource    qbds = this.query().dataSourceTable(tableNum(DYLO_MerchHierarchyProduct));
++            SetEnumerator           enumerator;
++            RecId                   nodeRecId;
++
++            qbds.clearRanges();
++
++            if (DYLO_MerchHierarchyNode.RecId)
++            {
++                enumerator = DYLO_MerchHierarchyManager::subtreeNodeRecIds(DYLO_MerchHierarchyNode.RecId).getEnumerator();
++
++                while (enumerator.moveNext())
++                {
++                    nodeRecId = enumerator.current();
++                    qbds.addRange(fieldNum(DYLO_MerchHierarchyProduct, Node)).value(queryValue(nodeRecId));
++                }
++            }
++            else
++            {
++                qbds.addRange(fieldNum(DYLO_MerchHierarchyProduct, Node)).value(queryValue(0));
++            }
++
++            super();
++        }
++
++]]></Source>
++					</Method>
++					<Method>
++						<Name>active</Name>
++						<Source><![CDATA[
++        public int active()
++        {
++            int ret = super();
++
++            // The item can be chosen on a new assignment only.
++            this.object(fieldNum(DYLO_MerchHierarchyProduct, ItemId)).allowEdit(!DYLO_MerchHierarchyProduct.RecId);
++            RemoveProduct.enabled(DYLO_MerchHierarchyProduct.RecId != 0);
++
++            return ret;
++        }
++
++]]></Source>
++					</Method>
++					<Method>
++						<Name>written</Name>
++						<Source><![CDATA[
++        public void written()
++        {
++            super();
++
++            element.updateDesign();
++        }
++
++]]></Source>
++					</Method>
++					<Method>
++						<Name>delete</Name>
++						<Source><![CDATA[
++        public void delete()
++        {
++            super();
++
++            element.updateDesign();
++        }
++
++]]></Source>
++					</Method>
++				</Methods>
++				<Fields />
++			</DataSource>
++		</DataSources>
++		<DataControls xmlns="">
++			<Control>
++				<Name>NewChildNode</Name>
++				<Type>Button</Type>
++				<Methods>
++					<Method>
++						<Name>clicked</Name>
++						<Source><![CDATA[
++        public void clicked()
++        {
++            super();
++
++            if (treeHelper)
++            {
++                treeHelper.create();
++            }
++        }
++
++]]></Source>
++					</Method>
++				</Methods>
++			</Control>
++			<Control>
++				<Name>MoveUp</Name>
++				<Type>Button</Type>
++				<Methods>
++					<Method>
++						<Name>clicked</Name>
++						<Source><![CDATA[
++        public void clicked()
++        {
++            int                     idx = HierarchyTree.getSelection();
++            DYLO_MerchHierarchyNode node;
++
++            super();
++
++            if (!treeHelper || !DYLO_MerchHierarchyNode_ds.leaveRecord())
++            {
++                return;
++            }
++
++            node = treeHelper.selectedNode();
++
++            if (DYLO_MerchHierarchyManager::moveUp(node))
++            {
++                treeHelper.refreshSubtree(HierarchyTree.getParent(idx), node.RecId);
++            }
++        }
++
++]]></Source>
++					</Method>
++				</Methods>
++			</Control>
++			<Control>
++				<Name>MoveDown</Name>
++				<Type>Button</Type>
++				<Methods>
++					<Method>
++						<Name>clicked</Name>
++						<Source><![CDATA[
++        public void clicked()
++        {
++            int                     idx = HierarchyTree.getSelection();
++            DYLO_MerchHierarchyNode node;
++
++            super();
++
++            if (!treeHelper || !DYLO_MerchHierarchyNode_ds.leaveRecord())
++            {
++                return;
++            }
++
++            node = treeHelper.selectedNode();
++
++            if (DYLO_MerchHierarchyManager::moveDown(node))
++            {
++                treeHelper.refreshSubtree(HierarchyTree.getParent(idx), node.RecId);
++            }
++        }
++
++]]></Source>
++					</Method>
++				</Methods>
++			</Control>
++			<Control>
++				<Name>DeleteNode</Name>
++				<Type>Button</Type>
++				<Methods>
++					<Method>
++						<Name>clicked</Name>
++						<Source><![CDATA[
++        public void clicked()
++        {
++            super();
++
++            if (treeHelper)
++            {
++                treeHelper.delete();
++            }
++        }
++
++]]></Source>
++					</Method>
++				</Methods>
++			</Control>
++			<Control>
++				<Name>HierarchyTree</Name>
++				<Type>Tree</Type>
++				<Methods>
++					<Method>
++						<Name>expanding</Name>
++						<Source><![CDATA[
++        public boolean expanding(int _idx, FormTreeExpand _action, anytype _data)
++        {
++            boolean ret = super(_idx, _action, _data);
++
++            if (treeHelper)
++            {
++                treeHelper.expanding(_idx, _action, _data);
++            }
++
++            return ret;
++        }
++
++]]></Source>
++					</Method>
++					<Method>
++						<Name>selectionChanged</Name>
++						<Source><![CDATA[
++        public void selectionChanged(FormTreeItem _oldItem, FormTreeItem _newItem, FormTreeSelect _how)
++        {
++            super(_oldItem, _newItem, _how);
++
++            if (treeHelper)
++            {
++                treeHelper.selectionChanged(_oldItem, _newItem);
++            }
++        }
++
++]]></Source>
++					</Method>
++					<Method>
++						<Name>selectionChanging</Name>
++						<Source><![CDATA[
++        public boolean selectionChanging(FormTreeItem _oldItem, FormTreeItem _newItem, FormTreeSelect _how)
++        {
++            boolean ret = super(_oldItem, _newItem, _how);
++
++            if (!ret && treeHelper)
++            {
++                ret = treeHelper.selectionChanging(_oldItem, _newItem, _how);
++            }
++
++            return ret;
++        }
++
++]]></Source>
++					</Method>
++				</Methods>
++			</Control>
++			<Control>
++				<Name>AddProduct</Name>
++				<Type>Button</Type>
++				<Methods>
++					<Method>
++						<Name>clicked</Name>
++						<Source><![CDATA[
++        public void clicked()
++        {
++            super();
++
++            DYLO_MerchHierarchyProduct_ds.create();
++        }
++
++]]></Source>
++					</Method>
++				</Methods>
++			</Control>
++			<Control>
++				<Name>RemoveProduct</Name>
++				<Type>Button</Type>
++				<Methods>
++					<Method>
++						<Name>clicked</Name>
++						<Source><![CDATA[
++        public void clicked()
++        {
++            super();
++
++            if (DYLO_MerchHierarchyProduct.RecId)
++            {
++                DYLO_MerchHierarchyProduct_ds.delete();
++            }
++        }
++
++]]></Source>
++					</Method>
++				</Methods>
++			</Control>
++		</DataControls>
++		<Members xmlns="" />
++	</SourceCode>
++	<DataSources>
++		<AxFormDataSource xmlns="">
++			<Name>DYLO_MerchHierarchyNode</Name>
++			<Table>DYLO_MerchHierarchyNode</Table>
++			<Fields>
++				<AxFormDataSourceField>
++					<DataField>Active</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>CategoryManager</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>EffectiveMinGrossMarginPct</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>HierarchyLevel</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>InheritedFromNode</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>MinGrossMarginPct</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>Name</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>NodeId</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>ParentNode</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>RecId</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>SortOrder</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>TableId</DataField>
++				</AxFormDataSourceField>
++			</Fields>
++			<ReferencedDataSources />
++			<InsertIfEmpty>No</InsertIfEmpty>
++			<DataSourceLinks />
++			<DerivedDataSources />
++		</AxFormDataSource>
++		<AxFormDataSource xmlns="">
++			<Name>DYLO_MerchHierarchyProduct</Name>
++			<Table>DYLO_MerchHierarchyProduct</Table>
++			<Fields>
++				<AxFormDataSourceField>
++					<DataField>ItemId</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>Node</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>RecId</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>TableId</DataField>
++				</AxFormDataSourceField>
++			</Fields>
++			<ReferencedDataSources />
++			<InsertIfEmpty>No</InsertIfEmpty>
++			<DataSourceLinks />
++			<DerivedDataSources />
++		</AxFormDataSource>
++	</DataSources>
++	<Design>
++		<Caption xmlns="">@DYLOExtensions:MerchHierFormCaption</Caption>
++		<DataSource xmlns="">DYLO_MerchHierarchyNode</DataSource>
++		<Pattern xmlns="">Custom</Pattern>
++		<ShowDeleteButton xmlns="">No</ShowDeleteButton>
++		<ShowNewButton xmlns="">No</ShowNewButton>
++		<Controls xmlns="">
++			<AxFormControl xmlns=""
++				i:type="AxFormActionPaneControl">
++				<Name>ActionPane</Name>
++				<Type>ActionPane</Type>
++				<FormControlExtension
++					i:nil="true" />
++				<Controls>
++					<AxFormControl xmlns=""
++						i:type="AxFormButtonGroupControl">
++						<Name>NodeActions</Name>
++						<Type>ButtonGroup</Type>
++						<FormControlExtension
++							i:nil="true" />
++						<Controls>
++							<AxFormControl xmlns=""
++								i:type="AxFormButtonControl">
++								<Name>NewChildNode</Name>
++								<AutoDeclaration>Yes</AutoDeclaration>
++								<HelpText>@DYLOExtensions:MerchHierNewChildNodeHelp</HelpText>
++								<NeededPermission>Create</NeededPermission>
++								<Type>Button</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<NormalImage>New</NormalImage>
++								<Text>@DYLOExtensions:MerchHierNewChildNode</Text>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormButtonControl">
++								<Name>MoveUp</Name>
++								<AutoDeclaration>Yes</AutoDeclaration>
++								<NeededPermission>Update</NeededPermission>
++								<Type>Button</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<Text>@DYLOExtensions:MerchHierMoveUp</Text>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormButtonControl">
++								<Name>MoveDown</Name>
++								<AutoDeclaration>Yes</AutoDeclaration>
++								<NeededPermission>Update</NeededPermission>
++								<Type>Button</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<Text>@DYLOExtensions:MerchHierMoveDown</Text>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormMenuFunctionButtonControl">
++								<Name>ReparentNode</Name>
++								<AutoDeclaration>Yes</AutoDeclaration>
++								<Type>MenuFunctionButton</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataSource>DYLO_MerchHierarchyNode</DataSource>
++								<MenuItemName>DYLO_MerchHierarchyReparentDialog</MenuItemName>
++								<NeedsRecord>Yes</NeedsRecord>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormButtonControl">
++								<Name>DeleteNode</Name>
++								<AutoDeclaration>Yes</AutoDeclaration>
++								<NeededPermission>Delete</NeededPermission>
++								<Type>Button</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<NormalImage>Delete</NormalImage>
++								<Text>@DYLOExtensions:MerchHierDeleteNode</Text>
++							</AxFormControl>
++						</Controls>
++						<Caption>@DYLOExtensions:MerchHierNodeActions</Caption>
++					</AxFormControl>
++				</Controls>
++			</AxFormControl>
++			<AxFormControl xmlns=""
++				i:type="AxFormGroupControl">
++				<Name>BodyGroup</Name>
++				<HeightMode>SizeToAvailable</HeightMode>
++				<Type>Group</Type>
++				<WidthMode>SizeToAvailable</WidthMode>
++				<FormControlExtension
++					i:nil="true" />
++				<Controls>
++					<AxFormControl xmlns=""
++						i:type="AxFormGroupControl">
++						<Name>TreeGroup</Name>
++						<HeightMode>SizeToAvailable</HeightMode>
++						<Type>Group</Type>
++						<WidthMode>SizeToAvailable</WidthMode>
++						<FormControlExtension
++							i:nil="true" />
++						<Controls>
++							<AxFormControl xmlns=""
++								i:type="AxFormTreeControl">
++								<Name>HierarchyTree</Name>
++								<AutoDeclaration>Yes</AutoDeclaration>
++								<Height>0</Height>
++								<HeightMode>SizeToAvailable</HeightMode>
++								<Type>Tree</Type>
++								<Width>0</Width>
++								<WidthMode>SizeToAvailable</WidthMode>
++								<FormControlExtension
++									i:nil="true" />
++							</AxFormControl>
++						</Controls>
++						<Caption>@DYLOExtensions:MerchHierTreeCaption</Caption>
++					</AxFormControl>
++					<AxFormControl xmlns=""
++						i:type="AxFormGroupControl">
++						<Name>DetailsGroup</Name>
++						<AutoDeclaration>Yes</AutoDeclaration>
++						<HeightMode>SizeToAvailable</HeightMode>
++						<Type>Group</Type>
++						<WidthMode>SizeToAvailable</WidthMode>
++						<FormControlExtension
++							i:nil="true" />
++						<Controls>
++							<AxFormControl xmlns=""
++								i:type="AxFormGroupControl">
++								<Name>NodeFields</Name>
++								<Type>Group</Type>
++								<WidthMode>SizeToAvailable</WidthMode>
++								<FormControlExtension
++									i:nil="true" />
++								<Controls>
++									<AxFormControl xmlns=""
++										i:type="AxFormStringControl">
++										<Name>NodeFields_NodeId</Name>
++										<Type>String</Type>
++										<FormControlExtension
++											i:nil="true" />
++										<DataField>NodeId</DataField>
++										<DataSource>DYLO_MerchHierarchyNode</DataSource>
++									</AxFormControl>
++									<AxFormControl xmlns=""
++										i:type="AxFormStringControl">
++										<Name>NodeFields_Name</Name>
++										<Type>String</Type>
++										<FormControlExtension
++											i:nil="true" />
++										<DataField>Name</DataField>
++										<DataSource>DYLO_MerchHierarchyNode</DataSource>
++									</AxFormControl>
++									<AxFormControl xmlns=""
++										i:type="AxFormStringControl">
++										<Name>NodeFields_ParentNode</Name>
++										<AllowEdit>No</AllowEdit>
++										<Type>String</Type>
++										<FormControlExtension
++											i:nil="true" />
++										<DataMethod>parentNodeDisplay</DataMethod>
++										<DataSource>DYLO_MerchHierarchyNode</DataSource>
++										<Label>@DYLOExtensions:MerchHierParentNode</Label>
++									</AxFormControl>
++									<AxFormControl xmlns=""
++										i:type="AxFormIntegerControl">
++										<Name>NodeFields_HierarchyLevel</Name>
++										<AllowEdit>No</AllowEdit>
++										<Type>Integer</Type>
++										<FormControlExtension
++											i:nil="true" />
++										<DataField>HierarchyLevel</DataField>
++										<DataSource>DYLO_MerchHierarchyNode</DataSource>
++									</AxFormControl>
++									<AxFormControl xmlns=""
++										i:type="AxFormRealControl">
++										<Name>NodeFields_MinGrossMarginPct</Name>
++										<Type>Real</Type>
++										<FormControlExtension
++											i:nil="true" />
++										<DataField>MinGrossMarginPct</DataField>
++										<DataSource>DYLO_MerchHierarchyNode</DataSource>
++									</AxFormControl>
++									<AxFormControl xmlns=""
++										i:type="AxFormRealControl">
++										<Name>NodeFields_EffectiveMinGrossMarginPct</Name>
++										<AllowEdit>No</AllowEdit>
++										<Type>Real</Type>
++										<FormControlExtension
++											i:nil="true" />
++										<DataField>EffectiveMinGrossMarginPct</DataField>
++										<DataSource>DYLO_MerchHierarchyNode</DataSource>
++									</AxFormControl>
++									<AxFormControl xmlns=""
++										i:type="AxFormStringControl">
++										<Name>NodeFields_InheritedFrom</Name>
++										<AllowEdit>No</AllowEdit>
++										<Type>String</Type>
++										<FormControlExtension
++											i:nil="true" />
++										<DataMethod>inheritedFromDisplay</DataMethod>
++										<DataSource>DYLO_MerchHierarchyNode</DataSource>
++										<Label>@DYLOExtensions:MerchHierInheritedFrom</Label>
++									</AxFormControl>
++									<AxFormControl xmlns=""
++										i:type="AxFormReferenceGroupControl">
++										<Name>NodeFields_CategoryManager</Name>
++										<Type>ReferenceGroup</Type>
++										<FormControlExtension
++											i:nil="true" />
++										<Controls />
++										<DataSource>DYLO_MerchHierarchyNode</DataSource>
++										<ReferenceField>CategoryManager</ReferenceField>
++									</AxFormControl>
++									<AxFormControl xmlns=""
++										i:type="AxFormStringControl">
++										<Name>NodeFields_CategoryManagerName</Name>
++										<AllowEdit>No</AllowEdit>
++										<Type>String</Type>
++										<FormControlExtension
++											i:nil="true" />
++										<DataMethod>categoryManagerName</DataMethod>
++										<DataSource>DYLO_MerchHierarchyNode</DataSource>
++										<Label>@DYLOExtensions:MerchHierCategoryManagerName</Label>
++									</AxFormControl>
++									<AxFormControl xmlns=""
++										i:type="AxFormCheckBoxControl">
++										<Name>NodeFields_Active</Name>
++										<Type>CheckBox</Type>
++										<FormControlExtension
++											i:nil="true" />
++										<DataField>Active</DataField>
++										<DataSource>DYLO_MerchHierarchyNode</DataSource>
++									</AxFormControl>
++								</Controls>
++								<DataSource>DYLO_MerchHierarchyNode</DataSource>
++								<FrameType>None</FrameType>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormGroupControl">
++								<Name>ProductsGroup</Name>
++								<AutoDeclaration>Yes</AutoDeclaration>
++								<HeightMode>SizeToAvailable</HeightMode>
++								<Type>Group</Type>
++								<WidthMode>SizeToAvailable</WidthMode>
++								<FormControlExtension
++									i:nil="true" />
++								<Controls>
++									<AxFormControl xmlns=""
++										i:type="AxFormButtonGroupControl">
++										<Name>ProductsActions</Name>
++										<Type>ButtonGroup</Type>
++										<FormControlExtension
++											i:nil="true" />
++										<Controls>
++											<AxFormControl xmlns=""
++												i:type="AxFormButtonControl">
++												<Name>AddProduct</Name>
++												<AutoDeclaration>Yes</AutoDeclaration>
++												<NeededPermission>Create</NeededPermission>
++												<Type>Button</Type>
++												<FormControlExtension
++													i:nil="true" />
++												<Text>@DYLOExtensions:MerchHierAddProduct</Text>
++											</AxFormControl>
++											<AxFormControl xmlns=""
++												i:type="AxFormButtonControl">
++												<Name>RemoveProduct</Name>
++												<AutoDeclaration>Yes</AutoDeclaration>
++												<NeededPermission>Delete</NeededPermission>
++												<Type>Button</Type>
++												<FormControlExtension
++													i:nil="true" />
++												<Text>@DYLOExtensions:MerchHierRemoveProduct</Text>
++											</AxFormControl>
++										</Controls>
++										<ArrangeMethod>HorizontalLeft</ArrangeMethod>
++									</AxFormControl>
++									<AxFormControl xmlns=""
++										i:type="AxFormGridControl">
++										<Name>ProductsGrid</Name>
++										<HeightMode>SizeToAvailable</HeightMode>
++										<Type>Grid</Type>
++										<WidthMode>SizeToAvailable</WidthMode>
++										<FormControlExtension
++											i:nil="true" />
++										<Controls>
++											<AxFormControl xmlns=""
++												i:type="AxFormStringControl">
++												<Name>ProductsGrid_ItemId</Name>
++												<Type>String</Type>
++												<FormControlExtension
++													i:nil="true" />
++												<DataField>ItemId</DataField>
++												<DataSource>DYLO_MerchHierarchyProduct</DataSource>
++											</AxFormControl>
++											<AxFormControl xmlns=""
++												i:type="AxFormStringControl">
++												<Name>ProductsGrid_ProductName</Name>
++												<AllowEdit>No</AllowEdit>
++												<Type>String</Type>
++												<FormControlExtension
++													i:nil="true" />
++												<DataMethod>productName</DataMethod>
++												<DataSource>DYLO_MerchHierarchyProduct</DataSource>
++												<Label>@DYLOExtensions:MerchHierProductName</Label>
++											</AxFormControl>
++											<AxFormControl xmlns=""
++												i:type="AxFormStringControl">
++												<Name>ProductsGrid_Node</Name>
++												<AllowEdit>No</AllowEdit>
++												<Type>String</Type>
++												<FormControlExtension
++													i:nil="true" />
++												<DataMethod>nodeDisplay</DataMethod>
++												<DataSource>DYLO_MerchHierarchyProduct</DataSource>
++												<Label>@DYLOExtensions:MerchHierNode</Label>
++											</AxFormControl>
++											<AxFormControl xmlns=""
++												i:type="AxFormRealControl">
++												<Name>ProductsGrid_TargetMarginPct</Name>
++												<AllowEdit>No</AllowEdit>
++												<Type>Real</Type>
++												<FormControlExtension
++													i:nil="true" />
++												<DataMethod>targetMarginPct</DataMethod>
++												<DataSource>DYLO_MerchHierarchyProduct</DataSource>
++												<Label>@DYLOExtensions:MerchHierTargetMarginPct</Label>
++											</AxFormControl>
++											<AxFormControl xmlns=""
++												i:type="AxFormStringControl">
++												<Name>ProductsGrid_Status</Name>
++												<AllowEdit>No</AllowEdit>
++												<Type>String</Type>
++												<FormControlExtension
++													i:nil="true" />
++												<DataMethod>lifecycleState</DataMethod>
++												<DataSource>DYLO_MerchHierarchyProduct</DataSource>
++												<Label>@DYLOExtensions:MerchHierStatus</Label>
++											</AxFormControl>
++										</Controls>
++										<DataSource>DYLO_MerchHierarchyProduct</DataSource>
++										<Style>Tabular</Style>
++									</AxFormControl>
++								</Controls>
++								<Caption>@DYLOExtensions:MerchHierProductsHeading</Caption>
++							</AxFormControl>
++						</Controls>
++						<Caption>@DYLOExtensions:MerchHierDetailsHeading</Caption>
++					</AxFormControl>
++				</Controls>
++				<ArrangeMethod>HorizontalLeft</ArrangeMethod>
++				<FrameType>None</FrameType>
++			</AxFormControl>
++		</Controls>
++	</Design>
++	<Parts />
++</AxForm>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxForm/DYLO_MerchHierarchyReparentDialog.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxForm/DYLO_MerchHierarchyReparentDialog.xml
+new file mode 100644
+index 0000000..b3e1a1c
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxForm/DYLO_MerchHierarchyReparentDialog.xml
+@@ -0,0 +1,217 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxForm xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V6">
++	<Name>DYLO_MerchHierarchyReparentDialog</Name>
++	<SourceCode>
++		<Methods xmlns="">
++			<Method>
++				<Name>classDeclaration</Name>
++				<Source><![CDATA[
++/// <summary>
++/// Moves a merchandising hierarchy node, with its subtree, under a new parent node (REQ-PIM-903).
++/// </summary>
++[Form]
++public class DYLO_MerchHierarchyReparentDialog extends FormRun
++{
++    DYLO_MerchHierarchyNode node;
++}
++]]></Source>
++			</Method>
++			<Method>
++				<Name>init</Name>
++				<Source><![CDATA[
++    public void init()
++    {
++        super();
++
++        if (!element.args() || element.args().dataset() != tableNum(DYLO_MerchHierarchyNode))
++        {
++            throw error("@DYLOExtensions:MerchHierWrongCall");
++        }
++
++        node = DYLO_MerchHierarchyNode::find(element.args().record().RecId);
++        NodeToMove.text(node.nodeDisplay());
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>closeOk</Name>
++				<Source><![CDATA[
++    public void closeOk()
++    {
++        DYLO_MerchHierarchyNode newParent = DYLO_MerchHierarchyNode::findByNodeId(NewParentNodeId.valueStr());
++        FormRun                 callerForm;
++        Object                  callerObject;
++
++        if (!newParent.RecId)
++        {
++            checkFailed("@DYLOExtensions:MerchHierParentInvalid");
++            return;
++        }
++
++        // Errors keep the dialog open.
++        if (!DYLO_MerchHierarchyManager::reparent(node, newParent.RecId))
++        {
++            return;
++        }
++
++        super();
++
++        callerForm = element.args().caller() as FormRun;
++
++        if (callerForm && formHasMethod(callerForm, identifierStr(afterReparent)))
++        {
++            callerObject = callerForm;
++            callerObject.afterReparent(node.RecId);
++        }
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>lookupNewParent</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Looks up the nodes the node may be moved under: active nodes without products,
++    /// other than the node itself and its descendants.
++    /// </summary>
++    public void lookupNewParent(FormStringControl _control)
++    {
++        SysTableLookup          lookup      = SysTableLookup::newParameters(tableNum(DYLO_MerchHierarchyNode), _control);
++        Query                   query       = new Query();
++        QueryBuildDataSource    qbds        = query.addDataSource(tableNum(DYLO_MerchHierarchyNode));
++        QueryBuildDataSource    qbdsProduct;
++        SetEnumerator           enumerator  = DYLO_MerchHierarchyManager::subtreeNodeRecIds(node.RecId).getEnumerator();
++        RecId                   excludedRecId;
++        str                     expression;
++
++        lookup.addLookupfield(fieldNum(DYLO_MerchHierarchyNode, NodeId), true);
++        lookup.addLookupfield(fieldNum(DYLO_MerchHierarchyNode, Name));
++        lookup.addLookupfield(fieldNum(DYLO_MerchHierarchyNode, HierarchyLevel));
++
++        qbds.addRange(fieldNum(DYLO_MerchHierarchyNode, Active)).value(queryValue(NoYes::Yes));
++
++        while (enumerator.moveNext())
++        {
++            excludedRecId = enumerator.current();
++            expression += strFmt('%1(%2.%3 != %4)',
++                expression ? ' && ' : '',
++                qbds.name(),
++                fieldStr(DYLO_MerchHierarchyNode, RecId),
++                excludedRecId);
++        }
++
++        if (expression)
++        {
++            qbds.addRange(fieldNum(DYLO_MerchHierarchyNode, RecId)).value(strFmt('(%1)', expression));
++        }
++
++        qbdsProduct = qbds.addDataSource(tableNum(DYLO_MerchHierarchyProduct));
++        qbdsProduct.joinMode(JoinMode::NoExistsJoin);
++        qbdsProduct.addLink(fieldNum(DYLO_MerchHierarchyNode, RecId), fieldNum(DYLO_MerchHierarchyProduct, Node));
++
++        lookup.parmQuery(query);
++        lookup.performFormLookup();
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++		<DataSources xmlns="" />
++		<DataControls xmlns="">
++			<Control>
++				<Name>NewParentNodeId</Name>
++				<Type>String</Type>
++				<Methods>
++					<Method>
++						<Name>lookup</Name>
++						<Source><![CDATA[
++        public void lookup()
++        {
++            element.lookupNewParent(this);
++        }
++
++]]></Source>
++					</Method>
++				</Methods>
++			</Control>
++		</DataControls>
++		<Members xmlns="" />
++	</SourceCode>
++	<DataSources />
++	<Design>
++		<Caption xmlns="">@DYLOExtensions:MerchHierReparentNode</Caption>
++		<Pattern xmlns="">Dialog</Pattern>
++		<PatternVersion xmlns="">1.2</PatternVersion>
++		<Style xmlns="">Dialog</Style>
++		<ViewEditMode xmlns="">Edit</ViewEditMode>
++		<Controls xmlns="">
++			<AxFormControl xmlns=""
++				i:type="AxFormGroupControl">
++				<Name>ContentSection</Name>
++				<HeightMode>SizeToAvailable</HeightMode>
++				<Pattern>FieldsFieldGroups</Pattern>
++				<PatternVersion>1.1</PatternVersion>
++				<Type>Group</Type>
++				<WidthMode>SizeToAvailable</WidthMode>
++				<FormControlExtension
++					i:nil="true" />
++				<Controls>
++					<AxFormControl xmlns=""
++						i:type="AxFormStringControl">
++						<Name>NodeToMove</Name>
++						<AllowEdit>No</AllowEdit>
++						<AutoDeclaration>Yes</AutoDeclaration>
++						<Type>String</Type>
++						<FormControlExtension
++							i:nil="true" />
++						<ExtendedDataType>Description255</ExtendedDataType>
++						<Label>@DYLOExtensions:MerchHierNodeToMove</Label>
++					</AxFormControl>
++					<AxFormControl xmlns=""
++						i:type="AxFormStringControl">
++						<Name>NewParentNodeId</Name>
++						<AutoDeclaration>Yes</AutoDeclaration>
++						<Type>String</Type>
++						<FormControlExtension
++							i:nil="true" />
++						<ExtendedDataType>DYLO_MerchNodeId</ExtendedDataType>
++						<Label>@DYLOExtensions:MerchHierNewParentNode</Label>
++					</AxFormControl>
++				</Controls>
++				<ColumnsMode>Fill</ColumnsMode>
++				<Style>DialogContent</Style>
++			</AxFormControl>
++			<AxFormControl xmlns=""
++				i:type="AxFormButtonGroupControl">
++				<Name>CommitSection</Name>
++				<Type>ButtonGroup</Type>
++				<WidthMode>SizeToAvailable</WidthMode>
++				<FormControlExtension
++					i:nil="true" />
++				<Controls>
++					<AxFormControl xmlns=""
++						i:type="AxFormCommandButtonControl">
++						<Name>OKButton</Name>
++						<Type>CommandButton</Type>
++						<FormControlExtension
++							i:nil="true" />
++						<Command>OK</Command>
++					</AxFormControl>
++					<AxFormControl xmlns=""
++						i:type="AxFormCommandButtonControl">
++						<Name>CancelButton</Name>
++						<Type>CommandButton</Type>
++						<FormControlExtension
++							i:nil="true" />
++						<Command>Cancel</Command>
++						<SaveRecord>No</SaveRecord>
++					</AxFormControl>
++				</Controls>
++				<ArrangeMethod>HorizontalRight</ArrangeMethod>
++				<Style>DialogCommitContainer</Style>
++			</AxFormControl>
++		</Controls>
++	</Design>
++	<Parts />
++</AxForm>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxLabelFile/LabelResources/en-US/DYLOExtensions.en-US.label.txt b/Metadata/DYLOExtensions/DYLOExtensions/AxLabelFile/LabelResources/en-US/DYLOExtensions.en-US.label.txt
+index e6d5824..23c9b9c 100644
+--- a/Metadata/DYLOExtensions/DYLOExtensions/AxLabelFile/LabelResources/en-US/DYLOExtensions.en-US.label.txt
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxLabelFile/LabelResources/en-US/DYLOExtensions.en-US.label.txt
+@@ -1,4 +1,80 @@
+-﻿MassPriceAdjAutoPost=Auto-post journal
++﻿MerchHierActive=Active
++MerchHierAddProduct=Add product
++MerchHierAlreadyAssigned=Item %1 is already assigned to node %2.
++MerchHierCategoryManager=Category manager
++MerchHierCategoryManagerName=Category manager name
++MerchHierCircularParent=Node %1 cannot be moved under %2 because %2 is one of its own descendants.
++MerchHierDeleteConfirm=Delete node %1?
++MerchHierDeleteNode=Delete node
++MerchHierDetailsCaption=Node details & inherited margin rules (Node: %1)
++MerchHierDetailsHeading=Node details & inherited margin rules
++MerchHierDutyInquire=View merchandising hierarchy
++MerchHierDutyInquireDesc=View the merchandising hierarchy, its margin rules and assigned products.
++MerchHierDutyMaintain=Maintain merchandising hierarchy
++MerchHierDutyMaintainDesc=Maintain the merchandising hierarchy, its margin rules and assigned products.
++MerchHierEffectiveMargin=Effective minimum gross margin %
++MerchHierEffectiveMarginHelp=The minimum gross margin that applies to the node: its own value, or the value inherited from the nearest parent node.
++MerchHierFormCaption=Merchandising hierarchy
++MerchHierHasChildren=Node %1 has child nodes; move or delete them first.
++MerchHierHasProducts=Node %1 has assigned products; move or remove them first.
++MerchHierInactiveText=%1 (inactive)
++MerchHierInheritedFrom=Inherited from
++MerchHierLevel=Level
++MerchHierLoopDetected=The merchandising hierarchy contains a loop or is too deep.
++MerchHierMarginBelowMinimum=Item %1, valid from %2, account %3: gross margin %4 % is below the minimum %5 % of merchandising node %6.
++MerchHierMarginRange=The minimum gross margin % must be between 0 and 100.
++MerchHierMenuHelp=Maintain the merchandising hierarchy, its minimum gross margins and the released products assigned to it.
++MerchHierMinGrossMarginPct=Minimum gross margin %
++MerchHierMinGrossMarginPctHelp=Inherited by child nodes unless overridden. Leave 0 to inherit the value of the nearest parent node.
++MerchHierMoveDown=Move down
++MerchHierMoveUp=Move up
++MerchHierNewChildNode=New child node
++MerchHierNewChildNodeHelp=Create a node under the selected node.
++MerchHierNewNodeName=New node
++MerchHierNewParentNode=New parent node
++MerchHierNode=Node
++MerchHierNodeActions=Node
++MerchHierNodeCode=Node code
++MerchHierNodeInactive=Node %1 is inactive; products cannot be assigned to it.
++MerchHierNodeMissing=The merchandising hierarchy node does not exist.
++MerchHierNodeName=Node name
++MerchHierNodeTable=Merchandising hierarchy node
++MerchHierNodeTableDoc=A node of the merchandising hierarchy, with its minimum gross margin rule. Kept per legal entity.
++MerchHierNodeText=%1 - %2
++MerchHierNodeToMove=Node to move
++MerchHierNotLeaf=Node %1 has child nodes; products can only be assigned to a node without child nodes.
++MerchHierOnlyOneRoot=The merchandising hierarchy already has a root node; select a parent node.
++MerchHierOverview=Overview
++MerchHierParentHasProducts=Node %1 has assigned products; it cannot have child nodes.
++MerchHierParentInactive=Node %1 is inactive; it cannot have new child nodes.
++MerchHierParentInvalid=Select a valid parent node.
++MerchHierParentNode=Parent node
++MerchHierParentText=%1 - %2 (Level %3)
++MerchHierPrivMaintain=Maintain merchandising hierarchy
++MerchHierPrivMaintainDesc=Create, change and delete merchandising hierarchy nodes and product assignments.
++MerchHierPrivView=View merchandising hierarchy
++MerchHierPrivViewDesc=View merchandising hierarchy nodes and product assignments.
++MerchHierProductName=Product name
++MerchHierProductTable=Merchandising hierarchy product
++MerchHierProductTableDoc=The assignment of a released product to one node of the merchandising hierarchy. Kept per legal entity.
++MerchHierProductsCaption=Assigned released products (Roll-up count: %1 products)
++MerchHierProductsHeading=Assigned released products
++MerchHierRemoveProduct=Remove product
++MerchHierReparentNode=Re-parent node
++MerchHierReparentNodeHelp=Move the selected node and its sub-nodes under another node.
++MerchHierRole=Merchandising category manager
++MerchHierRoleDesc=Maintains the merchandising hierarchy, its minimum gross margins and product assignments.
++MerchHierRootName=All commercial products
++MerchHierRootNoDelete=The root node cannot be deleted.
++MerchHierRootNoMove=The root node cannot be moved.
++MerchHierSelfParent=Node %1 cannot be its own parent.
++MerchHierSortOrder=Sort order
++MerchHierStatus=Status
++MerchHierTargetMarginPct=Target margin %
++MerchHierTreeCaption=Merchandising hierarchy tree
++MerchHierUnitNotConvertible=Item %1: unit %2 cannot be converted to the inventory unit, so the minimum gross margin was not checked.
++MerchHierWrongCall=Open this dialog from the Merchandising hierarchy form.
++MassPriceAdjAutoPost=Auto-post journal
+ MassPriceAdjAutoPostHelp=Validate and post the price/discount agreement journal automatically when the job finishes.
+ MassPriceAdjCaption=Periodic mass trade agreement price adjustment
+ MassPriceAdjCustPriceGroup=Customer price group
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxMenuExtension/ProductInformationManagement.DYLOExtensions.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuExtension/ProductInformationManagement.DYLOExtensions.xml
+new file mode 100644
+index 0000000..4a8b93c
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuExtension/ProductInformationManagement.DYLOExtensions.xml
+@@ -0,0 +1,19 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxMenuExtension xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V1">
++	<Name>ProductInformationManagement.DYLOExtensions</Name>
++	<Customizations />
++	<Elements>
++		<AxMenuExtensionElement xmlns="">
++			<Parent>CategoriesAndAttributes</Parent>
++			<PositionType>AfterItem</PositionType>
++			<PreviousSibling>EcoResCategoryHierarchyRole</PreviousSibling>
++			<MenuElement xmlns=""
++				i:type="AxMenuElementMenuItem">
++				<Name>DYLO_MerchHierarchy</Name>
++				<MenuItemName>DYLO_MerchHierarchy</MenuItemName>
++			</MenuElement>
++		</AxMenuExtensionElement>
++	</Elements>
++	<MenuElementModifications />
++	<PropertyModifications />
++</AxMenuExtension>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemDisplay/DYLO_MerchHierarchy.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemDisplay/DYLO_MerchHierarchy.xml
+new file mode 100644
+index 0000000..1fb374e
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemDisplay/DYLO_MerchHierarchy.xml
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxMenuItemDisplay xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V1">
++	<Name>DYLO_MerchHierarchy</Name>
++	<DisabledResource>0</DisabledResource>
++	<HelpText>@DYLOExtensions:MerchHierMenuHelp</HelpText>
++	<Label>@DYLOExtensions:MerchHierFormCaption</Label>
++	<MaintainUserLicense>Activity</MaintainUserLicense>
++	<NormalResource>0</NormalResource>
++	<Object>DYLO_MerchHierarchy</Object>
++	<ViewUserLicense>Universal</ViewUserLicense>
++</AxMenuItemDisplay>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemDisplay/DYLO_MerchHierarchyReparentDialog.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemDisplay/DYLO_MerchHierarchyReparentDialog.xml
+new file mode 100644
+index 0000000..6f219bc
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemDisplay/DYLO_MerchHierarchyReparentDialog.xml
+@@ -0,0 +1,12 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxMenuItemDisplay xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V1">
++	<Name>DYLO_MerchHierarchyReparentDialog</Name>
++	<DisabledResource>0</DisabledResource>
++	<HelpText>@DYLOExtensions:MerchHierReparentNodeHelp</HelpText>
++	<Label>@DYLOExtensions:MerchHierReparentNode</Label>
++	<MaintainUserLicense>Activity</MaintainUserLicense>
++	<NeedsRecord>Yes</NeedsRecord>
++	<NormalResource>0</NormalResource>
++	<Object>DYLO_MerchHierarchyReparentDialog</Object>
++	<ViewUserLicense>Universal</ViewUserLicense>
++</AxMenuItemDisplay>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityDuty/DYLO_MerchHierarchyInquire.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityDuty/DYLO_MerchHierarchyInquire.xml
+new file mode 100644
+index 0000000..e158744
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityDuty/DYLO_MerchHierarchyInquire.xml
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityDuty xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_MerchHierarchyInquire</Name>
++	<Description>@DYLOExtensions:MerchHierDutyInquireDesc</Description>
++	<Label>@DYLOExtensions:MerchHierDutyInquire</Label>
++	<Privileges>
++		<AxSecurityPrivilegeReference>
++			<Name>DYLO_MerchHierarchyView</Name>
++		</AxSecurityPrivilegeReference>
++	</Privileges>
++</AxSecurityDuty>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityDuty/DYLO_MerchHierarchyMaintain.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityDuty/DYLO_MerchHierarchyMaintain.xml
+new file mode 100644
+index 0000000..a921e09
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityDuty/DYLO_MerchHierarchyMaintain.xml
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityDuty xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_MerchHierarchyMaintain</Name>
++	<Description>@DYLOExtensions:MerchHierDutyMaintainDesc</Description>
++	<Label>@DYLOExtensions:MerchHierDutyMaintain</Label>
++	<Privileges>
++		<AxSecurityPrivilegeReference>
++			<Name>DYLO_MerchHierarchyMaintain</Name>
++		</AxSecurityPrivilegeReference>
++	</Privileges>
++</AxSecurityDuty>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_MerchHierarchyMaintain.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_MerchHierarchyMaintain.xml
+new file mode 100644
+index 0000000..17d060e
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_MerchHierarchyMaintain.xml
+@@ -0,0 +1,60 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityPrivilege xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_MerchHierarchyMaintain</Name>
++	<Description>@DYLOExtensions:MerchHierPrivMaintainDesc</Description>
++	<Label>@DYLOExtensions:MerchHierPrivMaintain</Label>
++	<DataEntityPermissions />
++	<DirectAccessPermissions>
++		<AxSecurityDataEntityReference>
++			<Grant>
++				<Correct>Allow</Correct>
++				<Create>Allow</Create>
++				<Delete>Allow</Delete>
++				<Read>Allow</Read>
++				<Update>Allow</Update>
++			</Grant>
++			<Name>DYLO_MerchHierarchyNode</Name>
++			<Fields />
++		</AxSecurityDataEntityReference>
++		<AxSecurityDataEntityReference>
++			<Grant>
++				<Correct>Allow</Correct>
++				<Create>Allow</Create>
++				<Delete>Allow</Delete>
++				<Read>Allow</Read>
++				<Update>Allow</Update>
++			</Grant>
++			<Name>DYLO_MerchHierarchyProduct</Name>
++			<Fields />
++		</AxSecurityDataEntityReference>
++	</DirectAccessPermissions>
++	<EntryPoints>
++		<AxSecurityEntryPointReference>
++			<Name>DYLO_MerchHierarchy</Name>
++			<Grant>
++				<Correct>Allow</Correct>
++				<Create>Allow</Create>
++				<Delete>Allow</Delete>
++				<Read>Allow</Read>
++				<Update>Allow</Update>
++			</Grant>
++			<ObjectName>DYLO_MerchHierarchy</ObjectName>
++			<ObjectType>MenuItemDisplay</ObjectType>
++			<Forms />
++		</AxSecurityEntryPointReference>
++		<AxSecurityEntryPointReference>
++			<Name>DYLO_MerchHierarchyReparentDialog</Name>
++			<Grant>
++				<Correct>Allow</Correct>
++				<Create>Allow</Create>
++				<Delete>Allow</Delete>
++				<Read>Allow</Read>
++				<Update>Allow</Update>
++			</Grant>
++			<ObjectName>DYLO_MerchHierarchyReparentDialog</ObjectName>
++			<ObjectType>MenuItemDisplay</ObjectType>
++			<Forms />
++		</AxSecurityEntryPointReference>
++	</EntryPoints>
++	<FormControlOverrides />
++</AxSecurityPrivilege>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_MerchHierarchyView.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_MerchHierarchyView.xml
+new file mode 100644
+index 0000000..eaac015
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_MerchHierarchyView.xml
+@@ -0,0 +1,35 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityPrivilege xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_MerchHierarchyView</Name>
++	<Description>@DYLOExtensions:MerchHierPrivViewDesc</Description>
++	<Label>@DYLOExtensions:MerchHierPrivView</Label>
++	<DataEntityPermissions />
++	<DirectAccessPermissions>
++		<AxSecurityDataEntityReference>
++			<Grant>
++				<Read>Allow</Read>
++			</Grant>
++			<Name>DYLO_MerchHierarchyNode</Name>
++			<Fields />
++		</AxSecurityDataEntityReference>
++		<AxSecurityDataEntityReference>
++			<Grant>
++				<Read>Allow</Read>
++			</Grant>
++			<Name>DYLO_MerchHierarchyProduct</Name>
++			<Fields />
++		</AxSecurityDataEntityReference>
++	</DirectAccessPermissions>
++	<EntryPoints>
++		<AxSecurityEntryPointReference>
++			<Name>DYLO_MerchHierarchy</Name>
++			<Grant>
++				<Read>Allow</Read>
++			</Grant>
++			<ObjectName>DYLO_MerchHierarchy</ObjectName>
++			<ObjectType>MenuItemDisplay</ObjectType>
++			<Forms />
++		</AxSecurityEntryPointReference>
++	</EntryPoints>
++	<FormControlOverrides />
++</AxSecurityPrivilege>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityRole/DYLO_MerchCategoryManager.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityRole/DYLO_MerchCategoryManager.xml
+new file mode 100644
+index 0000000..f03eb2d
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityRole/DYLO_MerchCategoryManager.xml
+@@ -0,0 +1,17 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityRole xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_MerchCategoryManager</Name>
++	<Description>@DYLOExtensions:MerchHierRoleDesc</Description>
++	<Label>@DYLOExtensions:MerchHierRole</Label>
++	<DirectAccessPermissions />
++	<Duties>
++		<AxSecurityDutyReference>
++			<Name>DYLO_MerchHierarchyMaintain</Name>
++		</AxSecurityDutyReference>
++		<AxSecurityDutyReference>
++			<Name>DYLO_MerchHierarchyInquire</Name>
++		</AxSecurityDutyReference>
++	</Duties>
++	<Privileges />
++	<SubRoles />
++</AxSecurityRole>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxTable/DYLO_MerchHierarchyNode.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxTable/DYLO_MerchHierarchyNode.xml
+new file mode 100644
+index 0000000..a4f70cd
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxTable/DYLO_MerchHierarchyNode.xml
+@@ -0,0 +1,675 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxTable xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_MerchHierarchyNode</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// A node of the merchandising hierarchy (REQ-PIM-903). Self-referencing via <c>ParentNode</c>; kept per legal entity.
++/// </summary>
++public class DYLO_MerchHierarchyNode extends common
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>initValue</Name>
++				<Source><![CDATA[
++    public void initValue()
++    {
++        super();
++
++        this.Active = NoYes::Yes;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>find</Name>
++				<Source><![CDATA[
++    public static DYLO_MerchHierarchyNode find(RecId _recId, boolean _forUpdate = false)
++    {
++        DYLO_MerchHierarchyNode node;
++
++        if (_recId)
++        {
++            node.selectForUpdate(_forUpdate);
++
++            select firstonly node
++                where node.RecId == _recId;
++        }
++
++        return node;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>findByNodeId</Name>
++				<Source><![CDATA[
++    public static DYLO_MerchHierarchyNode findByNodeId(DYLO_MerchNodeId _nodeId, boolean _forUpdate = false)
++    {
++        DYLO_MerchHierarchyNode node;
++
++        if (_nodeId)
++        {
++            node.selectForUpdate(_forUpdate);
++
++            select firstonly node
++                where node.NodeId == _nodeId;
++        }
++
++        return node;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>findRoot</Name>
++				<Source><![CDATA[
++    public static DYLO_MerchHierarchyNode findRoot(boolean _forUpdate = false)
++    {
++        DYLO_MerchHierarchyNode node;
++
++        node.selectForUpdate(_forUpdate);
++
++        select firstonly node
++            where node.ParentNode == 0;
++
++        return node;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>exist</Name>
++				<Source><![CDATA[
++    public static boolean exist(DYLO_MerchNodeId _nodeId)
++    {
++        return _nodeId
++            && (select firstonly RecId from DYLO_MerchHierarchyNode
++                    where DYLO_MerchHierarchyNode.NodeId == _nodeId).RecId != 0;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>isRoot</Name>
++				<Source><![CDATA[
++    public boolean isRoot()
++    {
++        return this.RecId != 0 && this.ParentNode == 0;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>hasChildren</Name>
++				<Source><![CDATA[
++    public boolean hasChildren()
++    {
++        DYLO_MerchHierarchyNode child;
++
++        if (!this.RecId)
++        {
++            return false;
++        }
++
++        select firstonly RecId from child
++            where child.ParentNode == this.RecId;
++
++        return child.RecId != 0;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>hasProducts</Name>
++				<Source><![CDATA[
++    public boolean hasProducts()
++    {
++        DYLO_MerchHierarchyProduct product;
++
++        if (!this.RecId)
++        {
++            return false;
++        }
++
++        select firstonly RecId from product
++            where product.Node == this.RecId;
++
++        return product.RecId != 0;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>isLeaf</Name>
++				<Source><![CDATA[
++    public boolean isLeaf()
++    {
++        return !this.hasChildren();
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>parentNode</Name>
++				<Source><![CDATA[
++    public DYLO_MerchHierarchyNode parentNode()
++    {
++        return DYLO_MerchHierarchyNode::find(this.ParentNode);
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>initFromParent</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Initializes a new child node from its parent node.
++    /// </summary>
++    public void initFromParent(DYLO_MerchHierarchyNode _parent)
++    {
++        this.ParentNode                 = _parent.RecId;
++        this.HierarchyLevel             = _parent.HierarchyLevel + 1;
++        this.SortOrder                  = DYLO_MerchHierarchyManager::nextSortOrder(_parent.RecId);
++        this.EffectiveMinGrossMarginPct = _parent.EffectiveMinGrossMarginPct;
++        this.InheritedFromNode          = _parent.InheritedFromNode;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>calcFromParent</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Calculates the level and the effective minimum gross margin from the parent node.
++    /// A node's own value (other than 0) wins; 0 inherits the nearest parent's effective value.
++    /// </summary>
++    public void calcFromParent()
++    {
++        DYLO_MerchHierarchyNode parent = this.parentNode();
++
++        if (parent.RecId)
++        {
++            this.HierarchyLevel = parent.HierarchyLevel + 1;
++
++            if (this.MinGrossMarginPct != 0)
++            {
++                this.EffectiveMinGrossMarginPct = this.MinGrossMarginPct;
++                this.InheritedFromNode          = this.RecId;
++            }
++            else
++            {
++                this.EffectiveMinGrossMarginPct = parent.EffectiveMinGrossMarginPct;
++                this.InheritedFromNode          = parent.InheritedFromNode;
++            }
++        }
++        else
++        {
++            this.HierarchyLevel             = 1;
++            this.EffectiveMinGrossMarginPct = this.MinGrossMarginPct;
++            this.InheritedFromNode          = this.RecId;
++        }
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>insert</Name>
++				<Source><![CDATA[
++    public void insert()
++    {
++        ttsbegin;
++
++        this.calcFromParent();
++
++        super();
++
++        if (!this.InheritedFromNode)
++        {
++            // The node's own value is effective: point to the node itself now that its RecId is known.
++            this.selectForUpdate(true);
++            this.InheritedFromNode = this.RecId;
++            this.doUpdate();
++        }
++
++        ttscommit;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>update</Name>
++				<Source><![CDATA[
++    public void update()
++    {
++        DYLO_MerchHierarchyNode orig = this.orig();
++        boolean                 recalcSubtree;
++
++        ttsbegin;
++
++        this.calcFromParent();
++
++        recalcSubtree = orig.ParentNode                 != this.ParentNode
++                     || orig.MinGrossMarginPct          != this.MinGrossMarginPct
++                     || orig.EffectiveMinGrossMarginPct != this.EffectiveMinGrossMarginPct
++                     || orig.InheritedFromNode          != this.InheritedFromNode
++                     || orig.HierarchyLevel             != this.HierarchyLevel;
++
++        super();
++
++        if (recalcSubtree)
++        {
++            DYLO_MerchHierarchyManager::recalcSubtree(this);
++        }
++
++        ttscommit;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>validateWrite</Name>
++				<Source><![CDATA[
++    public boolean validateWrite()
++    {
++        boolean                 ret = super();
++        DYLO_MerchHierarchyNode parent;
++        DYLO_MerchHierarchyNode otherRoot;
++
++        if (ret)
++        {
++            if (!this.ParentNode)
++            {
++                select firstonly RecId from otherRoot
++                    where otherRoot.ParentNode == 0
++                       && otherRoot.RecId      != this.RecId;
++
++                if (otherRoot.RecId)
++                {
++                    ret = checkFailed("@DYLOExtensions:MerchHierOnlyOneRoot");
++                }
++            }
++            else
++            {
++                parent = DYLO_MerchHierarchyNode::find(this.ParentNode);
++
++                if (!parent.RecId || parent.RecId == this.RecId)
++                {
++                    ret = checkFailed("@DYLOExtensions:MerchHierParentInvalid");
++                }
++                else if (!this.RecId)
++                {
++                    if (parent.hasProducts())
++                    {
++                        ret = checkFailed(strFmt("@DYLOExtensions:MerchHierParentHasProducts", parent.NodeId));
++                    }
++
++                    if (!parent.Active)
++                    {
++                        ret = checkFailed(strFmt("@DYLOExtensions:MerchHierParentInactive", parent.NodeId));
++                    }
++                }
++                else if (this.ParentNode != this.orig().ParentNode)
++                {
++                    ret = DYLO_MerchHierarchyManager::validateNewParent(this, parent) && ret;
++                }
++            }
++
++            if (this.MinGrossMarginPct < 0 || this.MinGrossMarginPct > 100)
++            {
++                ret = checkFailed("@DYLOExtensions:MerchHierMarginRange");
++            }
++        }
++
++        return ret;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>validateDelete</Name>
++				<Source><![CDATA[
++    public boolean validateDelete()
++    {
++        boolean ret = super();
++
++        if (ret)
++        {
++            if (!this.ParentNode)
++            {
++                ret = checkFailed("@DYLOExtensions:MerchHierRootNoDelete");
++            }
++
++            if (this.hasChildren())
++            {
++                ret = checkFailed(strFmt("@DYLOExtensions:MerchHierHasChildren", this.NodeId));
++            }
++
++            if (this.hasProducts())
++            {
++                ret = checkFailed(strFmt("@DYLOExtensions:MerchHierHasProducts", this.NodeId));
++            }
++        }
++
++        return ret;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>nodeDisplay</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// The node as "NodeId - Name".
++    /// </summary>
++    public display Description255 nodeDisplay()
++    {
++        if (!this.RecId && !this.NodeId)
++        {
++            return '';
++        }
++
++        return strFmt("@DYLOExtensions:MerchHierNodeText", this.NodeId, this.Name);
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>treeText</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// The text of the node in the tree: "NodeId - Name", followed by "(inactive)" for an inactive node.
++    /// </summary>
++    public Description255 treeText()
++    {
++        Description255 text = this.nodeDisplay();
++
++        if (this.RecId && !this.Active)
++        {
++            text = strFmt("@DYLOExtensions:MerchHierInactiveText", text);
++        }
++
++        return text;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>parentNodeDisplay</Name>
++				<Source><![CDATA[
++    public display Description255 parentNodeDisplay()
++    {
++        DYLO_MerchHierarchyNode parent = this.parentNode();
++
++        if (!parent.RecId)
++        {
++            return '';
++        }
++
++        return strFmt("@DYLOExtensions:MerchHierParentText", parent.NodeId, parent.Name, parent.HierarchyLevel);
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>inheritedFromDisplay</Name>
++				<Source><![CDATA[
++    public display Description255 inheritedFromDisplay()
++    {
++        return DYLO_MerchHierarchyNode::find(this.InheritedFromNode).nodeDisplay();
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>categoryManagerName</Name>
++				<Source><![CDATA[
++    public display HcmWorkerName categoryManagerName()
++    {
++        return this.CategoryManager ? HcmWorker::find(this.CategoryManager).name() : '';
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>rollupProductCount</Name>
++				<Source><![CDATA[
++    public display Counter rollupProductCount()
++    {
++        return DYLO_MerchHierarchyManager::rollupProductCount(this.RecId);
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++	<DeveloperDocumentation>@DYLOExtensions:MerchHierNodeTableDoc</DeveloperDocumentation>
++	<FormRef>DYLO_MerchHierarchy</FormRef>
++	<Label>@DYLOExtensions:MerchHierNodeTable</Label>
++	<TableGroup>Group</TableGroup>
++	<TitleField1>NodeId</TitleField1>
++	<TitleField2>Name</TitleField2>
++	<CacheLookup>Found</CacheLookup>
++	<ReplacementKey>NodeIdIdx</ReplacementKey>
++	<DeleteActions />
++	<FieldGroups>
++		<AxTableFieldGroup>
++			<Name>AutoReport</Name>
++			<Fields>
++				<AxTableFieldGroupField>
++					<DataField>NodeId</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>Name</DataField>
++				</AxTableFieldGroupField>
++			</Fields>
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoLookup</Name>
++			<Fields>
++				<AxTableFieldGroupField>
++					<DataField>NodeId</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>Name</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>HierarchyLevel</DataField>
++				</AxTableFieldGroupField>
++			</Fields>
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoIdentification</Name>
++			<AutoPopulate>Yes</AutoPopulate>
++			<Fields>
++				<AxTableFieldGroupField>
++					<DataField>NodeId</DataField>
++				</AxTableFieldGroupField>
++			</Fields>
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoSummary</Name>
++			<Fields />
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoBrowse</Name>
++			<Fields />
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>Overview</Name>
++			<Label>@DYLOExtensions:MerchHierOverview</Label>
++			<Fields>
++				<AxTableFieldGroupField>
++					<DataField>NodeId</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>Name</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>Active</DataField>
++				</AxTableFieldGroupField>
++			</Fields>
++		</AxTableFieldGroup>
++	</FieldGroups>
++	<Fields>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>NodeId</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>DYLO_MerchNodeId</ExtendedDataType>
++			<Mandatory>Yes</Mandatory>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>Name</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>DYLO_MerchNodeName</ExtendedDataType>
++			<Mandatory>Yes</Mandatory>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldInt64">
++			<Name>ParentNode</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>DYLO_MerchNodeRefRecId</ExtendedDataType>
++			<Label>@DYLOExtensions:MerchHierParentNode</Label>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldInt">
++			<Name>HierarchyLevel</Name>
++			<AllowEdit>No</AllowEdit>
++			<AllowEditOnCreate>No</AllowEditOnCreate>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>DYLO_MerchHierarchyLevel</ExtendedDataType>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldInt">
++			<Name>SortOrder</Name>
++			<AllowEdit>No</AllowEdit>
++			<AllowEditOnCreate>No</AllowEditOnCreate>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>DYLO_MerchSortOrder</ExtendedDataType>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldReal">
++			<Name>MinGrossMarginPct</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>DYLO_MerchMinGrossMarginPct</ExtendedDataType>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldReal">
++			<Name>EffectiveMinGrossMarginPct</Name>
++			<AllowEdit>No</AllowEdit>
++			<AllowEditOnCreate>No</AllowEditOnCreate>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>DYLO_MerchMinGrossMarginPct</ExtendedDataType>
++			<HelpText>@DYLOExtensions:MerchHierEffectiveMarginHelp</HelpText>
++			<Label>@DYLOExtensions:MerchHierEffectiveMargin</Label>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldInt64">
++			<Name>InheritedFromNode</Name>
++			<AllowEdit>No</AllowEdit>
++			<AllowEditOnCreate>No</AllowEditOnCreate>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>DYLO_MerchNodeRefRecId</ExtendedDataType>
++			<Label>@DYLOExtensions:MerchHierInheritedFrom</Label>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldEnum">
++			<Name>Active</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>NoYesId</ExtendedDataType>
++			<Label>@DYLOExtensions:MerchHierActive</Label>
++			<EnumType>NoYes</EnumType>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldInt64">
++			<Name>CategoryManager</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>HcmWorkerRecId</ExtendedDataType>
++			<Label>@DYLOExtensions:MerchHierCategoryManager</Label>
++		</AxTableField>
++	</Fields>
++	<FullTextIndexes />
++	<Indexes>
++		<AxTableIndex>
++			<Name>NodeIdIdx</Name>
++			<AlternateKey>Yes</AlternateKey>
++			<Fields>
++				<AxTableIndexField>
++					<DataField>NodeId</DataField>
++				</AxTableIndexField>
++			</Fields>
++		</AxTableIndex>
++		<AxTableIndex>
++			<Name>ParentSortIdx</Name>
++			<AllowDuplicates>Yes</AllowDuplicates>
++			<Fields>
++				<AxTableIndexField>
++					<DataField>ParentNode</DataField>
++				</AxTableIndexField>
++				<AxTableIndexField>
++					<DataField>SortOrder</DataField>
++				</AxTableIndexField>
++			</Fields>
++		</AxTableIndex>
++	</Indexes>
++	<Mappings />
++	<Relations>
++		<AxTableRelation xmlns=""
++			i:type="AxTableRelationForeignKey">
++			<Name>ParentNode</Name>
++			<Cardinality>ZeroMore</Cardinality>
++			<RelatedTable>DYLO_MerchHierarchyNode</RelatedTable>
++			<RelatedTableCardinality>ZeroOne</RelatedTableCardinality>
++			<RelationshipType>Association</RelationshipType>
++			<Constraints>
++				<AxTableRelationConstraint xmlns=""
++					i:type="AxTableRelationConstraintField">
++					<Name>ParentNode</Name>
++					<Field>ParentNode</Field>
++					<RelatedField>RecId</RelatedField>
++				</AxTableRelationConstraint>
++			</Constraints>
++			<Index>RecId</Index>
++		</AxTableRelation>
++		<AxTableRelation xmlns=""
++			i:type="AxTableRelationForeignKey">
++			<Name>InheritedFromNode</Name>
++			<Cardinality>ZeroMore</Cardinality>
++			<RelatedTable>DYLO_MerchHierarchyNode</RelatedTable>
++			<RelatedTableCardinality>ZeroOne</RelatedTableCardinality>
++			<RelationshipType>Association</RelationshipType>
++			<Constraints>
++				<AxTableRelationConstraint xmlns=""
++					i:type="AxTableRelationConstraintField">
++					<Name>InheritedFromNode</Name>
++					<Field>InheritedFromNode</Field>
++					<RelatedField>RecId</RelatedField>
++				</AxTableRelationConstraint>
++			</Constraints>
++			<Index>RecId</Index>
++		</AxTableRelation>
++		<AxTableRelation xmlns=""
++			i:type="AxTableRelationForeignKey">
++			<Name>CategoryManager</Name>
++			<Cardinality>ZeroMore</Cardinality>
++			<RelatedTable>HcmWorker</RelatedTable>
++			<RelatedTableCardinality>ZeroOne</RelatedTableCardinality>
++			<RelationshipType>Association</RelationshipType>
++			<Constraints>
++				<AxTableRelationConstraint xmlns=""
++					i:type="AxTableRelationConstraintField">
++					<Name>CategoryManager</Name>
++					<Field>CategoryManager</Field>
++					<RelatedField>RecId</RelatedField>
++				</AxTableRelationConstraint>
++			</Constraints>
++			<Index>RecId</Index>
++		</AxTableRelation>
++	</Relations>
++	<StateMachines />
++</AxTable>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxTable/DYLO_MerchHierarchyProduct.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxTable/DYLO_MerchHierarchyProduct.xml
+new file mode 100644
+index 0000000..0572d28
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxTable/DYLO_MerchHierarchyProduct.xml
+@@ -0,0 +1,245 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxTable xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_MerchHierarchyProduct</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// The assignment of a released product to one leaf node of the merchandising hierarchy (REQ-PIM-903).
++/// One node per product per legal entity.
++/// </summary>
++public class DYLO_MerchHierarchyProduct extends common
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>findByItemId</Name>
++				<Source><![CDATA[
++    public static DYLO_MerchHierarchyProduct findByItemId(ItemId _itemId, boolean _forUpdate = false)
++    {
++        DYLO_MerchHierarchyProduct product;
++
++        if (_itemId)
++        {
++            product.selectForUpdate(_forUpdate);
++
++            select firstonly product
++                where product.ItemId == _itemId;
++        }
++
++        return product;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>validateWrite</Name>
++				<Source><![CDATA[
++    public boolean validateWrite()
++    {
++        boolean                     ret = super();
++        DYLO_MerchHierarchyNode     node;
++        DYLO_MerchHierarchyProduct  other;
++
++        if (ret)
++        {
++            node = DYLO_MerchHierarchyNode::find(this.Node);
++
++            if (!node.RecId)
++            {
++                ret = checkFailed("@DYLOExtensions:MerchHierNodeMissing");
++            }
++            else
++            {
++                if (!node.Active)
++                {
++                    ret = checkFailed(strFmt("@DYLOExtensions:MerchHierNodeInactive", node.NodeId));
++                }
++
++                if (!node.isLeaf())
++                {
++                    ret = checkFailed(strFmt("@DYLOExtensions:MerchHierNotLeaf", node.NodeId));
++                }
++            }
++
++            select firstonly Node, RecId from other
++                where other.ItemId == this.ItemId
++                   && other.RecId  != this.RecId;
++
++            if (other.RecId)
++            {
++                ret = checkFailed(strFmt("@DYLOExtensions:MerchHierAlreadyAssigned",
++                    this.ItemId,
++                    DYLO_MerchHierarchyNode::find(other.Node).nodeDisplay()));
++            }
++        }
++
++        return ret;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>productName</Name>
++				<Source><![CDATA[
++    public display EcoResProductName productName()
++    {
++        return InventTable::find(this.ItemId).defaultProductName();
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>targetMarginPct</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// The target margin of the product: the effective (inherited) minimum gross margin of its node.
++    /// </summary>
++    public display DYLO_MerchMinGrossMarginPct targetMarginPct()
++    {
++        return DYLO_MerchHierarchyNode::find(this.Node).EffectiveMinGrossMarginPct;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>lifecycleState</Name>
++				<Source><![CDATA[
++    public display EcoResProductLifecycleStateId lifecycleState()
++    {
++        return InventTable::find(this.ItemId).ProductLifecycleStateId;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>nodeDisplay</Name>
++				<Source><![CDATA[
++    public display Description255 nodeDisplay()
++    {
++        return DYLO_MerchHierarchyNode::find(this.Node).nodeDisplay();
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++	<DeveloperDocumentation>@DYLOExtensions:MerchHierProductTableDoc</DeveloperDocumentation>
++	<FormRef>DYLO_MerchHierarchy</FormRef>
++	<Label>@DYLOExtensions:MerchHierProductTable</Label>
++	<TableGroup>Main</TableGroup>
++	<TitleField1>ItemId</TitleField1>
++	<TitleField2>Node</TitleField2>
++	<CacheLookup>Found</CacheLookup>
++	<ReplacementKey>ItemIdx</ReplacementKey>
++	<DeleteActions />
++	<FieldGroups>
++		<AxTableFieldGroup>
++			<Name>AutoReport</Name>
++			<Fields>
++				<AxTableFieldGroupField>
++					<DataField>ItemId</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>Node</DataField>
++				</AxTableFieldGroupField>
++			</Fields>
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoLookup</Name>
++			<Fields />
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoIdentification</Name>
++			<AutoPopulate>Yes</AutoPopulate>
++			<Fields>
++				<AxTableFieldGroupField>
++					<DataField>ItemId</DataField>
++				</AxTableFieldGroupField>
++			</Fields>
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoSummary</Name>
++			<Fields />
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoBrowse</Name>
++			<Fields />
++		</AxTableFieldGroup>
++	</FieldGroups>
++	<Fields>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>ItemId</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>ItemId</ExtendedDataType>
++			<Mandatory>Yes</Mandatory>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldInt64">
++			<Name>Node</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>DYLO_MerchNodeRefRecId</ExtendedDataType>
++			<Mandatory>Yes</Mandatory>
++		</AxTableField>
++	</Fields>
++	<FullTextIndexes />
++	<Indexes>
++		<AxTableIndex>
++			<Name>ItemIdx</Name>
++			<AlternateKey>Yes</AlternateKey>
++			<Fields>
++				<AxTableIndexField>
++					<DataField>ItemId</DataField>
++				</AxTableIndexField>
++			</Fields>
++		</AxTableIndex>
++		<AxTableIndex>
++			<Name>NodeIdx</Name>
++			<AllowDuplicates>Yes</AllowDuplicates>
++			<Fields>
++				<AxTableIndexField>
++					<DataField>Node</DataField>
++				</AxTableIndexField>
++			</Fields>
++		</AxTableIndex>
++	</Indexes>
++	<Mappings />
++	<Relations>
++		<AxTableRelation>
++			<Name>InventTable</Name>
++			<Cardinality>ZeroOne</Cardinality>
++			<OnDelete>Cascade</OnDelete>
++			<RelatedTable>InventTable</RelatedTable>
++			<RelatedTableCardinality>ExactlyOne</RelatedTableCardinality>
++			<RelationshipType>Association</RelationshipType>
++			<Constraints>
++				<AxTableRelationConstraint xmlns=""
++					i:type="AxTableRelationConstraintField">
++					<Name>ItemId</Name>
++					<Field>ItemId</Field>
++					<RelatedField>ItemId</RelatedField>
++				</AxTableRelationConstraint>
++			</Constraints>
++		</AxTableRelation>
++		<AxTableRelation xmlns=""
++			i:type="AxTableRelationForeignKey">
++			<Name>Node</Name>
++			<Cardinality>ZeroMore</Cardinality>
++			<RelatedTable>DYLO_MerchHierarchyNode</RelatedTable>
++			<RelatedTableCardinality>ExactlyOne</RelatedTableCardinality>
++			<RelationshipType>Association</RelationshipType>
++			<Constraints>
++				<AxTableRelationConstraint xmlns=""
++					i:type="AxTableRelationConstraintField">
++					<Name>Node</Name>
++					<Field>Node</Field>
++					<RelatedField>RecId</RelatedField>
++				</AxTableRelationConstraint>
++			</Constraints>
++			<Index>RecId</Index>
++		</AxTableRelation>
++	</Relations>
++	<StateMachines />
++</AxTable>
+diff --git a/Metadata/DYLOExtensions/Descriptor/DYLOExtensions.xml b/Metadata/DYLOExtensions/Descriptor/DYLOExtensions.xml
+index 85cf573..7dfd4be 100644
+--- a/Metadata/DYLOExtensions/Descriptor/DYLOExtensions.xml
++++ b/Metadata/DYLOExtensions/Descriptor/DYLOExtensions.xml
+@@ -19,6 +19,8 @@
+ 		<d2p1:string>Currency</d2p1:string>
+ 		<d2p1:string>Directory</d2p1:string>
+ 		<d2p1:string>Ledger</d2p1:string>
++		<d2p1:string>PersonnelCore</d2p1:string>
++		<d2p1:string>UnitOfMeasure</d2p1:string>
+ 	</ModuleReferences>
+ 	<Name>DYLOExtensions</Name>
+ 	<Publisher>DynoLoom</Publisher>

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxSecurityPrivilege xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_WarrantyPostingSetupView</Name>
+	<Description>@DYLOExtensions:WarrantyProvisionSetupViewDesc</Description>
+	<Label>@DYLOExtensions:WarrantyProvisionSetupView</Label>
+	<DataEntityPermissions />
+	<DirectAccessPermissions />
+	<EntryPoints>
+		<AxSecurityEntryPointReference>
+			<Name>DYLO_WarrantyPostingSetup</Name>
+			<Grant>
+				<Read>Allow</Read>
+			</Grant>
+			<ObjectName>DYLO_WarrantyPostingSetup</ObjectName>
+			<ObjectType>MenuItemDisplay</ObjectType>
+			<Forms>
+				<AxSecurityEntryPointReferenceForm>
+					<Name>DYLO_WarrantyPostingSetup</Name>
+					<Controls />
+					<DataSources />
+				</AxSecurityEntryPointReferenceForm>
+			</Forms>
+		</AxSecurityEntryPointReference>
+	</EntryPoints>
+	<FormControlOverrides />
+</AxSecurityPrivilege>

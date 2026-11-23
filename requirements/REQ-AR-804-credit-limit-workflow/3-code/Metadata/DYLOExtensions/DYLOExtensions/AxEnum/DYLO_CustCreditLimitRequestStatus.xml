@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxEnum xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_CustCreditLimitRequestStatus</Name>
+	<Label>@DYLOExtensions:CreditLimitReqStatus</Label>
+	<UseEnumValue>No</UseEnumValue>
+	<EnumValues>
+		<AxEnumValue>
+			<Name>Draft</Name>
+			<Label>@DYLOExtensions:CreditLimitReqStatusDraft</Label>
+		</AxEnumValue>
+		<AxEnumValue>
+			<Name>Submitted</Name>
+			<Label>@DYLOExtensions:CreditLimitReqStatusSubmitted</Label>
+			<Value>1</Value>
+		</AxEnumValue>
+		<AxEnumValue>
+			<Name>PendingApproval</Name>
+			<Label>@DYLOExtensions:CreditLimitReqStatusPendingApproval</Label>
+			<Value>2</Value>
+		</AxEnumValue>
+		<AxEnumValue>
+			<Name>Approved</Name>
+			<Label>@DYLOExtensions:CreditLimitReqStatusApproved</Label>
+			<Value>3</Value>
+		</AxEnumValue>
+		<AxEnumValue>
+			<Name>Rejected</Name>
+			<Label>@DYLOExtensions:CreditLimitReqStatusRejected</Label>
+			<Value>4</Value>
+		</AxEnumValue>
+		<AxEnumValue>
+			<Name>Canceled</Name>
+			<Label>@DYLOExtensions:CreditLimitReqStatusCanceled</Label>
+			<Value>5</Value>
+		</AxEnumValue>
+	</EnumValues>
+</AxEnum>

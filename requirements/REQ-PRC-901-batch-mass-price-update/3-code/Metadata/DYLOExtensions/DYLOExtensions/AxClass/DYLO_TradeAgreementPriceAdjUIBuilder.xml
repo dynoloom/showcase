@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_TradeAgreementPriceAdjUIBuilder</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Builds the dialog of the periodic mass trade agreement price update.
+/// </summary>
+public class DYLO_TradeAgreementPriceAdjUIBuilder extends SysOperationAutomaticUIBuilder
+{
+    DialogField                 itemGroupField;
+    DialogField                 custPriceGroupField;
+    SysLookupMultiSelectCtrl    itemGroupMultiSelectCtrl;
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>postBuild</Name>
+				<Source><![CDATA[
+    public void postBuild()
+    {
+        DYLO_TradeAgreementPriceAdjContract contract;
+        DialogField                         dialogField;
+
+        super();
+
+        contract = this.dataContractObject() as DYLO_TradeAgreementPriceAdjContract;
+
+        itemGroupField = this.bindInfo().getDialogField(contract, methodStr(DYLO_TradeAgreementPriceAdjContract, parmItemGroupIds));
+        if (itemGroupField)
+        {
+            itemGroupField.lookupButton(FormLookupButton::Always);
+        }
+
+        custPriceGroupField = this.bindInfo().getDialogField(contract, methodStr(DYLO_TradeAgreementPriceAdjContract, parmCustPriceGroup));
+        if (custPriceGroupField)
+        {
+            custPriceGroupField.fieldControl().mandatory(true);
+            custPriceGroupField.registerOverrideMethod(methodStr(FormStringControl, lookup), methodStr(DYLO_TradeAgreementPriceAdjUIBuilder, custPriceGroupLookup), this);
+        }
+
+        dialogField = this.bindInfo().getDialogField(contract, methodStr(DYLO_TradeAgreementPriceAdjContract, parmJournalName));
+        if (dialogField)
+        {
+            dialogField.fieldControl().mandatory(true);
+        }
+
+        dialogField = this.bindInfo().getDialogField(contract, methodStr(DYLO_TradeAgreementPriceAdjContract, parmAdjustmentPct));
+        if (dialogField)
+        {
+            dialogField.fieldControl().mandatory(true);
+        }
+
+        dialogField = this.bindInfo().getDialogField(contract, methodStr(DYLO_TradeAgreementPriceAdjContract, parmEffectiveFromDate));
+        if (dialogField)
+        {
+            dialogField.fieldControl().mandatory(true);
+        }
+
+        dialogField = this.bindInfo().getDialogField(contract, methodStr(DYLO_TradeAgreementPriceAdjContract, parmItemsPerTask));
+        if (dialogField)
+        {
+            dialogField.fieldControl().mandatory(true);
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>postRun</Name>
+				<Source><![CDATA[
+    public void postRun()
+    {
+        Query                   query = new Query();
+        QueryBuildDataSource    qbds;
+        container               selectedFields = [tableNum(InventItemGroup), fieldNum(InventItemGroup, ItemGroupId)];
+
+        super();
+
+        if (itemGroupField)
+        {
+            qbds = query.addDataSource(tableNum(InventItemGroup));
+            qbds.addSelectionField(fieldNum(InventItemGroup, ItemGroupId));
+            qbds.addSelectionField(fieldNum(InventItemGroup, Name));
+
+            itemGroupMultiSelectCtrl = SysLookupMultiSelectCtrl::constructWithQuery(
+                this.dialog().dialogForm().formRun(),
+                itemGroupField.control(),
+                query,
+                false,
+                selectedFields);
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>custPriceGroupLookup</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Shows only customer price groups in the lookup of the customer price group field.
+    /// </summary>
+    /// <param name = "_ctrl">The customer price group control.</param>
+    public void custPriceGroupLookup(FormStringControl _ctrl)
+    {
+        SysTableLookup          sysTableLookup = SysTableLookup::newParameters(tableNum(PriceDiscGroup), _ctrl);
+        Query                   query = new Query();
+        QueryBuildDataSource    qbds = query.addDataSource(tableNum(PriceDiscGroup));
+
+        qbds.addRange(fieldNum(PriceDiscGroup, Module)).value(queryValue(ModuleInventCustVend::Cust));
+        qbds.addRange(fieldNum(PriceDiscGroup, Type)).value(queryValue(PriceGroupType::PriceGroup));
+
+        sysTableLookup.addLookupfield(fieldNum(PriceDiscGroup, GroupId), true);
+        sysTableLookup.addLookupfield(fieldNum(PriceDiscGroup, Name));
+        sysTableLookup.parmQuery(query);
+        sysTableLookup.performFormLookup();
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

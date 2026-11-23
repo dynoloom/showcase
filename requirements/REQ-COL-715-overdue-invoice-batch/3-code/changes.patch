@@ -1,0 +1,3140 @@
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_OverdueInvoiceNotificationContract.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_OverdueInvoiceNotificationContract.xml
+new file mode 100644
+index 0000000..30da03e
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_OverdueInvoiceNotificationContract.xml
+@@ -0,0 +1,134 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_OverdueInvoiceNotificationContract</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Data contract of the overdue invoice notification batch job.
++/// </summary>
++[
++    DataContractAttribute,
++    SysOperationGroupAttribute('Parameters', "@DYLOExtensions:OverdueInvNotifParametersGroup", '1')
++]
++public class DYLO_OverdueInvoiceNotificationContract implements SysOperationValidatable
++{
++    Days        gracePeriodDays;
++    CustGroupId custGroupId;
++    Email       recipientEmail;
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>parmGracePeriodDays</Name>
++				<Source><![CDATA[
++    [
++        DataMemberAttribute('GracePeriodDays'),
++        SysOperationLabelAttribute(literalStr("@DYLOExtensions:OverdueInvNotifGracePeriod")),
++        SysOperationHelpTextAttribute(literalStr("@DYLOExtensions:OverdueInvNotifGracePeriodHelp")),
++        SysOperationGroupMemberAttribute('Parameters'),
++        SysOperationDisplayOrderAttribute('1')
++    ]
++    public Days parmGracePeriodDays(Days _gracePeriodDays = gracePeriodDays)
++    {
++        gracePeriodDays = _gracePeriodDays;
++        return gracePeriodDays;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>parmCustGroupId</Name>
++				<Source><![CDATA[
++    [
++        DataMemberAttribute('CustGroupId'),
++        SysOperationLabelAttribute(literalStr("@DYLOExtensions:OverdueInvNotifCustGroup")),
++        SysOperationHelpTextAttribute(literalStr("@DYLOExtensions:OverdueInvNotifCustGroupHelp")),
++        SysOperationGroupMemberAttribute('Parameters'),
++        SysOperationDisplayOrderAttribute('2')
++    ]
++    public CustGroupId parmCustGroupId(CustGroupId _custGroupId = custGroupId)
++    {
++        custGroupId = _custGroupId;
++        return custGroupId;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>parmRecipientEmail</Name>
++				<Source><![CDATA[
++    [
++        DataMemberAttribute('RecipientEmail'),
++        SysOperationLabelAttribute(literalStr("@DYLOExtensions:OverdueInvNotifRecipient")),
++        SysOperationHelpTextAttribute(literalStr("@DYLOExtensions:OverdueInvNotifRecipientHelp")),
++        SysOperationGroupMemberAttribute('Parameters'),
++        SysOperationDisplayOrderAttribute('3')
++    ]
++    public Email parmRecipientEmail(Email _recipientEmail = recipientEmail)
++    {
++        recipientEmail = _recipientEmail;
++        return recipientEmail;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>validate</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Validates the parameters of the batch job.
++    /// </summary>
++    /// <returns>true if the parameters are valid; otherwise, false.</returns>
++    public boolean validate()
++    {
++        boolean ret = true;
++
++        if (gracePeriodDays < 0)
++        {
++            ret = checkFailed("@DYLOExtensions:OverdueInvNotifErrGrace");
++        }
++
++        if (!recipientEmail)
++        {
++            ret = checkFailed("@DYLOExtensions:OverdueInvNotifErrRecipientBlank");
++        }
++        else if (!DYLO_OverdueInvoiceNotificationContract::isValidEmail(recipientEmail))
++        {
++            ret = checkFailed(strFmt("@DYLOExtensions:OverdueInvNotifErrInvalidEmail", recipientEmail));
++        }
++
++        return ret;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>isValidEmail</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Checks whether a text is a valid email address.
++    /// </summary>
++    /// <param name = "_address">The address to check.</param>
++    /// <returns>true if the address is valid; otherwise, false.</returns>
++    public static boolean isValidEmail(Email _address)
++    {
++        System.Net.Mail.MailAddress mailAddress;
++        boolean                     ret = true;
++
++        try
++        {
++            mailAddress = new System.Net.Mail.MailAddress(_address);
++        }
++        catch (Exception::CLRError)
++        {
++            ret = false;
++        }
++
++        return ret;
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_OverdueInvoiceNotificationController.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_OverdueInvoiceNotificationController.xml
+new file mode 100644
+index 0000000..f40bbaa
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_OverdueInvoiceNotificationController.xml
+@@ -0,0 +1,73 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_OverdueInvoiceNotificationController</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Controller of the overdue invoice notification batch job.
++/// </summary>
++public class DYLO_OverdueInvoiceNotificationController extends SysOperationServiceController
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>new</Name>
++				<Source><![CDATA[
++    protected void new(SysOperationExecutionMode _executionMode)
++    {
++        super(classStr(DYLO_OverdueInvoiceNotificationService),
++            methodStr(DYLO_OverdueInvoiceNotificationService, process),
++            _executionMode);
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>defaultCaption</Name>
++				<Source><![CDATA[
++    protected ClassDescription defaultCaption()
++    {
++        return "@DYLOExtensions:OverdueInvNotifCaption";
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>canGoBatch</Name>
++				<Source><![CDATA[
++    public boolean canGoBatch()
++    {
++        return true;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>construct</Name>
++				<Source><![CDATA[
++    public static DYLO_OverdueInvoiceNotificationController construct(SysOperationExecutionMode _executionMode = SysOperationExecutionMode::Synchronous)
++    {
++        return new DYLO_OverdueInvoiceNotificationController(_executionMode);
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>main</Name>
++				<Source><![CDATA[
++    public static void main(Args _args)
++    {
++        DYLO_OverdueInvoiceNotificationController controller = DYLO_OverdueInvoiceNotificationController::construct();
++
++        controller.parmArgs(_args);
++        controller.startOperation();
++
++        DYLO_OverdueInvoiceNotificationEmail::refreshCaller(_args);
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_OverdueInvoiceNotificationEmail.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_OverdueInvoiceNotificationEmail.xml
+new file mode 100644
+index 0000000..8354f16
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_OverdueInvoiceNotificationEmail.xml
+@@ -0,0 +1,260 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_OverdueInvoiceNotificationEmail</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Builds and sends overdue invoice notification emails and records the result on the notification log.
++/// Shared by the batch job and the resend action.
++/// </summary>
++public final class DYLO_OverdueInvoiceNotificationEmail
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>buildSubject</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Builds the subject of the notification email.
++    /// </summary>
++    /// <param name = "_log">The log line holding the invoice data.</param>
++    /// <returns>The subject.</returns>
++    public static Description255 buildSubject(DYLO_OverdueInvoiceNotificationLog _log)
++    {
++        return strFmt("@DYLOExtensions:OverdueInvNotifEmailSubjectText", _log.InvoiceId, _log.DaysOverdue);
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>buildBody</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Builds the plain text body of the notification email.
++    /// </summary>
++    /// <param name = "_log">The log line holding the invoice data.</param>
++    /// <returns>The body.</returns>
++    public static Notes buildBody(DYLO_OverdueInvoiceNotificationLog _log)
++    {
++        const str NewLine = '\n';
++        str body;
++
++        body  = "@DYLOExtensions:OverdueInvNotifBodyGreeting" + NewLine;
++        body += NewLine;
++        body += strFmt("@DYLOExtensions:OverdueInvNotifBodyInvoice", _log.InvoiceId, _log.CustAccount, _log.CustName) + NewLine;
++        body += strFmt("@DYLOExtensions:OverdueInvNotifBodyAmounts",
++                    _log.CurrencyCode,
++                    DYLO_OverdueInvoiceNotificationEmail::formatAmount(_log.InvoiceAmount),
++                    DYLO_OverdueInvoiceNotificationEmail::formatAmount(_log.RemainingAmount)) + NewLine;
++        body += strFmt("@DYLOExtensions:OverdueInvNotifBodyDaysPastDue", _log.DaysOverdue) + NewLine;
++        body += NewLine;
++        body += strFmt("@DYLOExtensions:OverdueInvNotifBodyInvoiceDate", date2StrUsr(_log.InvoiceDate, DateFlags::FormatAll)) + NewLine;
++        body += strFmt("@DYLOExtensions:OverdueInvNotifBodyDueDate", date2StrUsr(_log.DueDate, DateFlags::FormatAll)) + NewLine;
++        body += strFmt("@DYLOExtensions:OverdueInvNotifBodyTier", _log.TierDays) + NewLine;
++        body += "@DYLOExtensions:OverdueInvNotifBodyAction";
++
++        return body;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>formatAmount</Name>
++				<Source><![CDATA[
++    private static str formatAmount(AmountCur _amount)
++    {
++        return num2Str(_amount, 0, 2, 1, 0);
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>sendAndLog</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Sends the email stored on a log line and records the result (status, error, attempts) on the line.
++    /// </summary>
++    /// <param name = "_log">The log line to send.</param>
++    /// <returns>true if the email was sent; otherwise, false.</returns>
++    /// <remarks>
++    /// Must be called outside a transaction, so that a failing email provider can be caught and logged.
++    /// </remarks>
++    public static boolean sendAndLog(DYLO_OverdueInvoiceNotificationLog _log)
++    {
++        DYLO_OverdueNotificationParameters  parameters = DYLO_OverdueNotificationParameters::find();
++        SysMailerMessageBuilder             builder;
++        boolean                             sent;
++        int                                 infologStart = infologLine();
++        str                                 clrMessage;
++        str                                 errorText;
++
++        try
++        {
++            builder = new SysMailerMessageBuilder();
++
++            if (parameters.SenderEmail)
++            {
++                builder.setFrom(parameters.SenderEmail);
++            }
++
++            builder.addTo(_log.RecipientEmail)
++                .setSubject(_log.EmailSubject)
++                .setBody(_log.EmailBody, false);
++
++            sent = SysMailerFactory::sendNonInteractive(builder.getMessage());
++        }
++        catch (Exception::CLRError)
++        {
++            sent = false;
++            clrMessage = DYLO_OverdueInvoiceNotificationEmail::lastClrMessage();
++        }
++        catch (Exception::Error)
++        {
++            sent = false;
++        }
++
++        if (!sent)
++        {
++            errorText = DYLO_OverdueInvoiceNotificationEmail::infologTextSince(infologStart);
++
++            if (clrMessage)
++            {
++                errorText = errorText ? errorText + '\n' + clrMessage : clrMessage;
++            }
++
++            if (!errorText)
++            {
++                errorText = "@DYLOExtensions:OverdueInvNotifErrProviderRejected";
++            }
++        }
++
++        DYLO_OverdueInvoiceNotificationEmail::writeResult(_log.RecId, sent, errorText);
++
++        return sent;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>writeResult</Name>
++				<Source><![CDATA[
++    private static void writeResult(RecId _logRecId, boolean _sent, Notes _errorText)
++    {
++        DYLO_OverdueInvoiceNotificationLog log;
++        TransDateTime                      now = DateTimeUtil::utcNow();
++
++        ttsbegin;
++
++        select firstonly forupdate log
++            where log.RecId == _logRecId;
++
++        if (log.RecId)
++        {
++            if (_sent)
++            {
++                log.Status       = DYLO_OverdueNotificationStatus::Sent;
++                log.ErrorText    = '';
++                log.SentDateTime = now;
++            }
++            else
++            {
++                log.Status    = DYLO_OverdueNotificationStatus::Failed;
++                log.ErrorText = _errorText;
++            }
++
++            log.AttemptCount++;
++            log.LastAttemptDateTime = now;
++            log.update();
++        }
++
++        ttscommit;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>infologTextSince</Name>
++				<Source><![CDATA[
++    private static str infologTextSince(int _infologStart)
++    {
++        str text;
++        int line;
++
++        for (line = _infologStart + 1; line <= infologLine(); line++)
++        {
++            text = text ? text + '\n' + infolog.text(line) : infolog.text(line);
++        }
++
++        return text;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>lastClrMessage</Name>
++				<Source><![CDATA[
++    private static str lastClrMessage()
++    {
++        System.Exception clrException = CLRInterop::getLastException();
++        str              message;
++
++        while (clrException)
++        {
++            message      = clrException.get_Message();
++            clrException = clrException.get_InnerException();
++        }
++
++        return message;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>refreshCaller</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Refreshes the notification log form that called an action, including its status counts.
++    /// </summary>
++    /// <param name = "_args">The arguments of the action.</param>
++    /// <param name = "_retainPosition">true to keep the selected record.</param>
++    public static void refreshCaller(Args _args, boolean _retainPosition = true)
++    {
++        Object         callerForm;
++        FormRun        callerFormRun;
++        FormDataSource formDataSource;
++
++        if (!_args || !(_args.caller() is FormRun))
++        {
++            return;
++        }
++
++        callerFormRun = _args.caller();
++
++        if (_args.record() && _args.record().isFormDataSource())
++        {
++            formDataSource = FormDataUtil::getFormDataSource(_args.record());
++        }
++        else
++        {
++            formDataSource = callerFormRun.dataSource(1);
++        }
++
++        if (formDataSource && formDataSource.table() == tableNum(DYLO_OverdueInvoiceNotificationLog))
++        {
++            formDataSource.research(_retainPosition);
++        }
++
++        callerForm = callerFormRun;
++
++        if (formHasMethod(callerForm, identifierStr(updateCounts)))
++        {
++            callerForm.updateCounts();
++        }
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_OverdueInvoiceNotificationPurge.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_OverdueInvoiceNotificationPurge.xml
+new file mode 100644
+index 0000000..aff934c
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_OverdueInvoiceNotificationPurge.xml
+@@ -0,0 +1,59 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_OverdueInvoiceNotificationPurge</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Deletes overdue invoice notification log lines older than the log retention days of the setup.
++/// </summary>
++public final class DYLO_OverdueInvoiceNotificationPurge
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>main</Name>
++				<Source><![CDATA[
++    public static void main(Args _args)
++    {
++        DYLO_OverdueNotificationParameters  parameters = DYLO_OverdueNotificationParameters::find();
++        DYLO_OverdueInvoiceNotificationLog  log;
++        TransDateTime                       cutoffDateTime;
++        int64                               purgeCount;
++
++        if (parameters.LogRetentionDays <= 0)
++        {
++            throw error("@DYLOExtensions:OverdueInvNotifErrLogRetention");
++        }
++
++        cutoffDateTime = DateTimeUtil::addDays(DateTimeUtil::utcNow(), -parameters.LogRetentionDays);
++
++        if (Box::yesNo(strFmt("@DYLOExtensions:OverdueInvNotifConfirmPurge",
++                DateTimeUtil::applyTimeZoneOffset(cutoffDateTime, DateTimeUtil::getUserPreferredTimeZone())),
++                DialogButton::No) != DialogButton::Yes)
++        {
++            return;
++        }
++
++        select count(RecId) from log
++            where log.CreatedDateTime < cutoffDateTime;
++
++        purgeCount = log.RecId;
++
++        ttsbegin;
++
++        delete_from log
++            where log.CreatedDateTime < cutoffDateTime;
++
++        ttscommit;
++
++        info(strFmt("@DYLOExtensions:OverdueInvNotifPurged", purgeCount));
++
++        DYLO_OverdueInvoiceNotificationEmail::refreshCaller(_args, false);
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_OverdueInvoiceNotificationResend.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_OverdueInvoiceNotificationResend.xml
+new file mode 100644
+index 0000000..55951a8
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_OverdueInvoiceNotificationResend.xml
+@@ -0,0 +1,85 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_OverdueInvoiceNotificationResend</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Resends the overdue invoice notifications selected on the notification log form.
++/// </summary>
++public final class DYLO_OverdueInvoiceNotificationResend
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>main</Name>
++				<Source><![CDATA[
++    public static void main(Args _args)
++    {
++        DYLO_OverdueInvoiceNotificationLog  log;
++        MultiSelectionHelper                selectionHelper;
++        List                                logRecIds = new List(Types::Int64);
++        ListEnumerator                      enumerator;
++        boolean                             hasSentLine;
++        int                                 sentCount;
++        int                                 failedCount;
++
++        if (!_args || !_args.record() || _args.record().TableId != tableNum(DYLO_OverdueInvoiceNotificationLog))
++        {
++            throw error(Error::missingRecord(funcName()));
++        }
++
++        if (_args.record().isFormDataSource())
++        {
++            selectionHelper = MultiSelectionHelper::construct();
++            selectionHelper.parmDatasource(FormDataUtil::getFormDataSource(_args.record()));
++
++            for (log = selectionHelper.getFirst(); log; log = selectionHelper.getNext())
++            {
++                logRecIds.addEnd(log.RecId);
++                hasSentLine = hasSentLine || log.Status == DYLO_OverdueNotificationStatus::Sent;
++            }
++        }
++        else
++        {
++            log = _args.record();
++            logRecIds.addEnd(log.RecId);
++            hasSentLine = log.Status == DYLO_OverdueNotificationStatus::Sent;
++        }
++
++        if (hasSentLine
++            && Box::yesNo("@DYLOExtensions:OverdueInvNotifConfirmResendSent", DialogButton::No) != DialogButton::Yes)
++        {
++            return;
++        }
++
++        enumerator = logRecIds.getEnumerator();
++
++        while (enumerator.moveNext())
++        {
++            select firstonly log
++                where log.RecId == enumerator.current();
++
++            if (log.RecId)
++            {
++                if (DYLO_OverdueInvoiceNotificationEmail::sendAndLog(log))
++                {
++                    sentCount++;
++                }
++                else
++                {
++                    failedCount++;
++                }
++            }
++        }
++
++        info(strFmt("@DYLOExtensions:OverdueInvNotifResendResult", sentCount, failedCount));
++
++        DYLO_OverdueInvoiceNotificationEmail::refreshCaller(_args);
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_OverdueInvoiceNotificationService.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_OverdueInvoiceNotificationService.xml
+new file mode 100644
+index 0000000..34185fd
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_OverdueInvoiceNotificationService.xml
+@@ -0,0 +1,207 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_OverdueInvoiceNotificationService</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Service of the overdue invoice notification batch job. Finds the open customer invoices that reached an
++/// overdue tier and sends one notification per invoice and tier.
++/// </summary>
++public class DYLO_OverdueInvoiceNotificationService extends SysOperationServiceBase
++{
++    TransDate   runDate;
++    Email       recipientEmail;
++    int         checkedCount;
++    int         sentCount;
++    int         failedCount;
++    int         skippedCount;
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>process</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Runs the overdue invoice notification job.
++    /// </summary>
++    /// <param name = "_contract">The parameters of the job.</param>
++    public void process(DYLO_OverdueInvoiceNotificationContract _contract)
++    {
++        CustTransOpen       custTransOpen;
++        CustTrans           custTrans;
++        CustInvoiceJour     custInvoiceJour;
++        CustGroupId         custGroupId = _contract.parmCustGroupId();
++        TransDate           cutoffDate;
++
++        if (!_contract.validate())
++        {
++            throw Exception::Error;
++        }
++
++        if (!DYLO_OverdueNotificationTier::hasActiveTier())
++        {
++            throw error("@DYLOExtensions:OverdueInvNotifErrNoTiers");
++        }
++
++        runDate        = DateTimeUtil::getSystemDate(DateTimeUtil::getCompanyTimeZone());
++        cutoffDate     = runDate - _contract.parmGracePeriodDays();
++        recipientEmail = _contract.parmRecipientEmail();
++
++        // One row per open invoice transaction, with the earliest due date of its open lines past the cut-off.
++        while select RefRecId, minof(DueDate) from custTransOpen
++            group by custTransOpen.RefRecId
++            where custTransOpen.DueDate < cutoffDate
++               && custTransOpen.DueDate != dateNull()
++            exists join custTrans
++                where custTrans.RecId     == custTransOpen.RefRecId
++                   && custTrans.AmountCur > 0
++            exists join custInvoiceJour
++                where custInvoiceJour.InvoiceId      == custTrans.Invoice
++                   && custInvoiceJour.InvoiceAccount == custTrans.AccountNum
++                   && custInvoiceJour.InvoiceDate    == custTrans.TransDate
++                   && custInvoiceJour.LedgerVoucher  == custTrans.Voucher
++        {
++            this.processInvoice(custTransOpen.RefRecId, custTransOpen.DueDate, custGroupId);
++        }
++
++        info(strFmt("@DYLOExtensions:OverdueInvNotifSummaryChecked", checkedCount));
++        info(strFmt("@DYLOExtensions:OverdueInvNotifSummarySent", sentCount));
++        info(strFmt("@DYLOExtensions:OverdueInvNotifSummaryFailed", failedCount));
++        info(strFmt("@DYLOExtensions:OverdueInvNotifSummarySkipped", skippedCount));
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>processInvoice</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Checks one open invoice and sends its notification when it reached a tier that was not notified yet.
++    /// </summary>
++    /// <param name = "_custTransRecId">The record ID of the customer transaction of the invoice.</param>
++    /// <param name = "_dueDate">The earliest open due date of the invoice.</param>
++    /// <param name = "_custGroupId">The customer group filter; empty for all customers.</param>
++    private void processInvoice(RefRecId _custTransRecId, DueDate _dueDate, CustGroupId _custGroupId)
++    {
++        CustTrans                           custTrans;
++        CustInvoiceJour                     custInvoiceJour;
++        DYLO_OverdueInvoiceNotificationLog  log;
++        int                                 daysOverdue;
++        Days                                tierDays;
++
++        select firstonly custTrans
++            where custTrans.RecId == _custTransRecId;
++
++        select firstonly custInvoiceJour
++            where custInvoiceJour.InvoiceId      == custTrans.Invoice
++               && custInvoiceJour.InvoiceAccount == custTrans.AccountNum
++               && custInvoiceJour.InvoiceDate    == custTrans.TransDate
++               && custInvoiceJour.LedgerVoucher  == custTrans.Voucher;
++
++        if (!custInvoiceJour.RecId)
++        {
++            return;
++        }
++
++        if (_custGroupId && CustTable::find(custInvoiceJour.InvoiceAccount).CustGroup != _custGroupId)
++        {
++            return;
++        }
++
++        checkedCount++;
++
++        daysOverdue = runDate - _dueDate;
++        tierDays    = DYLO_OverdueNotificationTier::highestReachedTier(daysOverdue);
++
++        if (!tierDays)
++        {
++            skippedCount++;
++            return;
++        }
++
++        try
++        {
++            log = DYLO_OverdueInvoiceNotificationLog::findByInvoiceTier(custInvoiceJour.RecId, tierDays);
++
++            if (log.RecId && log.Status == DYLO_OverdueNotificationStatus::Sent)
++            {
++                skippedCount++;
++                return;
++            }
++
++            if (!log.RecId)
++            {
++                log = this.createLog(custTrans, custInvoiceJour, _dueDate, daysOverdue, tierDays);
++            }
++
++            if (DYLO_OverdueInvoiceNotificationEmail::sendAndLog(log))
++            {
++                sentCount++;
++            }
++            else
++            {
++                failedCount++;
++            }
++        }
++        catch (Exception::Error)
++        {
++            failedCount++;
++            error(strFmt("@DYLOExtensions:OverdueInvNotifInvoiceFailed", custInvoiceJour.InvoiceId));
++        }
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>createLog</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Creates the notification log line of an invoice and tier, with the email that is sent.
++    /// </summary>
++    /// <param name = "_custTrans">The customer transaction of the invoice.</param>
++    /// <param name = "_custInvoiceJour">The customer invoice journal.</param>
++    /// <param name = "_dueDate">The earliest open due date.</param>
++    /// <param name = "_daysOverdue">The days the invoice is overdue.</param>
++    /// <param name = "_tierDays">The tier reached.</param>
++    /// <returns>The inserted log line.</returns>
++    private DYLO_OverdueInvoiceNotificationLog createLog(
++        CustTrans       _custTrans,
++        CustInvoiceJour _custInvoiceJour,
++        DueDate         _dueDate,
++        int             _daysOverdue,
++        Days            _tierDays)
++    {
++        DYLO_OverdueInvoiceNotificationLog  log;
++        CustTransOpen                       custTransOpen;
++
++        select sum(AmountCur) from custTransOpen
++            where custTransOpen.RefRecId == _custTrans.RecId;
++
++        log.CustInvoiceJourRecId = _custInvoiceJour.RecId;
++        log.InvoiceId            = _custInvoiceJour.InvoiceId;
++        log.InvoiceDate          = _custInvoiceJour.InvoiceDate;
++        log.CustAccount          = _custInvoiceJour.InvoiceAccount;
++        log.CustName             = CustTable::find(_custInvoiceJour.InvoiceAccount).name();
++        log.DueDate              = _dueDate;
++        log.DaysOverdue          = _daysOverdue;
++        log.TierDays             = _tierDays;
++        log.InvoiceAmount        = _custInvoiceJour.InvoiceAmount;
++        log.RemainingAmount      = custTransOpen.AmountCur;
++        log.CurrencyCode         = _custInvoiceJour.CurrencyCode;
++        log.RecipientEmail       = recipientEmail;
++        log.EmailSubject         = DYLO_OverdueInvoiceNotificationEmail::buildSubject(log);
++        log.EmailBody            = DYLO_OverdueInvoiceNotificationEmail::buildBody(log);
++        log.Status               = DYLO_OverdueNotificationStatus::Failed;
++
++        ttsbegin;
++        log.insert();
++        ttscommit;
++
++        return log;
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxEnum/DYLO_OverdueNotificationStatus.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxEnum/DYLO_OverdueNotificationStatus.xml
+new file mode 100644
+index 0000000..067d5f3
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxEnum/DYLO_OverdueNotificationStatus.xml
+@@ -0,0 +1,17 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxEnum xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_OverdueNotificationStatus</Name>
++	<Label>@DYLOExtensions:OverdueInvNotifStatus</Label>
++	<UseEnumValue>No</UseEnumValue>
++	<EnumValues>
++		<AxEnumValue>
++			<Name>Sent</Name>
++			<Label>@DYLOExtensions:OverdueInvNotifStatusSent</Label>
++		</AxEnumValue>
++		<AxEnumValue>
++			<Name>Failed</Name>
++			<Label>@DYLOExtensions:OverdueInvNotifStatusFailed</Label>
++			<Value>1</Value>
++		</AxEnumValue>
++	</EnumValues>
++</AxEnum>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxEnum/DYLO_OverdueNotificationStatusFilter.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxEnum/DYLO_OverdueNotificationStatusFilter.xml
+new file mode 100644
+index 0000000..5282fe7
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxEnum/DYLO_OverdueNotificationStatusFilter.xml
+@@ -0,0 +1,22 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxEnum xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_OverdueNotificationStatusFilter</Name>
++	<Label>@DYLOExtensions:OverdueInvNotifStatusFilter</Label>
++	<UseEnumValue>No</UseEnumValue>
++	<EnumValues>
++		<AxEnumValue>
++			<Name>All</Name>
++			<Label>@DYLOExtensions:OverdueInvNotifStatusAll</Label>
++		</AxEnumValue>
++		<AxEnumValue>
++			<Name>Sent</Name>
++			<Label>@DYLOExtensions:OverdueInvNotifStatusSent</Label>
++			<Value>1</Value>
++		</AxEnumValue>
++		<AxEnumValue>
++			<Name>Failed</Name>
++			<Label>@DYLOExtensions:OverdueInvNotifStatusFailed</Label>
++			<Value>2</Value>
++		</AxEnumValue>
++	</EnumValues>
++</AxEnum>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxForm/DYLO_OverdueInvoiceNotificationLog.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxForm/DYLO_OverdueInvoiceNotificationLog.xml
+new file mode 100644
+index 0000000..57cf059
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxForm/DYLO_OverdueInvoiceNotificationLog.xml
+@@ -0,0 +1,665 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxForm xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V6">
++	<Name>DYLO_OverdueInvoiceNotificationLog</Name>
++	<SourceCode>
++		<Methods xmlns="">
++			<Method>
++				<Name>classDeclaration</Name>
++				<Source><![CDATA[
++[Form]
++public class DYLO_OverdueInvoiceNotificationLog extends FormRun
++{
++    QueryBuildRange statusRange;
++}
++]]></Source>
++			</Method>
++			<Method>
++				<Name>updateCounts</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Shows the number of all, sent and failed notification log lines.
++    /// </summary>
++    public void updateCounts()
++    {
++        DYLO_OverdueInvoiceNotificationLog log;
++        int64                              allCount;
++        int64                              sentCount;
++        int64                              failedCount;
++
++        select count(RecId) from log;
++        allCount = log.RecId;
++
++        select count(RecId) from log
++            where log.Status == DYLO_OverdueNotificationStatus::Sent;
++        sentCount = log.RecId;
++
++        select count(RecId) from log
++            where log.Status == DYLO_OverdueNotificationStatus::Failed;
++        failedCount = log.RecId;
++
++        StatusCounts.text(strFmt("@DYLOExtensions:OverdueInvNotifCounts", allCount, sentCount, failedCount));
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++		<DataSources xmlns="">
++			<DataSource>
++				<Name>DYLO_OverdueInvoiceNotificationLog</Name>
++				<Methods>
++					<Method>
++						<Name>init</Name>
++						<Source><![CDATA[
++        public void init()
++        {
++            super();
++
++            this.queryBuildDataSource().addSortField(fieldNum(DYLO_OverdueInvoiceNotificationLog, CreatedDateTime), SortOrder::Descending);
++            statusRange = this.queryBuildDataSource().addRange(fieldNum(DYLO_OverdueInvoiceNotificationLog, Status));
++        }
++
++]]></Source>
++					</Method>
++					<Method>
++						<Name>executeQuery</Name>
++						<Source><![CDATA[
++        public void executeQuery()
++        {
++            switch (StatusFilter.selection())
++            {
++                case DYLO_OverdueNotificationStatusFilter::Sent:
++                    statusRange.value(queryValue(DYLO_OverdueNotificationStatus::Sent));
++                    break;
++
++                case DYLO_OverdueNotificationStatusFilter::Failed:
++                    statusRange.value(queryValue(DYLO_OverdueNotificationStatus::Failed));
++                    break;
++
++                default:
++                    statusRange.value(SysQuery::valueUnlimited());
++                    break;
++            }
++
++            super();
++
++            element.updateCounts();
++        }
++
++]]></Source>
++					</Method>
++					<Method>
++						<Name>active</Name>
++						<Source><![CDATA[
++        public int active()
++        {
++            int ret = super();
++
++            Details_ErrorText.visible(DYLO_OverdueInvoiceNotificationLog.Status == DYLO_OverdueNotificationStatus::Failed
++                || DYLO_OverdueInvoiceNotificationLog.ErrorText != '');
++
++            return ret;
++        }
++
++]]></Source>
++					</Method>
++					<Method>
++						<Name>displayOption</Name>
++						<Source><![CDATA[
++        public void displayOption(Common _record, FormRowDisplayOption _options)
++        {
++            DYLO_OverdueInvoiceNotificationLog log = _record;
++
++            if (log.Status == DYLO_OverdueNotificationStatus::Sent)
++            {
++                _options.backColor(WinAPI::rgb2int(230, 244, 234));
++                _options.textColor(WinAPI::rgb2int(30, 123, 52));
++            }
++            else
++            {
++                _options.backColor(WinAPI::rgb2int(253, 226, 226));
++                _options.textColor(WinAPI::rgb2int(198, 40, 40));
++            }
++
++            _options.affectedElementsByControl(LogGrid_Status.id());
++
++            super(_record, _options);
++        }
++
++]]></Source>
++					</Method>
++				</Methods>
++				<Fields />
++			</DataSource>
++		</DataSources>
++		<DataControls xmlns="">
++			<Control>
++				<Name>StatusFilter</Name>
++				<Type>ComboBox</Type>
++				<Methods>
++					<Method>
++						<Name>modified</Name>
++						<Source><![CDATA[
++        public boolean modified()
++        {
++            boolean ret = super();
++
++            DYLO_OverdueInvoiceNotificationLog_ds.executeQuery();
++
++            return ret;
++        }
++
++]]></Source>
++					</Method>
++				</Methods>
++			</Control>
++		</DataControls>
++		<Members xmlns="" />
++	</SourceCode>
++	<DataSources>
++		<AxFormDataSource xmlns="">
++			<Name>DYLO_OverdueInvoiceNotificationLog</Name>
++			<Table>DYLO_OverdueInvoiceNotificationLog</Table>
++			<Fields>
++				<AxFormDataSourceField>
++					<DataField>AttemptCount</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>CreatedDateTime</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>CurrencyCode</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>CustAccount</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>CustInvoiceJourRecId</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>CustName</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>DaysOverdue</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>DueDate</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>EmailBody</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>EmailSubject</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>ErrorText</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>InvoiceAmount</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>InvoiceDate</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>InvoiceId</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>LastAttemptDateTime</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>Partition</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>RecId</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>RecipientEmail</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>RemainingAmount</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>SentDateTime</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>Status</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>TableId</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>TierDays</DataField>
++				</AxFormDataSourceField>
++			</Fields>
++			<ReferencedDataSources />
++			<AllowCreate>No</AllowCreate>
++			<AllowDelete>No</AllowDelete>
++			<AllowEdit>No</AllowEdit>
++			<InsertAtEnd>No</InsertAtEnd>
++			<InsertIfEmpty>No</InsertIfEmpty>
++			<DataSourceLinks />
++			<DerivedDataSources />
++		</AxFormDataSource>
++	</DataSources>
++	<Design>
++		<Caption xmlns="">@DYLOExtensions:OverdueInvNotifLogMenuItem</Caption>
++		<DataSource xmlns="">DYLO_OverdueInvoiceNotificationLog</DataSource>
++		<Pattern xmlns="">SimpleListDetails-Grid</Pattern>
++		<PatternVersion xmlns="">1.4</PatternVersion>
++		<Style xmlns="">SimpleListDetails</Style>
++		<Controls xmlns="">
++			<AxFormControl xmlns=""
++				i:type="AxFormActionPaneControl">
++				<Name>FormActionPane</Name>
++				<Type>ActionPane</Type>
++				<FormControlExtension
++					i:nil="true" />
++				<Controls>
++					<AxFormControl xmlns=""
++						i:type="AxFormButtonGroupControl">
++						<Name>NotificationActions</Name>
++						<Type>ButtonGroup</Type>
++						<FormControlExtension
++							i:nil="true" />
++						<Controls>
++							<AxFormControl xmlns=""
++								i:type="AxFormMenuFunctionButtonControl">
++								<Name>ResendNotification</Name>
++								<Type>MenuFunctionButton</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
++								<MenuItemName>DYLO_OverdueInvoiceNotificationResend</MenuItemName>
++								<MenuItemType>Action</MenuItemType>
++								<NeedsRecord>Yes</NeedsRecord>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormMenuFunctionButtonControl">
++								<Name>RunBatchNow</Name>
++								<Type>MenuFunctionButton</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
++								<MenuItemName>DYLO_OverdueInvoiceNotificationRun</MenuItemName>
++								<MenuItemType>Action</MenuItemType>
++								<NeedsRecord>No</NeedsRecord>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormMenuFunctionButtonControl">
++								<Name>PurgeOldLogs</Name>
++								<Type>MenuFunctionButton</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
++								<MenuItemName>DYLO_OverdueInvoiceNotificationPurge</MenuItemName>
++								<MenuItemType>Action</MenuItemType>
++								<NeedsRecord>No</NeedsRecord>
++							</AxFormControl>
++						</Controls>
++					</AxFormControl>
++				</Controls>
++			</AxFormControl>
++			<AxFormControl xmlns=""
++				i:type="AxFormGroupControl">
++				<Name>NavigationListGroup</Name>
++				<HeightMode>SizeToAvailable</HeightMode>
++				<Type>Group</Type>
++				<Width>300</Width>
++				<WidthMode>Manual</WidthMode>
++				<FormControlExtension
++					i:nil="true" />
++				<Controls>
++					<AxFormControl>
++						<Name>QuickFilter</Name>
++						<WidthMode>SizeToAvailable</WidthMode>
++						<FormControlExtension>
++							<Name>QuickFilterControl</Name>
++							<ExtensionComponents />
++							<ExtensionProperties>
++								<AxFormControlExtensionProperty>
++									<Name>targetControlName</Name>
++									<Type>String</Type>
++									<Value>LogGrid</Value>
++								</AxFormControlExtensionProperty>
++								<AxFormControlExtensionProperty>
++									<Name>defaultColumnName</Name>
++									<Type>String</Type>
++									<Value>LogGrid_InvoiceId</Value>
++								</AxFormControlExtensionProperty>
++								<AxFormControlExtensionProperty>
++									<Name>placeholderText</Name>
++									<Type>String</Type>
++								</AxFormControlExtensionProperty>
++							</ExtensionProperties>
++						</FormControlExtension>
++					</AxFormControl>
++					<AxFormControl xmlns=""
++						i:type="AxFormGroupControl">
++						<Name>Filter</Name>
++						<Type>Group</Type>
++						<WidthMode>SizeToAvailable</WidthMode>
++						<FormControlExtension
++							i:nil="true" />
++						<Controls>
++							<AxFormControl xmlns=""
++								i:type="AxFormComboBoxControl">
++								<Name>StatusFilter</Name>
++								<AutoDeclaration>Yes</AutoDeclaration>
++								<Type>ComboBox</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<EnumType>DYLO_OverdueNotificationStatusFilter</EnumType>
++								<Label>@DYLOExtensions:OverdueInvNotifStatus</Label>
++								<Items />
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormStringControl">
++								<Name>StatusCounts</Name>
++								<AllowEdit>No</AllowEdit>
++								<AutoDeclaration>Yes</AutoDeclaration>
++								<Skip>Yes</Skip>
++								<Type>String</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<ShowLabel>No</ShowLabel>
++							</AxFormControl>
++						</Controls>
++						<FrameType>None</FrameType>
++						<Style>CustomFilter</Style>
++						<ViewEditMode>Edit</ViewEditMode>
++					</AxFormControl>
++					<AxFormControl xmlns=""
++						i:type="AxFormGridControl">
++						<Name>LogGrid</Name>
++						<AllowEdit>No</AllowEdit>
++						<Type>Grid</Type>
++						<FormControlExtension
++							i:nil="true" />
++						<Controls>
++							<AxFormControl xmlns=""
++								i:type="AxFormStringControl">
++								<Name>LogGrid_InvoiceId</Name>
++								<Type>String</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataField>InvoiceId</DataField>
++								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormStringControl">
++								<Name>LogGrid_CustAccount</Name>
++								<Type>String</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataField>CustAccount</DataField>
++								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormDateControl">
++								<Name>LogGrid_DueDate</Name>
++								<Type>Date</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataField>DueDate</DataField>
++								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormIntegerControl">
++								<Name>LogGrid_DaysOverdue</Name>
++								<Type>Integer</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataField>DaysOverdue</DataField>
++								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormComboBoxControl">
++								<Name>LogGrid_Status</Name>
++								<AutoDeclaration>Yes</AutoDeclaration>
++								<Type>ComboBox</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataField>Status</DataField>
++								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
++								<Items />
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormStringControl">
++								<Name>LogGrid_RecipientEmail</Name>
++								<Type>String</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataField>RecipientEmail</DataField>
++								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
++							</AxFormControl>
++						</Controls>
++						<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
++						<MultiSelect>No</MultiSelect>
++						<ShowRowLabels>No</ShowRowLabels>
++						<Style>Tabular</Style>
++					</AxFormControl>
++				</Controls>
++				<FrameType>None</FrameType>
++				<Style>SidePanel</Style>
++			</AxFormControl>
++			<AxFormControl xmlns=""
++				i:type="AxFormGroupControl">
++				<Name>Splitter</Name>
++				<Type>Group</Type>
++				<FormControlExtension
++					i:nil="true" />
++				<Controls />
++				<Style>SplitterVerticalContainer</Style>
++			</AxFormControl>
++			<AxFormControl xmlns=""
++				i:type="AxFormGroupControl">
++				<Name>DetailsHeader</Name>
++				<Pattern>FieldsFieldGroups</Pattern>
++				<PatternVersion>1.1</PatternVersion>
++				<Type>Group</Type>
++				<WidthMode>SizeToAvailable</WidthMode>
++				<FormControlExtension
++					i:nil="true" />
++				<Controls>
++					<AxFormControl xmlns=""
++						i:type="AxFormGroupControl">
++						<Name>Details</Name>
++						<Type>Group</Type>
++						<WidthMode>SizeToContent</WidthMode>
++						<FormControlExtension
++							i:nil="true" />
++						<Controls>
++							<AxFormControl xmlns=""
++								i:type="AxFormStringControl">
++								<Name>Details_InvoiceId</Name>
++								<Type>String</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataField>InvoiceId</DataField>
++								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormComboBoxControl">
++								<Name>Details_Status</Name>
++								<Type>ComboBox</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataField>Status</DataField>
++								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
++								<Items />
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormStringControl">
++								<Name>Details_ErrorText</Name>
++								<AllowEdit>No</AllowEdit>
++								<AutoDeclaration>Yes</AutoDeclaration>
++								<Type>String</Type>
++								<WidthMode>SizeToContent</WidthMode>
++								<FormControlExtension
++									i:nil="true" />
++								<DataField>ErrorText</DataField>
++								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
++								<DisplayHeight>4</DisplayHeight>
++								<DisplayHeightMode>Fixed</DisplayHeightMode>
++								<MultiLine>Yes</MultiLine>
++							</AxFormControl>
++						</Controls>
++						<Caption>@DYLOExtensions:OverdueInvNotifDetailsGroup</Caption>
++					</AxFormControl>
++				</Controls>
++				<ColumnsMode>Fill</ColumnsMode>
++				<FrameType>None</FrameType>
++			</AxFormControl>
++			<AxFormControl xmlns=""
++				i:type="AxFormTabControl">
++				<Name>DetailsTab</Name>
++				<Type>Tab</Type>
++				<FormControlExtension
++					i:nil="true" />
++				<Controls>
++					<AxFormControl xmlns=""
++						i:type="AxFormTabPageControl">
++						<Name>EmailPreviewTabPage</Name>
++						<Pattern>FieldsFieldGroups</Pattern>
++						<PatternVersion>1.1</PatternVersion>
++						<Type>TabPage</Type>
++						<FormControlExtension
++							i:nil="true" />
++						<Controls>
++							<AxFormControl xmlns=""
++								i:type="AxFormStringControl">
++								<Name>Email_RecipientEmail</Name>
++								<Type>String</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataField>RecipientEmail</DataField>
++								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormStringControl">
++								<Name>Email_EmailSubject</Name>
++								<Type>String</Type>
++								<WidthMode>SizeToContent</WidthMode>
++								<FormControlExtension
++									i:nil="true" />
++								<DataField>EmailSubject</DataField>
++								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormStringControl">
++								<Name>Email_EmailBody</Name>
++								<AllowEdit>No</AllowEdit>
++								<Type>String</Type>
++								<WidthMode>SizeToContent</WidthMode>
++								<FormControlExtension
++									i:nil="true" />
++								<DataField>EmailBody</DataField>
++								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
++								<DisplayHeight>12</DisplayHeight>
++								<DisplayHeightMode>Fixed</DisplayHeightMode>
++								<MultiLine>Yes</MultiLine>
++							</AxFormControl>
++						</Controls>
++						<ColumnsMode>Fill</ColumnsMode>
++						<Caption>@DYLOExtensions:OverdueInvNotifEmailPreviewGroup</Caption>
++					</AxFormControl>
++					<AxFormControl xmlns=""
++						i:type="AxFormTabPageControl">
++						<Name>AttemptDetailsTabPage</Name>
++						<Pattern>FieldsFieldGroups</Pattern>
++						<PatternVersion>1.1</PatternVersion>
++						<Type>TabPage</Type>
++						<FormControlExtension
++							i:nil="true" />
++						<Controls>
++							<AxFormControl xmlns=""
++								i:type="AxFormDateControl">
++								<Name>Attempt_InvoiceDate</Name>
++								<Type>Date</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataField>InvoiceDate</DataField>
++								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormStringControl">
++								<Name>Attempt_CustName</Name>
++								<Type>String</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataField>CustName</DataField>
++								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormRealControl">
++								<Name>Attempt_InvoiceAmount</Name>
++								<Type>Real</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataField>InvoiceAmount</DataField>
++								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormRealControl">
++								<Name>Attempt_RemainingAmount</Name>
++								<Type>Real</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataField>RemainingAmount</DataField>
++								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormStringControl">
++								<Name>Attempt_CurrencyCode</Name>
++								<Type>String</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataField>CurrencyCode</DataField>
++								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormIntegerControl">
++								<Name>Attempt_TierDays</Name>
++								<Type>Integer</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataField>TierDays</DataField>
++								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormIntegerControl">
++								<Name>Attempt_AttemptCount</Name>
++								<Type>Integer</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataField>AttemptCount</DataField>
++								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormDateTimeControl">
++								<Name>Attempt_LastAttemptDateTime</Name>
++								<Type>DateTime</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataField>LastAttemptDateTime</DataField>
++								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormDateTimeControl">
++								<Name>Attempt_SentDateTime</Name>
++								<Type>DateTime</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataField>SentDateTime</DataField>
++								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
++							</AxFormControl>
++						</Controls>
++						<ColumnsMode>Fill</ColumnsMode>
++						<Caption>@DYLOExtensions:OverdueInvNotifAttemptDetailsGroup</Caption>
++					</AxFormControl>
++				</Controls>
++				<Style>FastTabs</Style>
++			</AxFormControl>
++		</Controls>
++	</Design>
++	<Parts />
++</AxForm>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxForm/DYLO_OverdueNotificationSetup.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxForm/DYLO_OverdueNotificationSetup.xml
+new file mode 100644
+index 0000000..be606fa
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxForm/DYLO_OverdueNotificationSetup.xml
+@@ -0,0 +1,318 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxForm xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V6">
++	<Name>DYLO_OverdueNotificationSetup</Name>
++	<SourceCode>
++		<Methods xmlns="">
++			<Method>
++				<Name>classDeclaration</Name>
++				<Source><![CDATA[
++[Form]
++public class DYLO_OverdueNotificationSetup extends FormRun
++{
++}
++]]></Source>
++			</Method>
++			<Method>
++				<Name>init</Name>
++				<Source><![CDATA[
++    public void init()
++    {
++        DYLO_OverdueNotificationParameters::find();
++
++        super();
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++		<DataSources xmlns="" />
++		<DataControls xmlns="" />
++		<Members xmlns="" />
++	</SourceCode>
++	<DataSources>
++		<AxFormDataSource xmlns="">
++			<Name>DYLO_OverdueNotificationParameters</Name>
++			<Table>DYLO_OverdueNotificationParameters</Table>
++			<Fields>
++				<AxFormDataSourceField>
++					<DataField>Key</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>LogRetentionDays</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>Partition</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>RecId</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>SenderEmail</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>TableId</DataField>
++				</AxFormDataSourceField>
++			</Fields>
++			<ReferencedDataSources />
++			<AllowCheck>No</AllowCheck>
++			<AllowCreate>No</AllowCreate>
++			<AllowDelete>No</AllowDelete>
++			<InsertAtEnd>No</InsertAtEnd>
++			<InsertIfEmpty>No</InsertIfEmpty>
++			<DataSourceLinks />
++			<DerivedDataSources />
++		</AxFormDataSource>
++		<AxFormDataSource xmlns="">
++			<Name>DYLO_OverdueNotificationTier</Name>
++			<Table>DYLO_OverdueNotificationTier</Table>
++			<Fields>
++				<AxFormDataSourceField>
++					<DataField>Active</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>Description</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>Partition</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>RecId</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>TableId</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>TierDays</DataField>
++				</AxFormDataSourceField>
++			</Fields>
++			<ReferencedDataSources />
++			<InsertIfEmpty>No</InsertIfEmpty>
++			<DataSourceLinks />
++			<DerivedDataSources />
++		</AxFormDataSource>
++	</DataSources>
++	<Design>
++		<Caption xmlns="">@DYLOExtensions:OverdueInvNotifSetupMenuItem</Caption>
++		<Pattern xmlns="">TableOfContents</Pattern>
++		<PatternVersion xmlns="">1.1</PatternVersion>
++		<ShowDeleteButton xmlns="">No</ShowDeleteButton>
++		<ShowNewButton xmlns="">No</ShowNewButton>
++		<Style xmlns="">TableOfContents</Style>
++		<Controls xmlns="">
++			<AxFormControl xmlns=""
++				i:type="AxFormTabControl">
++				<Name>Tab</Name>
++				<Type>Tab</Type>
++				<FormControlExtension
++					i:nil="true" />
++				<Controls>
++					<AxFormControl xmlns=""
++						i:type="AxFormTabPageControl">
++						<Name>TabGeneral</Name>
++						<Type>TabPage</Type>
++						<FormControlExtension
++							i:nil="true" />
++						<Controls>
++							<AxFormControl xmlns=""
++								i:type="AxFormGroupControl">
++								<Name>GeneralTitle</Name>
++								<Skip>Yes</Skip>
++								<Type>Group</Type>
++								<WidthMode>SizeToAvailable</WidthMode>
++								<FormControlExtension
++									i:nil="true" />
++								<Controls>
++									<AxFormControl xmlns=""
++										i:type="AxFormStaticTextControl">
++										<Name>GeneralTitleText</Name>
++										<Skip>Yes</Skip>
++										<Type>StaticText</Type>
++										<WidthMode>SizeToAvailable</WidthMode>
++										<FormControlExtension
++											i:nil="true" />
++										<Style>MainInstruction</Style>
++										<Text>@DYLOExtensions:OverdueInvNotifGeneralTab</Text>
++									</AxFormControl>
++								</Controls>
++								<AllowUserSetup>No</AllowUserSetup>
++								<FrameType>None</FrameType>
++								<Style>TOCTitleContainer</Style>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormGroupControl">
++								<Name>GeneralBody</Name>
++								<HeightMode>SizeToAvailable</HeightMode>
++								<Pattern>FieldsFieldGroups</Pattern>
++								<PatternVersion>1.1</PatternVersion>
++								<Type>Group</Type>
++								<WidthMode>SizeToAvailable</WidthMode>
++								<FormControlExtension
++									i:nil="true" />
++								<Controls>
++									<AxFormControl xmlns=""
++										i:type="AxFormGroupControl">
++										<Name>General</Name>
++										<Type>Group</Type>
++										<FormControlExtension
++											i:nil="true" />
++										<Controls>
++											<AxFormControl xmlns=""
++												i:type="AxFormStringControl">
++												<Name>General_SenderEmail</Name>
++												<Type>String</Type>
++												<FormControlExtension
++													i:nil="true" />
++												<DataField>SenderEmail</DataField>
++												<DataSource>DYLO_OverdueNotificationParameters</DataSource>
++											</AxFormControl>
++											<AxFormControl xmlns=""
++												i:type="AxFormIntegerControl">
++												<Name>General_LogRetentionDays</Name>
++												<Type>Integer</Type>
++												<FormControlExtension
++													i:nil="true" />
++												<DataField>LogRetentionDays</DataField>
++												<DataSource>DYLO_OverdueNotificationParameters</DataSource>
++											</AxFormControl>
++										</Controls>
++										<DataGroup>General</DataGroup>
++										<DataSource>DYLO_OverdueNotificationParameters</DataSource>
++									</AxFormControl>
++								</Controls>
++								<ColumnsMode>Fill</ColumnsMode>
++								<FrameType>None</FrameType>
++							</AxFormControl>
++						</Controls>
++						<Caption>@DYLOExtensions:OverdueInvNotifGeneralTab</Caption>
++						<Scrollbars>Auto</Scrollbars>
++					</AxFormControl>
++					<AxFormControl xmlns=""
++						i:type="AxFormTabPageControl">
++						<Name>TabTiers</Name>
++						<Type>TabPage</Type>
++						<FormControlExtension
++							i:nil="true" />
++						<Controls>
++							<AxFormControl xmlns=""
++								i:type="AxFormGroupControl">
++								<Name>TiersTitle</Name>
++								<Skip>Yes</Skip>
++								<Type>Group</Type>
++								<WidthMode>SizeToAvailable</WidthMode>
++								<FormControlExtension
++									i:nil="true" />
++								<Controls>
++									<AxFormControl xmlns=""
++										i:type="AxFormStaticTextControl">
++										<Name>TiersTitleText</Name>
++										<Skip>Yes</Skip>
++										<Type>StaticText</Type>
++										<WidthMode>SizeToAvailable</WidthMode>
++										<FormControlExtension
++											i:nil="true" />
++										<Style>MainInstruction</Style>
++										<Text>@DYLOExtensions:OverdueInvNotifTiersTab</Text>
++									</AxFormControl>
++								</Controls>
++								<AllowUserSetup>No</AllowUserSetup>
++								<FrameType>None</FrameType>
++								<Style>TOCTitleContainer</Style>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormGroupControl">
++								<Name>TiersBody</Name>
++								<HeightMode>SizeToAvailable</HeightMode>
++								<Pattern>ToolbarList</Pattern>
++								<PatternVersion>1.2</PatternVersion>
++								<Type>Group</Type>
++								<WidthMode>SizeToAvailable</WidthMode>
++								<FormControlExtension
++									i:nil="true" />
++								<Controls>
++									<AxFormControl xmlns=""
++										i:type="AxFormActionPaneControl">
++										<Name>TiersActionPane</Name>
++										<Type>ActionPane</Type>
++										<FormControlExtension
++											i:nil="true" />
++										<Controls>
++											<AxFormControl xmlns=""
++												i:type="AxFormButtonGroupControl">
++												<Name>TiersNewDelete</Name>
++												<Type>ButtonGroup</Type>
++												<FormControlExtension
++													i:nil="true" />
++												<Controls>
++													<AxFormControl xmlns=""
++														i:type="AxFormCommandButtonControl">
++														<Name>TiersNew</Name>
++														<Type>CommandButton</Type>
++														<FormControlExtension
++															i:nil="true" />
++														<Command>New</Command>
++													</AxFormControl>
++													<AxFormControl xmlns=""
++														i:type="AxFormCommandButtonControl">
++														<Name>TiersDelete</Name>
++														<Type>CommandButton</Type>
++														<FormControlExtension
++															i:nil="true" />
++														<Command>DeleteRecord</Command>
++													</AxFormControl>
++												</Controls>
++												<DataSource>DYLO_OverdueNotificationTier</DataSource>
++											</AxFormControl>
++										</Controls>
++										<Style>Strip</Style>
++									</AxFormControl>
++									<AxFormControl xmlns=""
++										i:type="AxFormGridControl">
++										<Name>TiersGrid</Name>
++										<Type>Grid</Type>
++										<FormControlExtension
++											i:nil="true" />
++										<Controls>
++											<AxFormControl xmlns=""
++												i:type="AxFormIntegerControl">
++												<Name>TiersGrid_TierDays</Name>
++												<Type>Integer</Type>
++												<FormControlExtension
++													i:nil="true" />
++												<DataField>TierDays</DataField>
++												<DataSource>DYLO_OverdueNotificationTier</DataSource>
++											</AxFormControl>
++											<AxFormControl xmlns=""
++												i:type="AxFormStringControl">
++												<Name>TiersGrid_Description</Name>
++												<Type>String</Type>
++												<FormControlExtension
++													i:nil="true" />
++												<DataField>Description</DataField>
++												<DataSource>DYLO_OverdueNotificationTier</DataSource>
++											</AxFormControl>
++											<AxFormControl xmlns=""
++												i:type="AxFormCheckBoxControl">
++												<Name>TiersGrid_Active</Name>
++												<Type>CheckBox</Type>
++												<FormControlExtension
++													i:nil="true" />
++												<DataField>Active</DataField>
++												<DataSource>DYLO_OverdueNotificationTier</DataSource>
++											</AxFormControl>
++										</Controls>
++										<DataSource>DYLO_OverdueNotificationTier</DataSource>
++									</AxFormControl>
++								</Controls>
++								<FrameType>None</FrameType>
++							</AxFormControl>
++						</Controls>
++						<Caption>@DYLOExtensions:OverdueInvNotifTiersTab</Caption>
++					</AxFormControl>
++				</Controls>
++				<ArrangeMethod>Vertical</ArrangeMethod>
++				<Style>VerticalTabs</Style>
++			</AxFormControl>
++		</Controls>
++	</Design>
++	<Parts />
++</AxForm>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxLabelFile/LabelResources/en-US/DYLOExtensions.en-US.label.txt b/Metadata/DYLOExtensions/DYLOExtensions/AxLabelFile/LabelResources/en-US/DYLOExtensions.en-US.label.txt
+index 26f97f7..d4051e5 100644
+--- a/Metadata/DYLOExtensions/DYLOExtensions/AxLabelFile/LabelResources/en-US/DYLOExtensions.en-US.label.txt
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxLabelFile/LabelResources/en-US/DYLOExtensions.en-US.label.txt
+@@ -379,6 +379,95 @@ MassPriceAdjSummaryLines=Journal lines created: %1
+ MassPriceAdjSummaryProcessed=Agreements processed: %1
+ MassPriceAdjSummarySkipped=Agreements skipped: %1
+ MassPriceAdjWarnAllItemGroups=No item group selected – all item groups will be updated
++OverdueInvNotifActive=Active
++OverdueInvNotifAttemptCount=Attempts
++OverdueInvNotifAttemptDetailsGroup=Invoice and attempt details
++OverdueInvNotifBodyAction=Action Required: Please initiate collections follow-up.
++OverdueInvNotifBodyAmounts=original amount %1 %2, outstanding amount %1 %3,
++OverdueInvNotifBodyDaysPastDue=is now %1 days past due.
++OverdueInvNotifBodyDueDate=Original due date: %1
++OverdueInvNotifBodyGreeting=Dear Finance Team,
++OverdueInvNotifBodyInvoice=Invoice %1 for customer %2 (%3)
++OverdueInvNotifBodyInvoiceDate=Invoice date: %1
++OverdueInvNotifBodyTier=Overdue tier: %1 days
++OverdueInvNotifCaption=Send overdue invoice notifications
++OverdueInvNotifConfirmPurge=Delete all notification log lines created before %1?
++OverdueInvNotifConfirmResendSent=One or more selected notifications were already sent. Send them again?
++OverdueInvNotifCounts=All (%1) | Sent (%2) | Failed (%3)
++OverdueInvNotifCustGroup=Customer group
++OverdueInvNotifCustGroupHelp=Only invoices of customers in this group are checked. Leave empty to check all customers.
++OverdueInvNotifCustName=Customer name
++OverdueInvNotifDaysOverdue=Days overdue
++OverdueInvNotifDetailsGroup=Notification & error details
++OverdueInvNotifDueDate=Original due date
++OverdueInvNotifEmailBody=Body
++OverdueInvNotifEmailGroup=Email
++OverdueInvNotifEmailPreviewGroup=Rendered email content preview
++OverdueInvNotifEmailSubject=Subject
++OverdueInvNotifEmailSubjectText=[OVERDUE ALERT] Invoice %1 - %2 Days Past Due
++OverdueInvNotifErrGrace=Grace period days cannot be negative.
++OverdueInvNotifErrInvalidEmail=%1 is not a valid email address.
++OverdueInvNotifErrLogRetention=Log retention days must be greater than 0.
++OverdueInvNotifErrNoTiers=No active overdue tiers are set up. Set them up in Overdue invoice notification setup.
++OverdueInvNotifErrProviderRejected=The email provider did not accept the message.
++OverdueInvNotifErrRecipientBlank=Recipient email address must be filled in.
++OverdueInvNotifErrTierDays=Days overdue of a tier must be greater than 0.
++OverdueInvNotifErrorText=SMTP / email delivery error
++OverdueInvNotifGeneralTab=General
++OverdueInvNotifGracePeriod=Grace period days
++OverdueInvNotifGracePeriodHelp=Invoices are only checked when their due date is earlier than the run date minus this number of days.
++OverdueInvNotifInquireDuty=Inquire into overdue invoice notifications
++OverdueInvNotifInquireDutyDescription=View the overdue invoice notification log.
++OverdueInvNotifInvoiceAmount=Original amount
++OverdueInvNotifInvoiceFailed=Invoice %1 could not be processed.
++OverdueInvNotifLastAttempt=Last attempt
++OverdueInvNotifLogMaintainPrivilege=Maintain overdue invoice notification log
++OverdueInvNotifLogMenuItem=Overdue invoice notification log
++OverdueInvNotifLogMenuItemHelp=View the overdue invoice notifications that were sent or failed, resend them and purge old log lines.
++OverdueInvNotifLogTable=Overdue invoice notification log
++OverdueInvNotifLogTableDevDoc=The DYLO_OverdueInvoiceNotificationLog table holds one line for each overdue invoice and overdue tier for which a notification email was attempted.
++OverdueInvNotifLogViewPrivilege=View overdue invoice notification log
++OverdueInvNotifMaintainDuty=Maintain overdue invoice notifications
++OverdueInvNotifMaintainDutyDescription=Send, resend and purge overdue invoice notifications and maintain their setup.
++OverdueInvNotifManagerRole=Overdue invoice notification manager
++OverdueInvNotifManagerRoleDescription=Sets up, runs and monitors the overdue invoice notifications.
++OverdueInvNotifParametersGroup=Parameters
++OverdueInvNotifParametersTable=Overdue invoice notification parameters
++OverdueInvNotifParametersTableDevDoc=The DYLO_OverdueNotificationParameters table holds the overdue invoice notification setup of the company.
++OverdueInvNotifPurgeMenuItem=Purge old logs
++OverdueInvNotifPurgeMenuItemHelp=Delete notification log lines that are older than the log retention days.
++OverdueInvNotifPurged=%1 notification log lines were deleted.
++OverdueInvNotifRecipient=Recipient email address
++OverdueInvNotifRecipientHelp=The email address (or distribution list) the overdue invoice notifications are sent to.
++OverdueInvNotifRecipientTo=To
++OverdueInvNotifRemainingAmount=Outstanding amount
++OverdueInvNotifResendMenuItem=Resend notification
++OverdueInvNotifResendMenuItemHelp=Send the selected notifications again.
++OverdueInvNotifResendResult=%1 notifications sent, %2 failed.
++OverdueInvNotifRetentionDays=Log retention days
++OverdueInvNotifRetentionDaysHelp=Purge old logs deletes notification log lines created more than this number of days ago.
++OverdueInvNotifRunMenuItemHelp=Check the open customer invoices and email a notification for each invoice that reached an overdue tier.
++OverdueInvNotifRunPrivilege=Send overdue invoice notifications
++OverdueInvNotifSenderEmail=Sender email address
++OverdueInvNotifSenderEmailHelp=The sender of the notification emails. Leave empty to use the default sender of the email parameters.
++OverdueInvNotifSentAt=Sent at
++OverdueInvNotifSetupMaintainPrivilege=Maintain overdue invoice notification setup
++OverdueInvNotifSetupMenuItem=Overdue invoice notification setup
++OverdueInvNotifSetupMenuItemHelp=Set up the overdue tiers, the sender and the log retention of the overdue invoice notifications.
++OverdueInvNotifStatus=Status
++OverdueInvNotifStatusAll=All
++OverdueInvNotifStatusFailed=Failed
++OverdueInvNotifStatusFilter=Status filter
++OverdueInvNotifStatusSent=Sent
++OverdueInvNotifSummaryChecked=Invoices checked: %1
++OverdueInvNotifSummaryFailed=Notifications failed: %1
++OverdueInvNotifSummarySent=Notifications sent: %1
++OverdueInvNotifSummarySkipped=Invoices skipped: %1
++OverdueInvNotifTierDays=Tier (days overdue)
++OverdueInvNotifTierExists=A tier for %1 days overdue already exists.
++OverdueInvNotifTierTable=Overdue invoice notification tier
++OverdueInvNotifTierTableDevDoc=The DYLO_OverdueNotificationTier table holds the overdue tiers at which an overdue invoice notification is sent.
++OverdueInvNotifTiersTab=Overdue tiers
+ OpenBackorderRiskAccountRep=Account rep
+ OpenBackorderRiskAccountRepPrefix=Account Rep:
+ OpenBackorderRiskAll=All
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxMenuExtension/CreditAndCollections.DYLOExtensions.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuExtension/CreditAndCollections.DYLOExtensions.xml
+new file mode 100644
+index 0000000..946d136
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuExtension/CreditAndCollections.DYLOExtensions.xml
+@@ -0,0 +1,34 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxMenuExtension xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V1">
++	<Name>CreditAndCollections.DYLOExtensions</Name>
++	<Customizations />
++	<Elements>
++		<AxMenuExtensionElement xmlns="">
++			<Parent>InquiriesAndReports</Parent>
++			<MenuElement xmlns=""
++				i:type="AxMenuElementMenuItem">
++				<Name>DYLO_OverdueInvoiceNotificationLog</Name>
++				<MenuItemName>DYLO_OverdueInvoiceNotificationLog</MenuItemName>
++			</MenuElement>
++		</AxMenuExtensionElement>
++		<AxMenuExtensionElement xmlns="">
++			<Parent>PeriodicProcesses</Parent>
++			<MenuElement xmlns=""
++				i:type="AxMenuElementMenuItem">
++				<Name>DYLO_OverdueInvoiceNotificationRun</Name>
++				<MenuItemName>DYLO_OverdueInvoiceNotificationRun</MenuItemName>
++				<MenuItemType>Action</MenuItemType>
++			</MenuElement>
++		</AxMenuExtensionElement>
++		<AxMenuExtensionElement xmlns="">
++			<Parent>Setup</Parent>
++			<MenuElement xmlns=""
++				i:type="AxMenuElementMenuItem">
++				<Name>DYLO_OverdueNotificationSetup</Name>
++				<MenuItemName>DYLO_OverdueNotificationSetup</MenuItemName>
++			</MenuElement>
++		</AxMenuExtensionElement>
++	</Elements>
++	<MenuElementModifications />
++	<PropertyModifications />
++</AxMenuExtension>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_OverdueInvoiceNotificationPurge.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_OverdueInvoiceNotificationPurge.xml
+new file mode 100644
+index 0000000..364c988
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_OverdueInvoiceNotificationPurge.xml
+@@ -0,0 +1,8 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxMenuItemAction xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V1">
++	<Name>DYLO_OverdueInvoiceNotificationPurge</Name>
++	<HelpText>@DYLOExtensions:OverdueInvNotifPurgeMenuItemHelp</HelpText>
++	<Label>@DYLOExtensions:OverdueInvNotifPurgeMenuItem</Label>
++	<Object>DYLO_OverdueInvoiceNotificationPurge</Object>
++	<ObjectType>Class</ObjectType>
++</AxMenuItemAction>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_OverdueInvoiceNotificationResend.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_OverdueInvoiceNotificationResend.xml
+new file mode 100644
+index 0000000..3598a39
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_OverdueInvoiceNotificationResend.xml
+@@ -0,0 +1,8 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxMenuItemAction xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V1">
++	<Name>DYLO_OverdueInvoiceNotificationResend</Name>
++	<HelpText>@DYLOExtensions:OverdueInvNotifResendMenuItemHelp</HelpText>
++	<Label>@DYLOExtensions:OverdueInvNotifResendMenuItem</Label>
++	<Object>DYLO_OverdueInvoiceNotificationResend</Object>
++	<ObjectType>Class</ObjectType>
++</AxMenuItemAction>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_OverdueInvoiceNotificationRun.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_OverdueInvoiceNotificationRun.xml
+new file mode 100644
+index 0000000..76c25bf
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_OverdueInvoiceNotificationRun.xml
+@@ -0,0 +1,8 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxMenuItemAction xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V1">
++	<Name>DYLO_OverdueInvoiceNotificationRun</Name>
++	<HelpText>@DYLOExtensions:OverdueInvNotifRunMenuItemHelp</HelpText>
++	<Label>@DYLOExtensions:OverdueInvNotifCaption</Label>
++	<Object>DYLO_OverdueInvoiceNotificationController</Object>
++	<ObjectType>Class</ObjectType>
++</AxMenuItemAction>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemDisplay/DYLO_OverdueInvoiceNotificationLog.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemDisplay/DYLO_OverdueInvoiceNotificationLog.xml
+new file mode 100644
+index 0000000..6748f8c
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemDisplay/DYLO_OverdueInvoiceNotificationLog.xml
+@@ -0,0 +1,7 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxMenuItemDisplay xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V1">
++	<Name>DYLO_OverdueInvoiceNotificationLog</Name>
++	<HelpText>@DYLOExtensions:OverdueInvNotifLogMenuItemHelp</HelpText>
++	<Label>@DYLOExtensions:OverdueInvNotifLogMenuItem</Label>
++	<Object>DYLO_OverdueInvoiceNotificationLog</Object>
++</AxMenuItemDisplay>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemDisplay/DYLO_OverdueNotificationSetup.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemDisplay/DYLO_OverdueNotificationSetup.xml
+new file mode 100644
+index 0000000..78ac574
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemDisplay/DYLO_OverdueNotificationSetup.xml
+@@ -0,0 +1,7 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxMenuItemDisplay xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V1">
++	<Name>DYLO_OverdueNotificationSetup</Name>
++	<HelpText>@DYLOExtensions:OverdueInvNotifSetupMenuItemHelp</HelpText>
++	<Label>@DYLOExtensions:OverdueInvNotifSetupMenuItem</Label>
++	<Object>DYLO_OverdueNotificationSetup</Object>
++</AxMenuItemDisplay>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityDuty/DYLO_OverdueInvoiceNotificationInquire.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityDuty/DYLO_OverdueInvoiceNotificationInquire.xml
+new file mode 100644
+index 0000000..90fe971
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityDuty/DYLO_OverdueInvoiceNotificationInquire.xml
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityDuty xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_OverdueInvoiceNotificationInquire</Name>
++	<Description>@DYLOExtensions:OverdueInvNotifInquireDutyDescription</Description>
++	<Label>@DYLOExtensions:OverdueInvNotifInquireDuty</Label>
++	<Privileges>
++		<AxSecurityPrivilegeReference>
++			<Name>DYLO_OverdueInvoiceNotificationLogView</Name>
++		</AxSecurityPrivilegeReference>
++	</Privileges>
++</AxSecurityDuty>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityDuty/DYLO_OverdueInvoiceNotificationMaintain.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityDuty/DYLO_OverdueInvoiceNotificationMaintain.xml
+new file mode 100644
+index 0000000..fb1ff6b
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityDuty/DYLO_OverdueInvoiceNotificationMaintain.xml
+@@ -0,0 +1,17 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityDuty xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_OverdueInvoiceNotificationMaintain</Name>
++	<Description>@DYLOExtensions:OverdueInvNotifMaintainDutyDescription</Description>
++	<Label>@DYLOExtensions:OverdueInvNotifMaintainDuty</Label>
++	<Privileges>
++		<AxSecurityPrivilegeReference>
++			<Name>DYLO_OverdueInvoiceNotificationLogMaintain</Name>
++		</AxSecurityPrivilegeReference>
++		<AxSecurityPrivilegeReference>
++			<Name>DYLO_OverdueInvoiceNotificationRun</Name>
++		</AxSecurityPrivilegeReference>
++		<AxSecurityPrivilegeReference>
++			<Name>DYLO_OverdueNotificationSetupMaintain</Name>
++		</AxSecurityPrivilegeReference>
++	</Privileges>
++</AxSecurityDuty>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_OverdueInvoiceNotificationLogMaintain.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_OverdueInvoiceNotificationLogMaintain.xml
+new file mode 100644
+index 0000000..06e8122
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_OverdueInvoiceNotificationLogMaintain.xml
+@@ -0,0 +1,52 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityPrivilege xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_OverdueInvoiceNotificationLogMaintain</Name>
++	<Label>@DYLOExtensions:OverdueInvNotifLogMaintainPrivilege</Label>
++	<DataEntityPermissions />
++	<DirectAccessPermissions>
++		<AxSecurityDataEntityReference>
++			<Grant>
++				<Delete>Allow</Delete>
++				<Read>Allow</Read>
++				<Update>Allow</Update>
++			</Grant>
++			<Name>DYLO_OverdueInvoiceNotificationLog</Name>
++			<Fields />
++		</AxSecurityDataEntityReference>
++	</DirectAccessPermissions>
++	<EntryPoints>
++		<AxSecurityEntryPointReference>
++			<Name>DYLO_OverdueInvoiceNotificationLog</Name>
++			<Grant>
++				<Read>Allow</Read>
++			</Grant>
++			<ObjectName>DYLO_OverdueInvoiceNotificationLog</ObjectName>
++			<ObjectType>MenuItemDisplay</ObjectType>
++			<Forms />
++		</AxSecurityEntryPointReference>
++		<AxSecurityEntryPointReference>
++			<Name>DYLO_OverdueInvoiceNotificationResend</Name>
++			<Grant>
++				<Read>Allow</Read>
++				<Update>Allow</Update>
++			</Grant>
++			<ObjectName>DYLO_OverdueInvoiceNotificationResend</ObjectName>
++			<ObjectType>MenuItemAction</ObjectType>
++			<Forms />
++		</AxSecurityEntryPointReference>
++		<AxSecurityEntryPointReference>
++			<Name>DYLO_OverdueInvoiceNotificationPurge</Name>
++			<Grant>
++				<Correct>Allow</Correct>
++				<Create>Allow</Create>
++				<Delete>Allow</Delete>
++				<Read>Allow</Read>
++				<Update>Allow</Update>
++			</Grant>
++			<ObjectName>DYLO_OverdueInvoiceNotificationPurge</ObjectName>
++			<ObjectType>MenuItemAction</ObjectType>
++			<Forms />
++		</AxSecurityEntryPointReference>
++	</EntryPoints>
++	<FormControlOverrides />
++</AxSecurityPrivilege>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_OverdueInvoiceNotificationLogView.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_OverdueInvoiceNotificationLogView.xml
+new file mode 100644
+index 0000000..6750e66
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_OverdueInvoiceNotificationLogView.xml
+@@ -0,0 +1,19 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityPrivilege xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_OverdueInvoiceNotificationLogView</Name>
++	<Label>@DYLOExtensions:OverdueInvNotifLogViewPrivilege</Label>
++	<DataEntityPermissions />
++	<DirectAccessPermissions />
++	<EntryPoints>
++		<AxSecurityEntryPointReference>
++			<Name>DYLO_OverdueInvoiceNotificationLog</Name>
++			<Grant>
++				<Read>Allow</Read>
++			</Grant>
++			<ObjectName>DYLO_OverdueInvoiceNotificationLog</ObjectName>
++			<ObjectType>MenuItemDisplay</ObjectType>
++			<Forms />
++		</AxSecurityEntryPointReference>
++	</EntryPoints>
++	<FormControlOverrides />
++</AxSecurityPrivilege>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_OverdueInvoiceNotificationRun.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_OverdueInvoiceNotificationRun.xml
+new file mode 100644
+index 0000000..7c70ec8
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_OverdueInvoiceNotificationRun.xml
+@@ -0,0 +1,33 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityPrivilege xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_OverdueInvoiceNotificationRun</Name>
++	<Label>@DYLOExtensions:OverdueInvNotifRunPrivilege</Label>
++	<DataEntityPermissions />
++	<DirectAccessPermissions>
++		<AxSecurityDataEntityReference>
++			<Grant>
++				<Create>Allow</Create>
++				<Read>Allow</Read>
++				<Update>Allow</Update>
++			</Grant>
++			<Name>DYLO_OverdueInvoiceNotificationLog</Name>
++			<Fields />
++		</AxSecurityDataEntityReference>
++	</DirectAccessPermissions>
++	<EntryPoints>
++		<AxSecurityEntryPointReference>
++			<Name>DYLO_OverdueInvoiceNotificationRun</Name>
++			<Grant>
++				<Correct>Allow</Correct>
++				<Create>Allow</Create>
++				<Delete>Allow</Delete>
++				<Read>Allow</Read>
++				<Update>Allow</Update>
++			</Grant>
++			<ObjectName>DYLO_OverdueInvoiceNotificationRun</ObjectName>
++			<ObjectType>MenuItemAction</ObjectType>
++			<Forms />
++		</AxSecurityEntryPointReference>
++	</EntryPoints>
++	<FormControlOverrides />
++</AxSecurityPrivilege>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_OverdueNotificationSetupMaintain.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_OverdueNotificationSetupMaintain.xml
+new file mode 100644
+index 0000000..3b4b7d3
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_OverdueNotificationSetupMaintain.xml
+@@ -0,0 +1,23 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityPrivilege xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_OverdueNotificationSetupMaintain</Name>
++	<Label>@DYLOExtensions:OverdueInvNotifSetupMaintainPrivilege</Label>
++	<DataEntityPermissions />
++	<DirectAccessPermissions />
++	<EntryPoints>
++		<AxSecurityEntryPointReference>
++			<Name>DYLO_OverdueNotificationSetup</Name>
++			<Grant>
++				<Correct>Allow</Correct>
++				<Create>Allow</Create>
++				<Delete>Allow</Delete>
++				<Read>Allow</Read>
++				<Update>Allow</Update>
++			</Grant>
++			<ObjectName>DYLO_OverdueNotificationSetup</ObjectName>
++			<ObjectType>MenuItemDisplay</ObjectType>
++			<Forms />
++		</AxSecurityEntryPointReference>
++	</EntryPoints>
++	<FormControlOverrides />
++</AxSecurityPrivilege>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityRole/DYLO_OverdueInvoiceNotificationManager.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityRole/DYLO_OverdueInvoiceNotificationManager.xml
+new file mode 100644
+index 0000000..999ad21
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityRole/DYLO_OverdueInvoiceNotificationManager.xml
+@@ -0,0 +1,17 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityRole xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_OverdueInvoiceNotificationManager</Name>
++	<Description>@DYLOExtensions:OverdueInvNotifManagerRoleDescription</Description>
++	<Label>@DYLOExtensions:OverdueInvNotifManagerRole</Label>
++	<DirectAccessPermissions />
++	<Duties>
++		<AxSecurityDutyReference>
++			<Name>DYLO_OverdueInvoiceNotificationInquire</Name>
++		</AxSecurityDutyReference>
++		<AxSecurityDutyReference>
++			<Name>DYLO_OverdueInvoiceNotificationMaintain</Name>
++		</AxSecurityDutyReference>
++	</Duties>
++	<Privileges />
++	<SubRoles />
++</AxSecurityRole>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxTable/DYLO_OverdueInvoiceNotificationLog.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxTable/DYLO_OverdueInvoiceNotificationLog.xml
+new file mode 100644
+index 0000000..16a8674
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxTable/DYLO_OverdueInvoiceNotificationLog.xml
+@@ -0,0 +1,341 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxTable xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_OverdueInvoiceNotificationLog</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++public class DYLO_OverdueInvoiceNotificationLog extends common
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>findByInvoiceTier</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Finds the notification log line of an invoice and an overdue tier.
++    /// </summary>
++    /// <param name = "_custInvoiceJourRecId">The record ID of the customer invoice journal.</param>
++    /// <param name = "_tierDays">The days of the overdue tier.</param>
++    /// <param name = "_forUpdate">true to select the record for update.</param>
++    /// <returns>The log line, or an empty buffer.</returns>
++    public static DYLO_OverdueInvoiceNotificationLog findByInvoiceTier(RefRecId _custInvoiceJourRecId, Days _tierDays, boolean _forUpdate = false)
++    {
++        DYLO_OverdueInvoiceNotificationLog log;
++
++        if (_custInvoiceJourRecId)
++        {
++            log.selectForUpdate(_forUpdate);
++
++            select firstonly log
++                where log.CustInvoiceJourRecId == _custInvoiceJourRecId
++                   && log.TierDays             == _tierDays;
++        }
++
++        return log;
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++	<DeveloperDocumentation>@DYLOExtensions:OverdueInvNotifLogTableDevDoc</DeveloperDocumentation>
++	<FormRef>DYLO_OverdueInvoiceNotificationLog</FormRef>
++	<Label>@DYLOExtensions:OverdueInvNotifLogTable</Label>
++	<TableGroup>Transaction</TableGroup>
++	<TitleField1>InvoiceId</TitleField1>
++	<TitleField2>CustAccount</TitleField2>
++	<CacheLookup>NotInTTS</CacheLookup>
++	<CreatedDateTime>Yes</CreatedDateTime>
++	<ModifiedDateTime>Yes</ModifiedDateTime>
++	<Modules>AccountsReceivable</Modules>
++	<DeleteActions />
++	<FieldGroups>
++		<AxTableFieldGroup>
++			<Name>AutoReport</Name>
++			<Fields />
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoLookup</Name>
++			<Fields />
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoIdentification</Name>
++			<AutoPopulate>Yes</AutoPopulate>
++			<Fields />
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoSummary</Name>
++			<Fields />
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoBrowse</Name>
++			<Fields />
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>Overview</Name>
++			<Fields>
++				<AxTableFieldGroupField>
++					<DataField>InvoiceId</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>CustAccount</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>DueDate</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>DaysOverdue</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>Status</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>RecipientEmail</DataField>
++				</AxTableFieldGroupField>
++			</Fields>
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>Email</Name>
++			<Label>@DYLOExtensions:OverdueInvNotifEmailGroup</Label>
++			<Fields>
++				<AxTableFieldGroupField>
++					<DataField>RecipientEmail</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>EmailSubject</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>EmailBody</DataField>
++				</AxTableFieldGroupField>
++			</Fields>
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>Details</Name>
++			<Label>@DYLOExtensions:OverdueInvNotifAttemptDetailsGroup</Label>
++			<Fields>
++				<AxTableFieldGroupField>
++					<DataField>InvoiceDate</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>CustName</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>InvoiceAmount</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>RemainingAmount</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>CurrencyCode</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>TierDays</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>AttemptCount</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>LastAttemptDateTime</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>SentDateTime</DataField>
++				</AxTableFieldGroupField>
++			</Fields>
++		</AxTableFieldGroup>
++	</FieldGroups>
++	<Fields>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldInt64">
++			<Name>CustInvoiceJourRecId</Name>
++			<AssetClassification>System Metadata</AssetClassification>
++			<ExtendedDataType>RefRecId</ExtendedDataType>
++			<Visible>No</Visible>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>InvoiceId</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>CustInvoiceId</ExtendedDataType>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldDate">
++			<Name>InvoiceDate</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>TransDate</ExtendedDataType>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>CustAccount</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>CustAccount</ExtendedDataType>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>CustName</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>Name</ExtendedDataType>
++			<Label>@DYLOExtensions:OverdueInvNotifCustName</Label>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldDate">
++			<Name>DueDate</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>DueDate</ExtendedDataType>
++			<Label>@DYLOExtensions:OverdueInvNotifDueDate</Label>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldInt">
++			<Name>DaysOverdue</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>Days</ExtendedDataType>
++			<Label>@DYLOExtensions:OverdueInvNotifDaysOverdue</Label>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldInt">
++			<Name>TierDays</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>Days</ExtendedDataType>
++			<Label>@DYLOExtensions:OverdueInvNotifTierDays</Label>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldReal">
++			<Name>InvoiceAmount</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>AmountCur</ExtendedDataType>
++			<Label>@DYLOExtensions:OverdueInvNotifInvoiceAmount</Label>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldReal">
++			<Name>RemainingAmount</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>AmountCur</ExtendedDataType>
++			<Label>@DYLOExtensions:OverdueInvNotifRemainingAmount</Label>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>CurrencyCode</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>CurrencyCode</ExtendedDataType>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>RecipientEmail</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>Email</ExtendedDataType>
++			<Label>@DYLOExtensions:OverdueInvNotifRecipientTo</Label>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>EmailSubject</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>Description255</ExtendedDataType>
++			<Label>@DYLOExtensions:OverdueInvNotifEmailSubject</Label>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>EmailBody</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>Notes</ExtendedDataType>
++			<Label>@DYLOExtensions:OverdueInvNotifEmailBody</Label>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldEnum">
++			<Name>Status</Name>
++			<AssetClassification>System Metadata</AssetClassification>
++			<EnumType>DYLO_OverdueNotificationStatus</EnumType>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>ErrorText</Name>
++			<AssetClassification>System Metadata</AssetClassification>
++			<ExtendedDataType>Notes</ExtendedDataType>
++			<Label>@DYLOExtensions:OverdueInvNotifErrorText</Label>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldInt">
++			<Name>AttemptCount</Name>
++			<AssetClassification>System Metadata</AssetClassification>
++			<ExtendedDataType>Counter</ExtendedDataType>
++			<Label>@DYLOExtensions:OverdueInvNotifAttemptCount</Label>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldUtcDateTime">
++			<Name>LastAttemptDateTime</Name>
++			<AssetClassification>System Metadata</AssetClassification>
++			<ExtendedDataType>TransDateTime</ExtendedDataType>
++			<Label>@DYLOExtensions:OverdueInvNotifLastAttempt</Label>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldUtcDateTime">
++			<Name>SentDateTime</Name>
++			<AssetClassification>System Metadata</AssetClassification>
++			<ExtendedDataType>TransDateTime</ExtendedDataType>
++			<Label>@DYLOExtensions:OverdueInvNotifSentAt</Label>
++		</AxTableField>
++	</Fields>
++	<FullTextIndexes />
++	<Indexes>
++		<AxTableIndex>
++			<Name>InvoiceTierIdx</Name>
++			<AlternateKey>Yes</AlternateKey>
++			<Fields>
++				<AxTableIndexField>
++					<DataField>CustInvoiceJourRecId</DataField>
++				</AxTableIndexField>
++				<AxTableIndexField>
++					<DataField>TierDays</DataField>
++				</AxTableIndexField>
++			</Fields>
++		</AxTableIndex>
++		<AxTableIndex>
++			<Name>StatusIdx</Name>
++			<AllowDuplicates>Yes</AllowDuplicates>
++			<Fields>
++				<AxTableIndexField>
++					<DataField>Status</DataField>
++				</AxTableIndexField>
++				<AxTableIndexField>
++					<DataField>CreatedDateTime</DataField>
++				</AxTableIndexField>
++			</Fields>
++		</AxTableIndex>
++	</Indexes>
++	<Mappings />
++	<Relations>
++		<AxTableRelation xmlns=""
++			i:type="AxTableRelationForeignKey">
++			<Name>CustInvoiceJour</Name>
++			<Cardinality>ZeroMore</Cardinality>
++			<RelatedTable>CustInvoiceJour</RelatedTable>
++			<RelatedTableCardinality>ZeroOne</RelatedTableCardinality>
++			<RelationshipType>Association</RelationshipType>
++			<Constraints>
++				<AxTableRelationConstraint xmlns=""
++					i:type="AxTableRelationConstraintField">
++					<Name>CustInvoiceJourRecId</Name>
++					<Field>CustInvoiceJourRecId</Field>
++					<RelatedField>RecId</RelatedField>
++				</AxTableRelationConstraint>
++			</Constraints>
++			<Index>RecId</Index>
++		</AxTableRelation>
++		<AxTableRelation xmlns=""
++			i:type="AxTableRelationForeignKey">
++			<Name>CustTable</Name>
++			<Cardinality>ZeroMore</Cardinality>
++			<RelatedTable>CustTable</RelatedTable>
++			<RelatedTableCardinality>ZeroOne</RelatedTableCardinality>
++			<RelationshipType>Association</RelationshipType>
++			<Constraints>
++				<AxTableRelationConstraint xmlns=""
++					i:type="AxTableRelationConstraintField">
++					<Name>CustAccount</Name>
++					<Field>CustAccount</Field>
++					<RelatedField>AccountNum</RelatedField>
++				</AxTableRelationConstraint>
++			</Constraints>
++			<Index>AccountIdx</Index>
++		</AxTableRelation>
++	</Relations>
++	<StateMachines />
++</AxTable>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxTable/DYLO_OverdueNotificationParameters.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxTable/DYLO_OverdueNotificationParameters.xml
+new file mode 100644
+index 0000000..2f191e2
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxTable/DYLO_OverdueNotificationParameters.xml
+@@ -0,0 +1,199 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxTable xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_OverdueNotificationParameters</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++public class DYLO_OverdueNotificationParameters extends common
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>find</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Finds the overdue invoice notification parameters of the current company and creates them when missing.
++    /// </summary>
++    /// <param name = "_forupdate">true to select the record for update.</param>
++    /// <returns>The parameter record.</returns>
++    public static DYLO_OverdueNotificationParameters find(boolean _forupdate = false)
++    {
++        DYLO_OverdueNotificationParameters parameter;
++
++        if (_forupdate)
++        {
++            parameter.selectForUpdate(_forupdate);
++        }
++
++        select firstonly parameter
++            where parameter.Key == 0;
++
++        if (!parameter && !parameter.isTmp())
++        {
++            Company::createParameter(parameter);
++        }
++
++        return parameter;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>initValue</Name>
++				<Source><![CDATA[
++    public void initValue()
++    {
++        const Days DefaultLogRetentionDays = 180;
++
++        super();
++
++        this.LogRetentionDays = DefaultLogRetentionDays;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>validateField</Name>
++				<Source><![CDATA[
++    public boolean validateField(FieldId _fieldIdToCheck)
++    {
++        boolean ret = super(_fieldIdToCheck);
++
++        if (ret && _fieldIdToCheck == fieldNum(DYLO_OverdueNotificationParameters, LogRetentionDays))
++        {
++            ret = this.checkLogRetentionDays();
++        }
++
++        return ret;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>validateWrite</Name>
++				<Source><![CDATA[
++    public boolean validateWrite()
++    {
++        boolean ret = super();
++
++        if (ret)
++        {
++            ret = this.checkLogRetentionDays();
++        }
++
++        return ret;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>checkLogRetentionDays</Name>
++				<Source><![CDATA[
++    private boolean checkLogRetentionDays()
++    {
++        if (this.LogRetentionDays <= 0)
++        {
++            return checkFailed("@DYLOExtensions:OverdueInvNotifErrLogRetention");
++        }
++
++        return true;
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++	<DeveloperDocumentation>@DYLOExtensions:OverdueInvNotifParametersTableDevDoc</DeveloperDocumentation>
++	<FormRef>DYLO_OverdueNotificationSetup</FormRef>
++	<Label>@DYLOExtensions:OverdueInvNotifParametersTable</Label>
++	<TableGroup>Parameter</TableGroup>
++	<CacheLookup>Found</CacheLookup>
++	<Modules>AccountsReceivable</Modules>
++	<ReplacementKey>KeyIdx</ReplacementKey>
++	<DeleteActions />
++	<FieldGroups>
++		<AxTableFieldGroup>
++			<Name>AutoReport</Name>
++			<Fields>
++				<AxTableFieldGroupField>
++					<DataField>Key</DataField>
++				</AxTableFieldGroupField>
++			</Fields>
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoLookup</Name>
++			<Fields />
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoIdentification</Name>
++			<AutoPopulate>Yes</AutoPopulate>
++			<Fields>
++				<AxTableFieldGroupField>
++					<DataField>Key</DataField>
++				</AxTableFieldGroupField>
++			</Fields>
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoSummary</Name>
++			<Fields />
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoBrowse</Name>
++			<Fields />
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>General</Name>
++			<Label>@DYLOExtensions:OverdueInvNotifGeneralTab</Label>
++			<Fields>
++				<AxTableFieldGroupField>
++					<DataField>SenderEmail</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>LogRetentionDays</DataField>
++				</AxTableFieldGroupField>
++			</Fields>
++		</AxTableFieldGroup>
++	</FieldGroups>
++	<Fields>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldInt">
++			<Name>Key</Name>
++			<AllowEdit>No</AllowEdit>
++			<AllowEditOnCreate>No</AllowEditOnCreate>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>ParametersKey</ExtendedDataType>
++			<Visible>No</Visible>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>SenderEmail</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>Email</ExtendedDataType>
++			<HelpText>@DYLOExtensions:OverdueInvNotifSenderEmailHelp</HelpText>
++			<Label>@DYLOExtensions:OverdueInvNotifSenderEmail</Label>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldInt">
++			<Name>LogRetentionDays</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>Days</ExtendedDataType>
++			<HelpText>@DYLOExtensions:OverdueInvNotifRetentionDaysHelp</HelpText>
++			<Label>@DYLOExtensions:OverdueInvNotifRetentionDays</Label>
++		</AxTableField>
++	</Fields>
++	<FullTextIndexes />
++	<Indexes>
++		<AxTableIndex>
++			<Name>KeyIdx</Name>
++			<AlternateKey>Yes</AlternateKey>
++			<Fields>
++				<AxTableIndexField>
++					<DataField>Key</DataField>
++				</AxTableIndexField>
++			</Fields>
++		</AxTableIndex>
++	</Indexes>
++	<Mappings />
++	<Relations />
++	<StateMachines />
++</AxTable>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxTable/DYLO_OverdueNotificationTier.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxTable/DYLO_OverdueNotificationTier.xml
+new file mode 100644
+index 0000000..99f63ec
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxTable/DYLO_OverdueNotificationTier.xml
+@@ -0,0 +1,260 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxTable xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_OverdueNotificationTier</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++public class DYLO_OverdueNotificationTier extends common
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>initValue</Name>
++				<Source><![CDATA[
++    public void initValue()
++    {
++        super();
++
++        this.Active = NoYes::Yes;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>validateField</Name>
++				<Source><![CDATA[
++    public boolean validateField(FieldId _fieldIdToCheck)
++    {
++        boolean ret = super(_fieldIdToCheck);
++
++        if (ret && _fieldIdToCheck == fieldNum(DYLO_OverdueNotificationTier, TierDays))
++        {
++            ret = this.checkTierDays();
++        }
++
++        return ret;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>validateWrite</Name>
++				<Source><![CDATA[
++    public boolean validateWrite()
++    {
++        boolean ret = super();
++
++        if (ret)
++        {
++            ret = this.checkTierDays();
++        }
++
++        return ret;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>checkTierDays</Name>
++				<Source><![CDATA[
++    private boolean checkTierDays()
++    {
++        DYLO_OverdueNotificationTier other;
++
++        if (this.TierDays <= 0)
++        {
++            return checkFailed("@DYLOExtensions:OverdueInvNotifErrTierDays");
++        }
++
++        select firstonly RecId from other
++            where other.TierDays == this.TierDays
++               && other.RecId    != this.RecId;
++
++        if (other.RecId)
++        {
++            return checkFailed(strFmt("@DYLOExtensions:OverdueInvNotifTierExists", this.TierDays));
++        }
++
++        return true;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>find</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Finds an overdue tier by its number of days.
++    /// </summary>
++    /// <param name = "_days">The days overdue of the tier.</param>
++    /// <param name = "_forUpdate">true to select the record for update.</param>
++    /// <returns>The tier, or an empty buffer.</returns>
++    public static DYLO_OverdueNotificationTier find(Days _days, boolean _forUpdate = false)
++    {
++        DYLO_OverdueNotificationTier tier;
++
++        if (_days)
++        {
++            tier.selectForUpdate(_forUpdate);
++
++            select firstonly tier
++                where tier.TierDays == _days;
++        }
++
++        return tier;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>exist</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Checks whether an overdue tier exists.
++    /// </summary>
++    /// <param name = "_days">The days overdue of the tier.</param>
++    /// <returns>true if the tier exists; otherwise, false.</returns>
++    public static boolean exist(Days _days)
++    {
++        return _days
++            && (select firstonly RecId from dYLO_OverdueNotificationTier
++                    where dYLO_OverdueNotificationTier.TierDays == _days).RecId != 0;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>hasActiveTier</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Checks whether at least one active overdue tier exists.
++    /// </summary>
++    /// <returns>true if an active tier exists; otherwise, false.</returns>
++    public static boolean hasActiveTier()
++    {
++        DYLO_OverdueNotificationTier tier;
++
++        select firstonly RecId from tier
++            where tier.Active == NoYes::Yes;
++
++        return tier.RecId != 0;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>highestReachedTier</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Finds the highest active tier that an invoice with the given days overdue has reached.
++    /// </summary>
++    /// <param name = "_daysOverdue">The days the invoice is overdue.</param>
++    /// <returns>The days of the tier; 0 when no tier is reached.</returns>
++    public static Days highestReachedTier(int _daysOverdue)
++    {
++        DYLO_OverdueNotificationTier tier;
++
++        select firstonly TierDays from tier
++            order by TierDays desc
++            where tier.Active == NoYes::Yes
++               && tier.TierDays > 0
++               && tier.TierDays <= _daysOverdue;
++
++        return tier.TierDays;
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++	<DeveloperDocumentation>@DYLOExtensions:OverdueInvNotifTierTableDevDoc</DeveloperDocumentation>
++	<FormRef>DYLO_OverdueNotificationSetup</FormRef>
++	<Label>@DYLOExtensions:OverdueInvNotifTierTable</Label>
++	<TableGroup>Group</TableGroup>
++	<TitleField1>TierDays</TitleField1>
++	<TitleField2>Description</TitleField2>
++	<CacheLookup>Found</CacheLookup>
++	<ClusteredIndex>TierDaysIdx</ClusteredIndex>
++	<Modules>AccountsReceivable</Modules>
++	<PrimaryIndex>TierDaysIdx</PrimaryIndex>
++	<ReplacementKey>TierDaysIdx</ReplacementKey>
++	<DeleteActions />
++	<FieldGroups>
++		<AxTableFieldGroup>
++			<Name>AutoReport</Name>
++			<Fields>
++				<AxTableFieldGroupField>
++					<DataField>TierDays</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>Description</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>Active</DataField>
++				</AxTableFieldGroupField>
++			</Fields>
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoLookup</Name>
++			<Fields>
++				<AxTableFieldGroupField>
++					<DataField>TierDays</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>Description</DataField>
++				</AxTableFieldGroupField>
++			</Fields>
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoIdentification</Name>
++			<AutoPopulate>Yes</AutoPopulate>
++			<Fields />
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoSummary</Name>
++			<Fields />
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoBrowse</Name>
++			<Fields />
++		</AxTableFieldGroup>
++	</FieldGroups>
++	<Fields>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldInt">
++			<Name>TierDays</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>Days</ExtendedDataType>
++			<Label>@DYLOExtensions:OverdueInvNotifTierDays</Label>
++			<Mandatory>Yes</Mandatory>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>Description</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>Description</ExtendedDataType>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldEnum">
++			<Name>Active</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>NoYesId</ExtendedDataType>
++			<Label>@DYLOExtensions:OverdueInvNotifActive</Label>
++		</AxTableField>
++	</Fields>
++	<FullTextIndexes />
++	<Indexes>
++		<AxTableIndex>
++			<Name>TierDaysIdx</Name>
++			<AlternateKey>Yes</AlternateKey>
++			<Fields>
++				<AxTableIndexField>
++					<DataField>TierDays</DataField>
++				</AxTableIndexField>
++			</Fields>
++		</AxTableIndex>
++	</Indexes>
++	<Mappings />
++	<Relations />
++	<StateMachines />
++</AxTable>

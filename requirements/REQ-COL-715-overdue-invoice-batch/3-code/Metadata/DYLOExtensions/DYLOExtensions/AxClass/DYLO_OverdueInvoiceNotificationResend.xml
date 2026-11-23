@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_OverdueInvoiceNotificationResend</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Resends the overdue invoice notifications selected on the notification log form.
+/// </summary>
+public final class DYLO_OverdueInvoiceNotificationResend
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>main</Name>
+				<Source><![CDATA[
+    public static void main(Args _args)
+    {
+        DYLO_OverdueInvoiceNotificationLog  log;
+        MultiSelectionHelper                selectionHelper;
+        List                                logRecIds = new List(Types::Int64);
+        ListEnumerator                      enumerator;
+        boolean                             hasSentLine;
+        int                                 sentCount;
+        int                                 failedCount;
+
+        if (!_args || !_args.record() || _args.record().TableId != tableNum(DYLO_OverdueInvoiceNotificationLog))
+        {
+            throw error(Error::missingRecord(funcName()));
+        }
+
+        if (_args.record().isFormDataSource())
+        {
+            selectionHelper = MultiSelectionHelper::construct();
+            selectionHelper.parmDatasource(FormDataUtil::getFormDataSource(_args.record()));
+
+            for (log = selectionHelper.getFirst(); log; log = selectionHelper.getNext())
+            {
+                logRecIds.addEnd(log.RecId);
+                hasSentLine = hasSentLine || log.Status == DYLO_OverdueNotificationStatus::Sent;
+            }
+        }
+        else
+        {
+            log = _args.record();
+            logRecIds.addEnd(log.RecId);
+            hasSentLine = log.Status == DYLO_OverdueNotificationStatus::Sent;
+        }
+
+        if (hasSentLine
+            && Box::yesNo("@DYLOExtensions:OverdueInvNotifConfirmResendSent", DialogButton::No) != DialogButton::Yes)
+        {
+            return;
+        }
+
+        enumerator = logRecIds.getEnumerator();
+
+        while (enumerator.moveNext())
+        {
+            select firstonly log
+                where log.RecId == enumerator.current();
+
+            if (log.RecId)
+            {
+                if (DYLO_OverdueInvoiceNotificationEmail::sendAndLog(log))
+                {
+                    sentCount++;
+                }
+                else
+                {
+                    failedCount++;
+                }
+            }
+        }
+
+        info(strFmt("@DYLOExtensions:OverdueInvNotifResendResult", sentCount, failedCount));
+
+        DYLO_OverdueInvoiceNotificationEmail::refreshCaller(_args);
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>InventTable_DYLO_Extension</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Defaults and validates the warranty provision fields of released products.
+/// </summary>
+[ExtensionOf(tableStr(InventTable))]
+final class InventTable_DYLO_Extension
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>initValue</Name>
+				<Source><![CDATA[
+    public void initValue()
+    {
+        next initValue();
+
+        this.DYLO_WarrantyProvisionPct = DYLO_WarrantyProvisionPostingService::DYLO_WarrantyDefaultPct;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>modifiedField</Name>
+				<Source><![CDATA[
+    public void modifiedField(FieldId _fieldId)
+    {
+        next modifiedField(_fieldId);
+
+        if (_fieldId == fieldNum(InventTable, DYLO_WarrantyEligible)
+            && this.DYLO_WarrantyEligible == NoYes::Yes
+            && this.DYLO_WarrantyProvisionPct == 0)
+        {
+            this.DYLO_WarrantyProvisionPct = DYLO_WarrantyProvisionPostingService::DYLO_WarrantyDefaultPct;
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>validateWrite</Name>
+				<Source><![CDATA[
+    public boolean validateWrite(boolean _skipProductVariantUnitConversionValidation)
+    {
+        boolean ret = next validateWrite(_skipProductVariantUnitConversionValidation);
+
+        if (this.DYLO_WarrantyEligible == NoYes::Yes
+            && (this.DYLO_WarrantyProvisionPct <= 0 || this.DYLO_WarrantyProvisionPct > 100))
+        {
+            ret = checkFailed(strFmt("@DYLOExtensions:WarrantyProvisionPctInvalid", this.ItemId));
+        }
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

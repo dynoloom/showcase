@@ -1,0 +1,1727 @@
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_WarrantyProvisionPostingService.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_WarrantyProvisionPostingService.xml
+new file mode 100644
+index 0000000..a4a5d82
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_WarrantyProvisionPostingService.xml
+@@ -0,0 +1,235 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_WarrantyProvisionPostingService</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Adds the warranty expense and warranty provision lines of one sales invoice line
++/// to the invoice's own ledger voucher and logs the posted provision.
++/// </summary>
++public final class DYLO_WarrantyProvisionPostingService
++{
++    /// <summary>
++    /// The default warranty provision % of released products.
++    /// </summary>
++    public const DYLO_WarrantyProvisionPct DYLO_WarrantyDefaultPct = 3.50;
++
++    LedgerVoucher           ledgerVoucher;
++    CustInvoiceJour         custInvoiceJour;
++    CustInvoiceTrans        custInvoiceTrans;
++    SalesParmLine           salesParmLine;
++    AmountCur               lineValue;
++    CurrencyCode            currencyCode;
++    CurrencyExchangeHelper  exchangeRateHelper;
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>new</Name>
++				<Source><![CDATA[
++    protected void new()
++    {
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>construct</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Creates the posting service for one invoice line.
++    /// </summary>
++    /// <param name = "_ledgerVoucher">The invoice's ledger voucher.</param>
++    /// <param name = "_custInvoiceJour">The invoice journal header.</param>
++    /// <param name = "_custInvoiceTrans">The invoice journal line.</param>
++    /// <param name = "_salesParmLine">The posting parameter line.</param>
++    /// <param name = "_lineValue">The line net amount excluding sales tax, in the invoice currency.</param>
++    /// <param name = "_currencyCode">The invoice currency.</param>
++    /// <param name = "_exchangeRateHelper">The exchange rates of the invoice line's revenue.</param>
++    /// <returns>A new instance of the service.</returns>
++    public static DYLO_WarrantyProvisionPostingService construct(
++        LedgerVoucher           _ledgerVoucher,
++        CustInvoiceJour         _custInvoiceJour,
++        CustInvoiceTrans        _custInvoiceTrans,
++        SalesParmLine           _salesParmLine,
++        AmountCur               _lineValue,
++        CurrencyCode            _currencyCode,
++        CurrencyExchangeHelper  _exchangeRateHelper)
++    {
++        DYLO_WarrantyProvisionPostingService service = new DYLO_WarrantyProvisionPostingService();
++
++        service.ledgerVoucher       = _ledgerVoucher;
++        service.custInvoiceJour     = _custInvoiceJour;
++        service.custInvoiceTrans    = _custInvoiceTrans;
++        service.salesParmLine       = _salesParmLine;
++        service.lineValue           = _lineValue;
++        service.currencyCode        = _currencyCode;
++        service.exchangeRateHelper  = _exchangeRateHelper;
++
++        return service;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>post</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Posts the warranty provision of the invoice line, when the item is warranty eligible.
++    /// </summary>
++    public void post()
++    {
++        if (!custInvoiceTrans.ItemId || !ledgerVoucher)
++        {
++            return;
++        }
++
++        InventTable item = custInvoiceTrans.inventTable();
++
++        if (!item.RecId || item.DYLO_WarrantyEligible == NoYes::No)
++        {
++            return;
++        }
++
++        boolean hasPct;
++        DYLO_WarrantyProvisionPct pct;
++        [hasPct, pct] = this.provisionPct(item);
++
++        if (!hasPct)
++        {
++            return;
++        }
++
++        ItemGroupId groupId = item.itemGroupId();
++        DYLO_WarrantyPostingSetup setup = DYLO_WarrantyPostingSetup::find(groupId);
++
++        if (!setup.RecId || !setup.ExpenseLedgerDimension || !setup.ProvisionLedgerDimension)
++        {
++            throw error(strFmt("@DYLOExtensions:WarrantyProvisionSetupMissing", groupId, item.ItemId));
++        }
++
++        AmountCur amount = CurrencyExchangeHelper::amount(lineValue * pct / 100, currencyCode);
++
++        if (!amount)
++        {
++            return;
++        }
++
++        DimensionDefault dim = custInvoiceTrans.DefaultDimension;
++        LedgerDimensionAccount expenseDim   = LedgerDimensionFacade::serviceCreateLedgerDimension(setup.ExpenseLedgerDimension, dim);
++        LedgerDimensionAccount provisionDim = LedgerDimensionFacade::serviceCreateLedgerDimension(setup.ProvisionLedgerDimension, dim);
++
++        LedgerVoucherObject ledgerVoucherObject = ledgerVoucher.findLedgerVoucherObject();
++
++        LedgerVoucherTransObject expenseTrans = LedgerVoucherTransObject::newTransactionAmountDefault(
++            ledgerVoucherObject,
++            LedgerPostingType::DYLO_WarrantyExpense,
++            expenseDim,
++            currencyCode,
++            amount,
++            exchangeRateHelper);
++        expenseTrans.parmText(strFmt("@DYLOExtensions:WarrantyProvisionAccrualTxt", custInvoiceJour.InvoiceId));
++        expenseTrans.parmSourceTableId(custInvoiceTrans.TableId);
++        expenseTrans.parmSourceRecId(custInvoiceTrans.RecId);
++
++        LedgerVoucherTransObject provisionTrans = LedgerVoucherTransObject::newTransactionAmountDefault(
++            ledgerVoucherObject,
++            LedgerPostingType::DYLO_WarrantyProvision,
++            provisionDim,
++            currencyCode,
++            -amount,
++            exchangeRateHelper);
++        provisionTrans.parmText(strFmt("@DYLOExtensions:WarrantyProvisionReserveTxt", custInvoiceJour.InvoiceId));
++        provisionTrans.parmSourceTableId(custInvoiceTrans.TableId);
++        provisionTrans.parmSourceRecId(custInvoiceTrans.RecId);
++
++        ledgerVoucher.addTrans(expenseTrans);
++        ledgerVoucher.addTrans(provisionTrans);
++
++        Voucher voucher = custInvoiceJour.LedgerVoucher ? custInvoiceJour.LedgerVoucher : ledgerVoucherObject.parmVoucher();
++
++        this.insertLog(item.ItemId, pct, amount, voucher, expenseDim, provisionDim);
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>provisionPct</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Determines the provision % of the invoice line.
++    /// </summary>
++    /// <param name = "_item">The released product of the line.</param>
++    /// <returns>
++    /// A container with a flag that is false when nothing must be posted, and the provision %.
++    /// </returns>
++    /// <remarks>
++    /// A credit note line that is linked to an original invoice line uses the % logged on that invoice;
++    /// when the original invoice has no log, there is nothing to reverse.
++    /// </remarks>
++    private container provisionPct(InventTable _item)
++    {
++        InventTransId returnLotId = salesParmLine.salesLine().InventTransIdReturn;
++
++        if (returnLotId)
++        {
++            CustInvoiceTrans originalTrans;
++            DYLO_WarrantyProvisionTrans originalLog;
++
++            select firstonly RecId, ProvisionPct from originalLog
++                order by originalLog.InvoiceDate desc
++                exists join originalTrans
++                    where originalTrans.RecId == originalLog.CustInvoiceTransRecId
++                        && originalTrans.InventTransId == returnLotId;
++
++            if (originalLog.RecId)
++            {
++                return [true, originalLog.ProvisionPct];
++            }
++
++            select firstonly RecId from originalTrans
++                where originalTrans.InventTransId == returnLotId;
++
++            if (originalTrans.RecId)
++            {
++                // The original invoice posted no warranty provision: nothing to reverse.
++                return [false, 0];
++            }
++        }
++
++        return [true, _item.DYLO_WarrantyProvisionPct];
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>insertLog</Name>
++				<Source><![CDATA[
++    private void insertLog(
++        ItemId                      _itemId,
++        DYLO_WarrantyProvisionPct   _pct,
++        AmountCur                   _amount,
++        Voucher                     _voucher,
++        LedgerDimensionAccount      _expenseDim,
++        LedgerDimensionAccount      _provisionDim)
++    {
++        DYLO_WarrantyProvisionTrans provisionLog;
++
++        provisionLog.CustInvoiceTransRecId      = custInvoiceTrans.RecId;
++        provisionLog.InvoiceId                  = custInvoiceJour.InvoiceId;
++        provisionLog.InvoiceDate                = custInvoiceJour.InvoiceDate;
++        provisionLog.Voucher                    = _voucher;
++        provisionLog.ItemId                     = _itemId;
++        provisionLog.ProvisionPct               = _pct;
++        provisionLog.AmountCur                  = _amount;
++        provisionLog.CurrencyCode               = currencyCode;
++        provisionLog.ExpenseLedgerDimension     = _expenseDim;
++        provisionLog.ProvisionLedgerDimension   = _provisionDim;
++        provisionLog.insert();
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_WarrantyProvisionPostingTest.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_WarrantyProvisionPostingTest.xml
+new file mode 100644
+index 0000000..a516629
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_WarrantyProvisionPostingTest.xml
+@@ -0,0 +1,271 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_WarrantyProvisionPostingTest</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Unit tests for <c>DYLO_WarrantyProvisionPostingService</c>.
++/// </summary>
++[
++SysTestTarget(classStr(DYLO_WarrantyProvisionPostingService), UtilElementType::Class),
++SysTestGranularity(SysTestGranularity::Unit)
++]
++public final class DYLO_WarrantyProvisionPostingTest extends SysTestCase
++{
++    const ItemId            TestItemId          = 'DYLOWTYITEM';
++    const ItemGroupId       TestItemGroupId     = 'DYLOWTYGRP';
++    const InvoiceId         TestInvoiceId       = 'DYLOWTYINV';
++    const Voucher           TestVoucher         = 'DYLOWTYVOU';
++
++    CurrencyCode            currencyCode;
++    TransDate               testDate;
++    LedgerVoucher           ledgerVoucher;
++    CustInvoiceJour         custInvoiceJour;
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>setUp</Name>
++				<Source><![CDATA[
++    public void setUp()
++    {
++        super();
++
++        testDate     = DateTimeUtil::getSystemDate(DateTimeUtil::getUserPreferredTimeZone());
++        currencyCode = Ledger::accountingCurrency(CompanyInfo::current());
++
++        ledgerVoucher = LedgerVoucher::newLedgerPost(DetailSummary::Detail, SysModule::Cust, '');
++        ledgerVoucher.addVoucher(LedgerVoucherObject::newVoucher(TestVoucher, testDate, SysModule::Cust, LedgerTransType::Cust));
++
++        custInvoiceJour.InvoiceId       = TestInvoiceId;
++        custInvoiceJour.InvoiceDate     = testDate;
++        custInvoiceJour.LedgerVoucher   = TestVoucher;
++        custInvoiceJour.CurrencyCode    = currencyCode;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>createItem</Name>
++				<Source><![CDATA[
++    private void createItem(DYLO_WarrantyProvisionPct _pct, boolean _withGroup = true)
++    {
++        InventTable inventTable;
++        inventTable.ItemId                      = TestItemId;
++        inventTable.DYLO_WarrantyEligible       = NoYes::Yes;
++        inventTable.DYLO_WarrantyProvisionPct   = _pct;
++        inventTable.doInsert();
++
++        if (_withGroup)
++        {
++            InventItemGroup inventItemGroup;
++            inventItemGroup.ItemGroupId = TestItemGroupId;
++            inventItemGroup.doInsert();
++
++            InventItemGroupItem inventItemGroupItem;
++            inventItemGroupItem.ItemId              = TestItemId;
++            inventItemGroupItem.ItemDataAreaId      = curExt();
++            inventItemGroupItem.ItemGroupId         = TestItemGroupId;
++            inventItemGroupItem.ItemGroupDataAreaId = curExt();
++            inventItemGroupItem.doInsert();
++        }
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>createSetup</Name>
++				<Source><![CDATA[
++    private void createSetup()
++    {
++        MainAccount expenseAccount;
++        MainAccount provisionAccount;
++
++        select firstonly MainAccountId from expenseAccount
++            order by expenseAccount.MainAccountId asc
++            where expenseAccount.LedgerChartOfAccounts == LedgerChartOfAccounts::current();
++
++        select firstonly MainAccountId from provisionAccount
++            order by provisionAccount.MainAccountId desc
++            where provisionAccount.LedgerChartOfAccounts == LedgerChartOfAccounts::current();
++
++        DYLO_WarrantyPostingSetup setup;
++        setup.ItemGroupId               = TestItemGroupId;
++        setup.ExpenseLedgerDimension    = LedgerDefaultAccountHelper::getDefaultAccountFromMainAccountId(expenseAccount.MainAccountId);
++        setup.ProvisionLedgerDimension  = LedgerDefaultAccountHelper::getDefaultAccountFromMainAccountId(provisionAccount.MainAccountId);
++        setup.doInsert();
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>createInvoiceTrans</Name>
++				<Source><![CDATA[
++    private CustInvoiceTrans createInvoiceTrans(InventTransId _inventTransId)
++    {
++        CustInvoiceTrans custInvoiceTrans;
++        custInvoiceTrans.InvoiceId      = TestInvoiceId;
++        custInvoiceTrans.InvoiceDate    = testDate;
++        custInvoiceTrans.ItemId         = TestItemId;
++        custInvoiceTrans.InventTransId  = _inventTransId;
++        custInvoiceTrans.CurrencyCode   = currencyCode;
++        custInvoiceTrans.doInsert();
++
++        return custInvoiceTrans;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>post</Name>
++				<Source><![CDATA[
++    private DYLO_WarrantyProvisionTrans post(CustInvoiceTrans _custInvoiceTrans, AmountCur _lineValue)
++    {
++        SalesParmLine salesParmLine;
++        salesParmLine.InventTransId = _custInvoiceTrans.InventTransId;
++
++        CurrencyExchangeHelper exchangeRateHelper = CurrencyExchangeHelper::newExchangeDate(Ledger::current(), testDate);
++
++        DYLO_WarrantyProvisionPostingService::construct(
++            ledgerVoucher,
++            custInvoiceJour,
++            _custInvoiceTrans,
++            salesParmLine,
++            _lineValue,
++            currencyCode,
++            exchangeRateHelper).post();
++
++        DYLO_WarrantyProvisionTrans provisionLog;
++        select firstonly provisionLog
++            where provisionLog.CustInvoiceTransRecId == _custInvoiceTrans.RecId;
++
++        return provisionLog;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>testAmountCalculationAndRounding</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// A 40,000.00 line at 3.50% posts 1,400.00; a 333.33 line posts the rounded 11.67.
++    /// </summary>
++    [SysTestMethod]
++    public void testAmountCalculationAndRounding()
++    {
++        this.createItem(3.50);
++        this.createSetup();
++
++        DYLO_WarrantyProvisionTrans provisionLog = this.post(this.createInvoiceTrans('DYLOWTYLOT1'), 40000.00);
++        this.assertEquals(1400.00, provisionLog.AmountCur);
++        this.assertEquals(3.50, provisionLog.ProvisionPct);
++
++        provisionLog = this.post(this.createInvoiceTrans('DYLOWTYLOT2'), 333.33);
++        this.assertEquals(CurrencyExchangeHelper::amount(333.33 * 3.50 / 100, currencyCode), provisionLog.AmountCur);
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>testMissingSetupThrowsError</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// An eligible item whose item group has no warranty posting setup stops the posting.
++    /// </summary>
++    [SysTestMethod]
++    public void testMissingSetupThrowsError()
++    {
++        boolean errorThrown;
++
++        this.createItem(3.50);
++
++        try
++        {
++            this.post(this.createInvoiceTrans('DYLOWTYLOT1'), 40000.00);
++        }
++        catch (Exception::Error)
++        {
++            errorThrown = true;
++        }
++
++        this.assertTrue(errorThrown);
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>testCreditNoteSign</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// A credit note line with no link to an invoice reverses with the item's current %.
++    /// </summary>
++    [SysTestMethod]
++    public void testCreditNoteSign()
++    {
++        this.createItem(3.50);
++        this.createSetup();
++
++        DYLO_WarrantyProvisionTrans provisionLog = this.post(this.createInvoiceTrans('DYLOWTYLOT1'), -40000.00);
++        this.assertEquals(-1400.00, provisionLog.AmountCur);
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>testCreditNoteUsesOriginalPct</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// A credit note line linked to the original invoice line uses the % logged on that invoice.
++    /// </summary>
++    [SysTestMethod]
++    public void testCreditNoteUsesOriginalPct()
++    {
++        this.createItem(3.50);
++        this.createSetup();
++
++        CustInvoiceTrans originalTrans = this.createInvoiceTrans('DYLOWTYORIG');
++
++        DYLO_WarrantyProvisionTrans originalLog;
++        originalLog.CustInvoiceTransRecId   = originalTrans.RecId;
++        originalLog.InvoiceId               = TestInvoiceId;
++        originalLog.InvoiceDate             = testDate;
++        originalLog.ItemId                  = TestItemId;
++        originalLog.ProvisionPct            = 5.00;
++        originalLog.CurrencyCode            = currencyCode;
++        originalLog.doInsert();
++
++        SalesLine returnLine;
++        returnLine.ItemId               = TestItemId;
++        returnLine.InventTransId        = 'DYLOWTYRET';
++        returnLine.InventTransIdReturn  = originalTrans.InventTransId;
++        returnLine.doInsert();
++
++        DYLO_WarrantyProvisionTrans provisionLog = this.post(this.createInvoiceTrans(returnLine.InventTransId), -1000.00);
++        this.assertEquals(-50.00, provisionLog.AmountCur);
++        this.assertEquals(5.00, provisionLog.ProvisionPct);
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>testVoucherIsInvoiceVoucher</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// The warranty lines are posted under the invoice's own voucher number.
++    /// </summary>
++    [SysTestMethod]
++    public void testVoucherIsInvoiceVoucher()
++    {
++        this.createItem(3.50);
++        this.createSetup();
++
++        DYLO_WarrantyProvisionTrans provisionLog = this.post(this.createInvoiceTrans('DYLOWTYLOT1'), 40000.00);
++        this.assertEquals(custInvoiceJour.LedgerVoucher, provisionLog.Voucher);
++        this.assertEquals(TestVoucher, ledgerVoucher.findLedgerVoucherObject().parmVoucher());
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/InventTable_DYLO_Extension.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/InventTable_DYLO_Extension.xml
+new file mode 100644
+index 0000000..a8f7964
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/InventTable_DYLO_Extension.xml
+@@ -0,0 +1,64 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>InventTable_DYLO_Extension</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Defaults and validates the warranty provision fields of released products.
++/// </summary>
++[ExtensionOf(tableStr(InventTable))]
++final class InventTable_DYLO_Extension
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>initValue</Name>
++				<Source><![CDATA[
++    public void initValue()
++    {
++        next initValue();
++
++        this.DYLO_WarrantyProvisionPct = DYLO_WarrantyProvisionPostingService::DYLO_WarrantyDefaultPct;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>modifiedField</Name>
++				<Source><![CDATA[
++    public void modifiedField(FieldId _fieldId)
++    {
++        next modifiedField(_fieldId);
++
++        if (_fieldId == fieldNum(InventTable, DYLO_WarrantyEligible)
++            && this.DYLO_WarrantyEligible == NoYes::Yes
++            && this.DYLO_WarrantyProvisionPct == 0)
++        {
++            this.DYLO_WarrantyProvisionPct = DYLO_WarrantyProvisionPostingService::DYLO_WarrantyDefaultPct;
++        }
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>validateWrite</Name>
++				<Source><![CDATA[
++    public boolean validateWrite(boolean _skipProductVariantUnitConversionValidation)
++    {
++        boolean ret = next validateWrite(_skipProductVariantUnitConversionValidation);
++
++        if (this.DYLO_WarrantyEligible == NoYes::Yes
++            && (this.DYLO_WarrantyProvisionPct <= 0 || this.DYLO_WarrantyProvisionPct > 100))
++        {
++            ret = checkFailed(strFmt("@DYLOExtensions:WarrantyProvisionPctInvalid", this.ItemId));
++        }
++
++        return ret;
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/SalesInvoiceJournalPostBase_DYLO_Extension.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/SalesInvoiceJournalPostBase_DYLO_Extension.xml
+new file mode 100644
+index 0000000..20bc670
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/SalesInvoiceJournalPostBase_DYLO_Extension.xml
+@@ -0,0 +1,85 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>SalesInvoiceJournalPostBase_DYLO_Extension</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Posts the warranty provision of warranty eligible items in the sales invoice's own voucher.
++/// </summary>
++[ExtensionOf(classStr(SalesInvoiceJournalPostBase))]
++final class SalesInvoiceJournalPostBase_DYLO_Extension
++{
++    private CurrencyExchangeHelper dyloRevenueExchangeRateHelper;
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>createLedgerVoucherTransObject</Name>
++				<Source><![CDATA[
++    protected LedgerVoucherTransObject createLedgerVoucherTransObject(
++        LedgerVoucherObject _ledgerVoucherObject,
++        LedgerDimensionAccount _ledgerDimensionMerged,
++        AmountCur _revenueAmount,
++        CurrencyExchangeHelper _exchangeRateHelper)
++    {
++        // Keep the exchange rates of the revenue line so the warranty lines use exactly the same rates.
++        dyloRevenueExchangeRateHelper = _exchangeRateHelper;
++
++        return next createLedgerVoucherTransObject(_ledgerVoucherObject, _ledgerDimensionMerged, _revenueAmount, _exchangeRateHelper);
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>postLine</Name>
++				<Source><![CDATA[
++    protected void postLine()
++    {
++        dyloRevenueExchangeRateHelper = null;
++
++        next postLine();
++
++        if (this.canSkipPostLine())
++        {
++            return;
++        }
++
++        DYLO_WarrantyProvisionPostingService::construct(
++            ledgerVoucher,
++            custInvoiceJour,
++            custInvoiceTrans,
++            salesParmLine,
++            lineValue,
++            this.currencyCode(),
++            this.dyloExchangeRateHelper()).post();
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>dyloExchangeRateHelper</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Returns the exchange rate helper used for the revenue line of the current invoice line,
++    /// or builds one the same way when no revenue line was posted.
++    /// </summary>
++    /// <returns>The exchange rate helper.</returns>
++    private CurrencyExchangeHelper dyloExchangeRateHelper()
++    {
++        if (!dyloRevenueExchangeRateHelper)
++        {
++            dyloRevenueExchangeRateHelper = CurrencyExchangeHelper::newExchangeDate(
++                Ledger::primaryLedger(CompanyInfo::findDataArea(curExt()).RecId),
++                ledgerVoucher.findLedgerVoucherObject().parmAccountingDate());
++            dyloRevenueExchangeRateHelper.parmExchangeRate1(this.fixedExchRate());
++            dyloRevenueExchangeRateHelper.parmExchangeRate2(this.fixedExchRateSecondary());
++        }
++
++        return dyloRevenueExchangeRateHelper;
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_WarrantyProvisionPct.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_WarrantyProvisionPct.xml
+new file mode 100644
+index 0000000..9d3ac3c
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_WarrantyProvisionPct.xml
+@@ -0,0 +1,12 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxEdt xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns=""
++	i:type="AxEdtReal">
++	<Name>DYLO_WarrantyProvisionPct</Name>
++	<Extends>Percent</Extends>
++	<HelpText>@DYLOExtensions:WarrantyProvisionPctHelp</HelpText>
++	<Label>@DYLOExtensions:WarrantyProvisionPct</Label>
++	<ArrayElements />
++	<Relations />
++	<TableReferences />
++	<NoOfDecimals>2</NoOfDecimals>
++</AxEdt>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxEnumExtension/LedgerPostingType.DYLO_Extensions.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxEnumExtension/LedgerPostingType.DYLO_Extensions.xml
+new file mode 100644
+index 0000000..dbebfe4
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxEnumExtension/LedgerPostingType.DYLO_Extensions.xml
+@@ -0,0 +1,16 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxEnumExtension xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>LedgerPostingType.DYLO_Extensions</Name>
++	<EnumValues>
++		<AxEnumValue>
++			<Name>DYLO_WarrantyExpense</Name>
++			<Label>@DYLOExtensions:WarrantyProvisionPostingTypeExpense</Label>
++		</AxEnumValue>
++		<AxEnumValue>
++			<Name>DYLO_WarrantyProvision</Name>
++			<Label>@DYLOExtensions:WarrantyProvisionPostingTypeProvision</Label>
++		</AxEnumValue>
++	</EnumValues>
++	<PropertyModifications />
++	<ValueModifications />
++</AxEnumExtension>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxForm/DYLO_WarrantyPostingSetup.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxForm/DYLO_WarrantyPostingSetup.xml
+new file mode 100644
+index 0000000..b1e0cf1
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxForm/DYLO_WarrantyPostingSetup.xml
+@@ -0,0 +1,251 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxForm xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V6">
++	<Name>DYLO_WarrantyPostingSetup</Name>
++	<SourceCode>
++		<Methods xmlns="">
++			<Method>
++				<Name>classDeclaration</Name>
++				<Source><![CDATA[
++    [Form]
++    public class DYLO_WarrantyPostingSetup extends FormRun
++    {
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++		<DataSources xmlns="" />
++		<DataControls xmlns="" />
++		<Members xmlns="" />
++	</SourceCode>
++	<DataSources>
++		<AxFormDataSource xmlns="">
++			<Name>DYLO_WarrantyPostingSetup</Name>
++			<Table>DYLO_WarrantyPostingSetup</Table>
++			<Fields>
++				<AxFormDataSourceField>
++					<DataField>dataAreaId</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>ExpenseLedgerDimension</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>ItemGroupId</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>ProvisionLedgerDimension</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>RecId</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>TableId</DataField>
++				</AxFormDataSourceField>
++			</Fields>
++			<ReferencedDataSources />
++			<Index>ItemGroupIdx</Index>
++			<DataSourceLinks />
++			<DerivedDataSources />
++		</AxFormDataSource>
++	</DataSources>
++	<Design>
++		<Caption xmlns="">@DYLOExtensions:WarrantyProvisionSetup</Caption>
++		<Pattern xmlns="">SimpleList</Pattern>
++		<PatternVersion xmlns="">1.1</PatternVersion>
++		<Style xmlns="">SimpleList</Style>
++		<TitleDataSource xmlns="">DYLO_WarrantyPostingSetup</TitleDataSource>
++		<Controls xmlns="">
++			<AxFormControl xmlns=""
++				i:type="AxFormActionPaneControl">
++				<Name>ActionPane</Name>
++				<ElementPosition>715827882</ElementPosition>
++				<FilterExpression>%1</FilterExpression>
++				<Type>ActionPane</Type>
++				<VerticalSpacing>-1</VerticalSpacing>
++				<FormControlExtension
++					i:nil="true" />
++				<Controls />
++				<AlignChild>No</AlignChild>
++				<AlignChildren>No</AlignChildren>
++				<ArrangeMethod>Vertical</ArrangeMethod>
++			</AxFormControl>
++			<AxFormControl xmlns=""
++				i:type="AxFormGroupControl">
++				<Name>CustomFilterGroup</Name>
++				<Pattern>CustomAndQuickFilters</Pattern>
++				<PatternVersion>1.1</PatternVersion>
++				<Type>Group</Type>
++				<WidthMode>SizeToAvailable</WidthMode>
++				<FormControlExtension
++					i:nil="true" />
++				<Controls>
++					<AxFormControl>
++						<Name>QuickFilterControl</Name>
++						<FormControlExtension>
++							<Name>QuickFilterControl</Name>
++							<ExtensionComponents />
++							<ExtensionProperties>
++								<AxFormControlExtensionProperty>
++									<Name>targetControlName</Name>
++									<Type>String</Type>
++									<Value>Grid</Value>
++								</AxFormControlExtensionProperty>
++								<AxFormControlExtensionProperty>
++									<Name>defaultColumnName</Name>
++									<Type>String</Type>
++								</AxFormControlExtensionProperty>
++							</ExtensionProperties>
++						</FormControlExtension>
++					</AxFormControl>
++				</Controls>
++				<ArrangeMethod>HorizontalLeft</ArrangeMethod>
++				<FrameType>None</FrameType>
++				<Style>CustomFilter</Style>
++				<ViewEditMode>Edit</ViewEditMode>
++			</AxFormControl>
++			<AxFormControl xmlns=""
++				i:type="AxFormGridControl">
++				<Name>Grid</Name>
++				<ElementPosition>1431655764</ElementPosition>
++				<FilterExpression>%1</FilterExpression>
++				<Type>Grid</Type>
++				<VerticalSpacing>-1</VerticalSpacing>
++				<FormControlExtension
++					i:nil="true" />
++				<Controls>
++					<AxFormControl xmlns=""
++						i:type="AxFormStringControl">
++						<Name>DYLO_WarrantyPostingSetup_ItemGroupId</Name>
++						<ElementPosition>858993458</ElementPosition>
++						<FilterExpression>%1</FilterExpression>
++						<HeightMode>Auto</HeightMode>
++						<Type>String</Type>
++						<VerticalSpacing>-1</VerticalSpacing>
++						<WidthMode>Auto</WidthMode>
++						<FormControlExtension
++							i:nil="true" />
++						<DataField>ItemGroupId</DataField>
++						<DataSource>DYLO_WarrantyPostingSetup</DataSource>
++					</AxFormControl>
++					<AxFormControl xmlns=""
++						i:type="AxFormSegmentedEntryControl">
++						<Name>DYLO_WarrantyPostingSetup_ExpenseLedgerDimension</Name>
++						<ElementPosition>1288490187</ElementPosition>
++						<FilterExpression>%1</FilterExpression>
++						<HeightMode>Auto</HeightMode>
++						<Type>SegmentedEntry</Type>
++						<WidthMode>Auto</WidthMode>
++						<FormControlExtension>
++							<Name>SegmentedEntryControl</Name>
++							<ExtensionComponents />
++							<ExtensionProperties>
++								<AxFormControlExtensionProperty>
++									<Name>parmControllerClassName</Name>
++									<Type>String</Type>
++									<Value>LedgerDimensionDefaultAccountController</Value>
++								</AxFormControlExtensionProperty>
++								<AxFormControlExtensionProperty>
++									<Name>parmAccountTypeEnumName</Name>
++									<Type>String</Type>
++								</AxFormControlExtensionProperty>
++								<AxFormControlExtensionProperty>
++									<Name>parmIsDefaultAccount</Name>
++									<Type>Enum</Type>
++									<TypeName>boolean</TypeName>
++									<Value>False</Value>
++								</AxFormControlExtensionProperty>
++								<AxFormControlExtensionProperty>
++									<Name>parmValidateBlockedForManualEntry</Name>
++									<Type>Enum</Type>
++									<TypeName>NoYes</TypeName>
++								</AxFormControlExtensionProperty>
++								<AxFormControlExtensionProperty>
++									<Name>parmLockMainAccountSegment</Name>
++									<Type>Enum</Type>
++									<TypeName>NoYes</TypeName>
++								</AxFormControlExtensionProperty>
++								<AxFormControlExtensionProperty>
++									<Name>parmPostingType</Name>
++									<Type>Enum</Type>
++									<TypeName>LedgerPostingType</TypeName>
++								</AxFormControlExtensionProperty>
++								<AxFormControlExtensionProperty>
++									<Name>parmIncludeTotalAccounts</Name>
++									<Type>Enum</Type>
++									<TypeName>NoYes</TypeName>
++								</AxFormControlExtensionProperty>
++								<AxFormControlExtensionProperty>
++									<Name>parmIncludeFinancialAccounts</Name>
++									<Type>Enum</Type>
++									<TypeName>NoYes</TypeName>
++								</AxFormControlExtensionProperty>
++							</ExtensionProperties>
++						</FormControlExtension>
++						<DataSource>DYLO_WarrantyPostingSetup</DataSource>
++						<ReferenceField>ExpenseLedgerDimension</ReferenceField>
++					</AxFormControl>
++					<AxFormControl xmlns=""
++						i:type="AxFormSegmentedEntryControl">
++						<Name>DYLO_WarrantyPostingSetup_ProvisionLedgerDimension</Name>
++						<ElementPosition>1717986916</ElementPosition>
++						<FilterExpression>%1</FilterExpression>
++						<HeightMode>Auto</HeightMode>
++						<Type>SegmentedEntry</Type>
++						<WidthMode>Auto</WidthMode>
++						<FormControlExtension>
++							<Name>SegmentedEntryControl</Name>
++							<ExtensionComponents />
++							<ExtensionProperties>
++								<AxFormControlExtensionProperty>
++									<Name>parmControllerClassName</Name>
++									<Type>String</Type>
++									<Value>LedgerDimensionDefaultAccountController</Value>
++								</AxFormControlExtensionProperty>
++								<AxFormControlExtensionProperty>
++									<Name>parmAccountTypeEnumName</Name>
++									<Type>String</Type>
++								</AxFormControlExtensionProperty>
++								<AxFormControlExtensionProperty>
++									<Name>parmIsDefaultAccount</Name>
++									<Type>Enum</Type>
++									<TypeName>boolean</TypeName>
++									<Value>False</Value>
++								</AxFormControlExtensionProperty>
++								<AxFormControlExtensionProperty>
++									<Name>parmValidateBlockedForManualEntry</Name>
++									<Type>Enum</Type>
++									<TypeName>NoYes</TypeName>
++								</AxFormControlExtensionProperty>
++								<AxFormControlExtensionProperty>
++									<Name>parmLockMainAccountSegment</Name>
++									<Type>Enum</Type>
++									<TypeName>NoYes</TypeName>
++								</AxFormControlExtensionProperty>
++								<AxFormControlExtensionProperty>
++									<Name>parmPostingType</Name>
++									<Type>Enum</Type>
++									<TypeName>LedgerPostingType</TypeName>
++								</AxFormControlExtensionProperty>
++								<AxFormControlExtensionProperty>
++									<Name>parmIncludeTotalAccounts</Name>
++									<Type>Enum</Type>
++									<TypeName>NoYes</TypeName>
++								</AxFormControlExtensionProperty>
++								<AxFormControlExtensionProperty>
++									<Name>parmIncludeFinancialAccounts</Name>
++									<Type>Enum</Type>
++									<TypeName>NoYes</TypeName>
++								</AxFormControlExtensionProperty>
++							</ExtensionProperties>
++						</FormControlExtension>
++						<DataSource>DYLO_WarrantyPostingSetup</DataSource>
++						<ReferenceField>ProvisionLedgerDimension</ReferenceField>
++					</AxFormControl>
++				</Controls>
++				<DataSource>DYLO_WarrantyPostingSetup</DataSource>
++				<Style>Tabular</Style>
++			</AxFormControl>
++		</Controls>
++	</Design>
++	<Parts />
++</AxForm>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxFormExtension/EcoResProductDetailsExtended.DYLO_Extensions.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxFormExtension/EcoResProductDetailsExtended.DYLO_Extensions.xml
+new file mode 100644
+index 0000000..21aeb38
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxFormExtension/EcoResProductDetailsExtended.DYLO_Extensions.xml
+@@ -0,0 +1,48 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxFormExtension xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V6">
++	<Name>EcoResProductDetailsExtended.DYLO_Extensions</Name>
++	<ControlModifications />
++	<Controls>
++		<AxFormExtensionControl xmlns="">
++			<Name>FormExtensionControlDYLOWarranty1</Name>
++			<FormControl xmlns=""
++				i:type="AxFormGroupControl">
++				<Name>DYLO_WarrantyProvisionGroup</Name>
++				<Type>Group</Type>
++				<FormControlExtension
++					i:nil="true" />
++				<Controls>
++					<AxFormControl xmlns=""
++						i:type="AxFormCheckBoxControl">
++						<Name>DYLO_WarrantyProvisionGroup_DYLO_WarrantyEligible</Name>
++						<Type>CheckBox</Type>
++						<FormControlExtension
++							i:nil="true" />
++						<DataField>DYLO_WarrantyEligible</DataField>
++						<DataSource>InventTable</DataSource>
++					</AxFormControl>
++					<AxFormControl xmlns=""
++						i:type="AxFormRealControl">
++						<Name>DYLO_WarrantyProvisionGroup_DYLO_WarrantyProvisionPct</Name>
++						<Type>Real</Type>
++						<FormControlExtension
++							i:nil="true" />
++						<DataField>DYLO_WarrantyProvisionPct</DataField>
++						<DataSource>InventTable</DataSource>
++					</AxFormControl>
++				</Controls>
++				<Caption>@DYLOExtensions:WarrantyProvisionGroup</Caption>
++				<DataGroup>DYLO_WarrantyProvision</DataGroup>
++				<DataSource>InventTable</DataSource>
++			</FormControl>
++			<Parent>TabPageSales</Parent>
++			<PositionType>AfterItem</PositionType>
++			<PreviousSibling>SalesSetup</PreviousSibling>
++		</AxFormExtensionControl>
++	</Controls>
++	<DataSourceModifications />
++	<DataSourceReferences />
++	<DataSources />
++	<Parts />
++	<PropertyModifications />
++</AxFormExtension>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxLabelFile/LabelResources/en-US/DYLOExtensions.en-US.label.txt b/Metadata/DYLOExtensions/DYLOExtensions/AxLabelFile/LabelResources/en-US/DYLOExtensions.en-US.label.txt
+index 8e844ba..26f97f7 100644
+--- a/Metadata/DYLOExtensions/DYLOExtensions/AxLabelFile/LabelResources/en-US/DYLOExtensions.en-US.label.txt
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxLabelFile/LabelResources/en-US/DYLOExtensions.en-US.label.txt
+@@ -1,4 +1,56 @@
+-﻿CustCommPrefCommercialPreferences=Commercial Preferences
++﻿WarrantyProvisionAccrualTxt=Warranty accrual - %1
++ ;Voucher line text of the warranty expense line. %1 = invoice number
++WarrantyProvisionEligible=Warranty eligible
++ ;Released product field
++WarrantyProvisionEligibleHelp=Select this option to post a warranty provision when the item is invoiced.
++ ;Help text of the warranty eligible field
++WarrantyProvisionExpenseAccount=Warranty expense account
++ ;Main account debited on invoices
++WarrantyProvisionExpenseAccountHelp=The main account that is debited with the warranty provision when an eligible item is invoiced.
++ ;Help text of the warranty expense account
++WarrantyProvisionGroup=Warranty provision
++ ;Field group and form group caption on released products
++WarrantyProvisionPct=Warranty provision %
++ ;Provision percentage of the released product
++WarrantyProvisionPctHelp=The percentage of the invoice line net amount that is posted as warranty provision.
++ ;Help text of the provision percentage
++WarrantyProvisionPctInvalid=The warranty provision % of item %1 must be greater than 0 and no more than 100.
++ ;Validation error on released products. %1 = item number
++WarrantyProvisionPostingTypeExpense=Warranty expense
++ ;Ledger posting type of the warranty expense line
++WarrantyProvisionPostingTypeProvision=Warranty provision
++ ;Ledger posting type of the warranty provision line
++WarrantyProvisionProvisionAccount=Warranty provision account
++ ;Liability main account credited on invoices
++WarrantyProvisionProvisionAccountHelp=The liability main account that is credited with the warranty provision when an eligible item is invoiced.
++ ;Help text of the warranty provision account
++WarrantyProvisionReserveTxt=Warranty reserve - %1
++ ;Voucher line text of the warranty provision line. %1 = invoice number
++WarrantyProvisionSetup=Warranty posting setup
++ ;Setup table, form and menu item
++WarrantyProvisionSetupDevDoc=The DYLO_WarrantyPostingSetup table holds the warranty expense and provision main accounts per item group.
++ ;Developer documentation of the setup table
++WarrantyProvisionSetupHelp=Set up the warranty expense and provision accounts per item group.
++ ;Help text of the setup menu item
++WarrantyProvisionSetupMaintain=Maintain warranty posting setup
++ ;Privilege and duty name
++WarrantyProvisionSetupMaintainDesc=Create, change and delete the warranty posting setup.
++ ;Privilege and duty description
++WarrantyProvisionSetupManager=Warranty posting setup manager
++ ;Security role name
++WarrantyProvisionSetupManagerDesc=Maintains the warranty posting setup for the warranty provision posted on sales invoices.
++ ;Security role description
++WarrantyProvisionSetupMissing=Warranty posting setup is missing for item group %1 (item %2). Set it up under General ledger > Posting setup > Warranty posting setup.
++ ;Posting error. %1 = item group, %2 = item number
++WarrantyProvisionSetupView=View warranty posting setup
++ ;Privilege name
++WarrantyProvisionSetupViewDesc=View the warranty posting setup.
++ ;Privilege description
++WarrantyProvisionTrans=Warranty provision transactions
++ ;Posting log table label
++WarrantyProvisionTransDevDoc=The DYLO_WarrantyProvisionTrans table logs the warranty provision posted for each sales invoice line.
++ ;Developer documentation of the posting log table
++CustCommPrefCommercialPreferences=Commercial Preferences
+ CustCommPrefDeliveryWindow=Preferred delivery window
+ CustCommPrefDeliveryWindowHelp=Preferred time window for deliveries to the customer, for example 08:00 AM - 12:00 PM.
+ CustCommPrefLoyaltyTier=Loyalty tier
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxMenuExtension/GeneralLedger.DYLO_Extensions.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuExtension/GeneralLedger.DYLO_Extensions.xml
+new file mode 100644
+index 0000000..62c4a62
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuExtension/GeneralLedger.DYLO_Extensions.xml
+@@ -0,0 +1,15 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxMenuExtension xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V1">
++	<Name>GeneralLedger.DYLO_Extensions</Name>
++	<Customizations />
++	<Elements>
++		<AxMenuExtensionElement xmlns="">
++			<Parent>PostingSetup</Parent>
++			<MenuElement xmlns=""
++				i:type="AxMenuElementMenuItem">
++				<Name>DYLO_WarrantyPostingSetup</Name>
++				<MenuItemName>DYLO_WarrantyPostingSetup</MenuItemName>
++			</MenuElement>
++		</AxMenuExtensionElement>
++	</Elements>
++</AxMenuExtension>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemDisplay/DYLO_WarrantyPostingSetup.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemDisplay/DYLO_WarrantyPostingSetup.xml
+new file mode 100644
+index 0000000..cb62df5
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemDisplay/DYLO_WarrantyPostingSetup.xml
+@@ -0,0 +1,7 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxMenuItemDisplay xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V1">
++	<Name>DYLO_WarrantyPostingSetup</Name>
++	<HelpText>@DYLOExtensions:WarrantyProvisionSetupHelp</HelpText>
++	<Label>@DYLOExtensions:WarrantyProvisionSetup</Label>
++	<Object>DYLO_WarrantyPostingSetup</Object>
++</AxMenuItemDisplay>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityDuty/DYLO_WarrantyPostingSetupMaintain.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityDuty/DYLO_WarrantyPostingSetupMaintain.xml
+new file mode 100644
+index 0000000..b699ba8
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityDuty/DYLO_WarrantyPostingSetupMaintain.xml
+@@ -0,0 +1,14 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityDuty xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_WarrantyPostingSetupMaintain</Name>
++	<Description>@DYLOExtensions:WarrantyProvisionSetupMaintainDesc</Description>
++	<Label>@DYLOExtensions:WarrantyProvisionSetupMaintain</Label>
++	<Privileges>
++		<AxSecurityPrivilegeReference>
++			<Name>DYLO_WarrantyPostingSetupMaintain</Name>
++		</AxSecurityPrivilegeReference>
++		<AxSecurityPrivilegeReference>
++			<Name>DYLO_WarrantyPostingSetupView</Name>
++		</AxSecurityPrivilegeReference>
++	</Privileges>
++</AxSecurityDuty>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_WarrantyPostingSetupMaintain.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_WarrantyPostingSetupMaintain.xml
+new file mode 100644
+index 0000000..6e1790d
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_WarrantyPostingSetupMaintain.xml
+@@ -0,0 +1,30 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityPrivilege xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_WarrantyPostingSetupMaintain</Name>
++	<Description>@DYLOExtensions:WarrantyProvisionSetupMaintainDesc</Description>
++	<Label>@DYLOExtensions:WarrantyProvisionSetupMaintain</Label>
++	<DataEntityPermissions />
++	<DirectAccessPermissions />
++	<EntryPoints>
++		<AxSecurityEntryPointReference>
++			<Name>DYLO_WarrantyPostingSetup</Name>
++			<Grant>
++				<Correct>Allow</Correct>
++				<Create>Allow</Create>
++				<Delete>Allow</Delete>
++				<Read>Allow</Read>
++				<Update>Allow</Update>
++			</Grant>
++			<ObjectName>DYLO_WarrantyPostingSetup</ObjectName>
++			<ObjectType>MenuItemDisplay</ObjectType>
++			<Forms>
++				<AxSecurityEntryPointReferenceForm>
++					<Name>DYLO_WarrantyPostingSetup</Name>
++					<Controls />
++					<DataSources />
++				</AxSecurityEntryPointReferenceForm>
++			</Forms>
++		</AxSecurityEntryPointReference>
++	</EntryPoints>
++	<FormControlOverrides />
++</AxSecurityPrivilege>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_WarrantyPostingSetupView.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_WarrantyPostingSetupView.xml
+new file mode 100644
+index 0000000..0f2a543
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_WarrantyPostingSetupView.xml
+@@ -0,0 +1,26 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityPrivilege xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_WarrantyPostingSetupView</Name>
++	<Description>@DYLOExtensions:WarrantyProvisionSetupViewDesc</Description>
++	<Label>@DYLOExtensions:WarrantyProvisionSetupView</Label>
++	<DataEntityPermissions />
++	<DirectAccessPermissions />
++	<EntryPoints>
++		<AxSecurityEntryPointReference>
++			<Name>DYLO_WarrantyPostingSetup</Name>
++			<Grant>
++				<Read>Allow</Read>
++			</Grant>
++			<ObjectName>DYLO_WarrantyPostingSetup</ObjectName>
++			<ObjectType>MenuItemDisplay</ObjectType>
++			<Forms>
++				<AxSecurityEntryPointReferenceForm>
++					<Name>DYLO_WarrantyPostingSetup</Name>
++					<Controls />
++					<DataSources />
++				</AxSecurityEntryPointReferenceForm>
++			</Forms>
++		</AxSecurityEntryPointReference>
++	</EntryPoints>
++	<FormControlOverrides />
++</AxSecurityPrivilege>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityRole/DYLO_WarrantyPostingSetupManager.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityRole/DYLO_WarrantyPostingSetupManager.xml
+new file mode 100644
+index 0000000..0b60f7e
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityRole/DYLO_WarrantyPostingSetupManager.xml
+@@ -0,0 +1,14 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityRole xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_WarrantyPostingSetupManager</Name>
++	<Description>@DYLOExtensions:WarrantyProvisionSetupManagerDesc</Description>
++	<Label>@DYLOExtensions:WarrantyProvisionSetupManager</Label>
++	<DirectAccessPermissions />
++	<Duties>
++		<AxSecurityDutyReference>
++			<Name>DYLO_WarrantyPostingSetupMaintain</Name>
++		</AxSecurityDutyReference>
++	</Duties>
++	<Privileges />
++	<SubRoles />
++</AxSecurityRole>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxTable/DYLO_WarrantyPostingSetup.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxTable/DYLO_WarrantyPostingSetup.xml
+new file mode 100644
+index 0000000..f90d7e5
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxTable/DYLO_WarrantyPostingSetup.xml
+@@ -0,0 +1,195 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxTable xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_WarrantyPostingSetup</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Warranty expense and warranty provision main accounts per item group.
++/// </summary>
++public class DYLO_WarrantyPostingSetup extends common
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>find</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Finds the warranty posting setup of an item group.
++    /// </summary>
++    /// <param name = "_itemGroupId">The item group.</param>
++    /// <param name = "_forUpdate">true to select the record for update; optional.</param>
++    /// <returns>The setup record, or an empty buffer when none is found.</returns>
++    public static DYLO_WarrantyPostingSetup find(ItemGroupId _itemGroupId, boolean _forUpdate = false)
++    {
++        DYLO_WarrantyPostingSetup setup;
++
++        if (_itemGroupId)
++        {
++            setup.selectForUpdate(_forUpdate);
++
++            select firstonly setup
++                where setup.ItemGroupId == _itemGroupId;
++        }
++
++        return setup;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>exist</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Checks whether an item group has a warranty posting setup.
++    /// </summary>
++    /// <param name = "_itemGroupId">The item group.</param>
++    /// <returns>true if the setup exists; otherwise, false.</returns>
++    public static boolean exist(ItemGroupId _itemGroupId)
++    {
++        return _itemGroupId
++            && (select firstonly RecId from DYLO_WarrantyPostingSetup
++                    where DYLO_WarrantyPostingSetup.ItemGroupId == _itemGroupId).RecId != 0;
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++	<DeveloperDocumentation>@DYLOExtensions:WarrantyProvisionSetupDevDoc</DeveloperDocumentation>
++	<FormRef>DYLO_WarrantyPostingSetup</FormRef>
++	<Label>@DYLOExtensions:WarrantyProvisionSetup</Label>
++	<TableGroup>Parameter</TableGroup>
++	<TitleField1>ItemGroupId</TitleField1>
++	<TitleField2>ExpenseLedgerDimension</TitleField2>
++	<AllowRowVersionChangeTracking>Yes</AllowRowVersionChangeTracking>
++	<CacheLookup>Found</CacheLookup>
++	<ClusteredIndex>ItemGroupIdx</ClusteredIndex>
++	<PrimaryIndex>ItemGroupIdx</PrimaryIndex>
++	<ReplacementKey>ItemGroupIdx</ReplacementKey>
++	<DeleteActions />
++	<FieldGroups>
++		<AxTableFieldGroup>
++			<Name>AutoReport</Name>
++			<Fields>
++				<AxTableFieldGroupField>
++					<DataField>ItemGroupId</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>ExpenseLedgerDimension</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>ProvisionLedgerDimension</DataField>
++				</AxTableFieldGroupField>
++			</Fields>
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoLookup</Name>
++			<Fields />
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoIdentification</Name>
++			<AutoPopulate>Yes</AutoPopulate>
++			<Fields />
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoSummary</Name>
++			<Fields />
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoBrowse</Name>
++			<Fields />
++		</AxTableFieldGroup>
++	</FieldGroups>
++	<Fields>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>ItemGroupId</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>ItemGroupId</ExtendedDataType>
++			<IgnoreEDTRelation>Yes</IgnoreEDTRelation>
++			<Mandatory>Yes</Mandatory>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldInt64">
++			<Name>ExpenseLedgerDimension</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>LedgerDimensionDefaultAccount</ExtendedDataType>
++			<HelpText>@DYLOExtensions:WarrantyProvisionExpenseAccountHelp</HelpText>
++			<Label>@DYLOExtensions:WarrantyProvisionExpenseAccount</Label>
++			<Mandatory>Yes</Mandatory>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldInt64">
++			<Name>ProvisionLedgerDimension</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>LedgerDimensionDefaultAccount</ExtendedDataType>
++			<HelpText>@DYLOExtensions:WarrantyProvisionProvisionAccountHelp</HelpText>
++			<Label>@DYLOExtensions:WarrantyProvisionProvisionAccount</Label>
++			<Mandatory>Yes</Mandatory>
++		</AxTableField>
++	</Fields>
++	<FullTextIndexes />
++	<Indexes>
++		<AxTableIndex>
++			<Name>ItemGroupIdx</Name>
++			<AlternateKey>Yes</AlternateKey>
++			<Fields>
++				<AxTableIndexField>
++					<DataField>ItemGroupId</DataField>
++				</AxTableIndexField>
++			</Fields>
++		</AxTableIndex>
++	</Indexes>
++	<Mappings />
++	<Relations>
++		<AxTableRelation xmlns=""
++			i:type="AxTableRelationForeignKey">
++			<Name>InventItemGroup</Name>
++			<Cardinality>ZeroMore</Cardinality>
++			<RelatedTable>InventItemGroup</RelatedTable>
++			<RelatedTableCardinality>ExactlyOne</RelatedTableCardinality>
++			<RelationshipType>Association</RelationshipType>
++			<Constraints>
++				<AxTableRelationConstraint xmlns=""
++					i:type="AxTableRelationConstraintField">
++					<Name>ItemGroupId</Name>
++					<Field>ItemGroupId</Field>
++					<RelatedField>ItemGroupId</RelatedField>
++				</AxTableRelationConstraint>
++			</Constraints>
++			<Index>ItemGroupIdx</Index>
++		</AxTableRelation>
++		<AxTableRelation>
++			<Name>ExpenseLedgerDimension</Name>
++			<Cardinality>ZeroMore</Cardinality>
++			<RelatedTable>DimensionAttributeValueCombination</RelatedTable>
++			<RelatedTableCardinality>ZeroOne</RelatedTableCardinality>
++			<RelationshipType>Association</RelationshipType>
++			<Constraints>
++				<AxTableRelationConstraint xmlns=""
++					i:type="AxTableRelationConstraintField">
++					<Name>ExpenseLedgerDimension</Name>
++					<Field>ExpenseLedgerDimension</Field>
++					<RelatedField>RecId</RelatedField>
++				</AxTableRelationConstraint>
++			</Constraints>
++		</AxTableRelation>
++		<AxTableRelation>
++			<Name>ProvisionLedgerDimension</Name>
++			<Cardinality>ZeroMore</Cardinality>
++			<RelatedTable>DimensionAttributeValueCombination</RelatedTable>
++			<RelatedTableCardinality>ZeroOne</RelatedTableCardinality>
++			<RelationshipType>Association</RelationshipType>
++			<Constraints>
++				<AxTableRelationConstraint xmlns=""
++					i:type="AxTableRelationConstraintField">
++					<Name>ProvisionLedgerDimension</Name>
++					<Field>ProvisionLedgerDimension</Field>
++					<RelatedField>RecId</RelatedField>
++				</AxTableRelationConstraint>
++			</Constraints>
++		</AxTableRelation>
++	</Relations>
++	<StateMachines />
++</AxTable>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxTable/DYLO_WarrantyProvisionTrans.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxTable/DYLO_WarrantyProvisionTrans.xml
+new file mode 100644
+index 0000000..930fc54
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxTable/DYLO_WarrantyProvisionTrans.xml
+@@ -0,0 +1,236 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxTable xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_WarrantyProvisionTrans</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Log of the warranty provision posted for each sales invoice line.
++/// </summary>
++public class DYLO_WarrantyProvisionTrans extends common
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>findByCustInvoiceTrans</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Finds the warranty provision log record of an invoice line.
++    /// </summary>
++    /// <param name = "_custInvoiceTransRecId">The record ID of the invoice line.</param>
++    /// <param name = "_forUpdate">true to select the record for update; optional.</param>
++    /// <returns>The log record, or an empty buffer when none is found.</returns>
++    public static DYLO_WarrantyProvisionTrans findByCustInvoiceTrans(RefRecId _custInvoiceTransRecId, boolean _forUpdate = false)
++    {
++        DYLO_WarrantyProvisionTrans provisionTrans;
++
++        if (_custInvoiceTransRecId)
++        {
++            provisionTrans.selectForUpdate(_forUpdate);
++
++            select firstonly provisionTrans
++                where provisionTrans.CustInvoiceTransRecId == _custInvoiceTransRecId;
++        }
++
++        return provisionTrans;
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++	<DeveloperDocumentation>@DYLOExtensions:WarrantyProvisionTransDevDoc</DeveloperDocumentation>
++	<Label>@DYLOExtensions:WarrantyProvisionTrans</Label>
++	<TableGroup>Transaction</TableGroup>
++	<TitleField1>InvoiceId</TitleField1>
++	<TitleField2>ItemId</TitleField2>
++	<AllowRowVersionChangeTracking>Yes</AllowRowVersionChangeTracking>
++	<CacheLookup>NotInTTS</CacheLookup>
++	<ClusteredIndex>CustInvoiceTransIdx</ClusteredIndex>
++	<DeleteActions />
++	<FieldGroups>
++		<AxTableFieldGroup>
++			<Name>AutoReport</Name>
++			<Fields>
++				<AxTableFieldGroupField>
++					<DataField>InvoiceId</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>InvoiceDate</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>Voucher</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>ItemId</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>ProvisionPct</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>AmountCur</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>CurrencyCode</DataField>
++				</AxTableFieldGroupField>
++			</Fields>
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoLookup</Name>
++			<Fields />
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoIdentification</Name>
++			<AutoPopulate>Yes</AutoPopulate>
++			<Fields />
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoSummary</Name>
++			<Fields />
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoBrowse</Name>
++			<Fields />
++		</AxTableFieldGroup>
++	</FieldGroups>
++	<Fields>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldInt64">
++			<Name>CustInvoiceTransRecId</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>System Metadata</AssetClassification>
++			<ExtendedDataType>RefRecId</ExtendedDataType>
++			<Mandatory>Yes</Mandatory>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>InvoiceId</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>InvoiceId</ExtendedDataType>
++			<IgnoreEDTRelation>Yes</IgnoreEDTRelation>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldDate">
++			<Name>InvoiceDate</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>InvoiceDate</ExtendedDataType>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>Voucher</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>Voucher</ExtendedDataType>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>ItemId</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>ItemId</ExtendedDataType>
++			<IgnoreEDTRelation>Yes</IgnoreEDTRelation>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldReal">
++			<Name>ProvisionPct</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>DYLO_WarrantyProvisionPct</ExtendedDataType>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldReal">
++			<Name>AmountCur</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>AmountCur</ExtendedDataType>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>CurrencyCode</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>CurrencyCode</ExtendedDataType>
++			<IgnoreEDTRelation>Yes</IgnoreEDTRelation>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldInt64">
++			<Name>ExpenseLedgerDimension</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>LedgerDimensionAccount</ExtendedDataType>
++			<Label>@DYLOExtensions:WarrantyProvisionExpenseAccount</Label>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldInt64">
++			<Name>ProvisionLedgerDimension</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>LedgerDimensionAccount</ExtendedDataType>
++			<Label>@DYLOExtensions:WarrantyProvisionProvisionAccount</Label>
++		</AxTableField>
++	</Fields>
++	<FullTextIndexes />
++	<Indexes>
++		<AxTableIndex>
++			<Name>CustInvoiceTransIdx</Name>
++			<AlternateKey>Yes</AlternateKey>
++			<Fields>
++				<AxTableIndexField>
++					<DataField>CustInvoiceTransRecId</DataField>
++				</AxTableIndexField>
++			</Fields>
++		</AxTableIndex>
++	</Indexes>
++	<Mappings />
++	<Relations>
++		<AxTableRelation xmlns=""
++			i:type="AxTableRelationForeignKey">
++			<Name>CustInvoiceTrans</Name>
++			<Cardinality>ZeroOne</Cardinality>
++			<RelatedTable>CustInvoiceTrans</RelatedTable>
++			<RelatedTableCardinality>ExactlyOne</RelatedTableCardinality>
++			<RelationshipType>Association</RelationshipType>
++			<Constraints>
++				<AxTableRelationConstraint xmlns=""
++					i:type="AxTableRelationConstraintField">
++					<Name>CustInvoiceTransRecId</Name>
++					<Field>CustInvoiceTransRecId</Field>
++					<RelatedField>RecId</RelatedField>
++				</AxTableRelationConstraint>
++			</Constraints>
++		</AxTableRelation>
++		<AxTableRelation>
++			<Name>ExpenseLedgerDimension</Name>
++			<Cardinality>ZeroMore</Cardinality>
++			<RelatedTable>DimensionAttributeValueCombination</RelatedTable>
++			<RelatedTableCardinality>ZeroOne</RelatedTableCardinality>
++			<RelationshipType>Association</RelationshipType>
++			<Constraints>
++				<AxTableRelationConstraint xmlns=""
++					i:type="AxTableRelationConstraintField">
++					<Name>ExpenseLedgerDimension</Name>
++					<Field>ExpenseLedgerDimension</Field>
++					<RelatedField>RecId</RelatedField>
++				</AxTableRelationConstraint>
++			</Constraints>
++		</AxTableRelation>
++		<AxTableRelation>
++			<Name>ProvisionLedgerDimension</Name>
++			<Cardinality>ZeroMore</Cardinality>
++			<RelatedTable>DimensionAttributeValueCombination</RelatedTable>
++			<RelatedTableCardinality>ZeroOne</RelatedTableCardinality>
++			<RelationshipType>Association</RelationshipType>
++			<Constraints>
++				<AxTableRelationConstraint xmlns=""
++					i:type="AxTableRelationConstraintField">
++					<Name>ProvisionLedgerDimension</Name>
++					<Field>ProvisionLedgerDimension</Field>
++					<RelatedField>RecId</RelatedField>
++				</AxTableRelationConstraint>
++			</Constraints>
++		</AxTableRelation>
++	</Relations>
++	<StateMachines />
++</AxTable>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxTableExtension/InventTable.DYLO_Extensions.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxTableExtension/InventTable.DYLO_Extensions.xml
+new file mode 100644
+index 0000000..1c299ad
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxTableExtension/InventTable.DYLO_Extensions.xml
+@@ -0,0 +1,44 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxTableExtension xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>InventTable.DYLO_Extensions</Name>
++	<FieldGroupExtensions />
++	<FieldGroups>
++		<AxTableFieldGroup>
++			<Name>DYLO_WarrantyProvision</Name>
++			<Label>@DYLOExtensions:WarrantyProvisionGroup</Label>
++			<Fields>
++				<AxTableFieldGroupField>
++					<DataField>DYLO_WarrantyEligible</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>DYLO_WarrantyProvisionPct</DataField>
++				</AxTableFieldGroupField>
++			</Fields>
++		</AxTableFieldGroup>
++	</FieldGroups>
++	<FieldModifications />
++	<Fields>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldEnum">
++			<Name>DYLO_WarrantyEligible</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>NoYesId</ExtendedDataType>
++			<HelpText>@DYLOExtensions:WarrantyProvisionEligibleHelp</HelpText>
++			<Label>@DYLOExtensions:WarrantyProvisionEligible</Label>
++			<EnumType>NoYes</EnumType>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldReal">
++			<Name>DYLO_WarrantyProvisionPct</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>DYLO_WarrantyProvisionPct</ExtendedDataType>
++		</AxTableField>
++	</Fields>
++	<FullTextIndexes />
++	<Indexes />
++	<Mappings />
++	<PropertyModifications />
++	<RelationExtensions />
++	<RelationModifications />
++	<Relations />
++</AxTableExtension>

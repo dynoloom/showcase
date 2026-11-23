@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>CustInvoiceJour_DYLO_Extension</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// REQ-INV-105: copies the delivery instructions of the sales order to the customer invoice journal.
+/// </summary>
+[ExtensionOf(tableStr(CustInvoiceJour))]
+final class CustInvoiceJour_DYLO_Extension
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>initFromSalesTable</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Initializes the invoice journal from the sales order and copies the delivery instructions.
+    /// </summary>
+    /// <param name = "salesTable">The sales order the invoice header is created from.</param>
+    /// <param name = "_salesParmTable">The sales parameter table record.</param>
+    public void initFromSalesTable(SalesTable salesTable, SalesParmTable _salesParmTable)
+    {
+        next initFromSalesTable(salesTable, _salesParmTable);
+
+        this.DYLO_DeliveryInstructions = salesTable.DYLO_DeliveryInstructions;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

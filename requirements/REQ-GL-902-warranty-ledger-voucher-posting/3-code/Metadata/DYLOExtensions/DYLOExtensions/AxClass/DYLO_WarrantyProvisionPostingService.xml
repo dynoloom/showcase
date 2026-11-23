@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_WarrantyProvisionPostingService</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Adds the warranty expense and warranty provision lines of one sales invoice line
+/// to the invoice's own ledger voucher and logs the posted provision.
+/// </summary>
+public final class DYLO_WarrantyProvisionPostingService
+{
+    /// <summary>
+    /// The default warranty provision % of released products.
+    /// </summary>
+    public const DYLO_WarrantyProvisionPct DYLO_WarrantyDefaultPct = 3.50;
+
+    LedgerVoucher           ledgerVoucher;
+    CustInvoiceJour         custInvoiceJour;
+    CustInvoiceTrans        custInvoiceTrans;
+    SalesParmLine           salesParmLine;
+    AmountCur               lineValue;
+    CurrencyCode            currencyCode;
+    CurrencyExchangeHelper  exchangeRateHelper;
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>new</Name>
+				<Source><![CDATA[
+    protected void new()
+    {
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>construct</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Creates the posting service for one invoice line.
+    /// </summary>
+    /// <param name = "_ledgerVoucher">The invoice's ledger voucher.</param>
+    /// <param name = "_custInvoiceJour">The invoice journal header.</param>
+    /// <param name = "_custInvoiceTrans">The invoice journal line.</param>
+    /// <param name = "_salesParmLine">The posting parameter line.</param>
+    /// <param name = "_lineValue">The line net amount excluding sales tax, in the invoice currency.</param>
+    /// <param name = "_currencyCode">The invoice currency.</param>
+    /// <param name = "_exchangeRateHelper">The exchange rates of the invoice line's revenue.</param>
+    /// <returns>A new instance of the service.</returns>
+    public static DYLO_WarrantyProvisionPostingService construct(
+        LedgerVoucher           _ledgerVoucher,
+        CustInvoiceJour         _custInvoiceJour,
+        CustInvoiceTrans        _custInvoiceTrans,
+        SalesParmLine           _salesParmLine,
+        AmountCur               _lineValue,
+        CurrencyCode            _currencyCode,
+        CurrencyExchangeHelper  _exchangeRateHelper)
+    {
+        DYLO_WarrantyProvisionPostingService service = new DYLO_WarrantyProvisionPostingService();
+
+        service.ledgerVoucher       = _ledgerVoucher;
+        service.custInvoiceJour     = _custInvoiceJour;
+        service.custInvoiceTrans    = _custInvoiceTrans;
+        service.salesParmLine       = _salesParmLine;
+        service.lineValue           = _lineValue;
+        service.currencyCode        = _currencyCode;
+        service.exchangeRateHelper  = _exchangeRateHelper;
+
+        return service;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>post</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Posts the warranty provision of the invoice line, when the item is warranty eligible.
+    /// </summary>
+    public void post()
+    {
+        if (!custInvoiceTrans.ItemId || !ledgerVoucher)
+        {
+            return;
+        }
+
+        InventTable item = custInvoiceTrans.inventTable();
+
+        if (!item.RecId || item.DYLO_WarrantyEligible == NoYes::No)
+        {
+            return;
+        }
+
+        boolean hasPct;
+        DYLO_WarrantyProvisionPct pct;
+        [hasPct, pct] = this.provisionPct(item);
+
+        if (!hasPct)
+        {
+            return;
+        }
+
+        ItemGroupId groupId = item.itemGroupId();
+        DYLO_WarrantyPostingSetup setup = DYLO_WarrantyPostingSetup::find(groupId);
+
+        if (!setup.RecId || !setup.ExpenseLedgerDimension || !setup.ProvisionLedgerDimension)
+        {
+            throw error(strFmt("@DYLOExtensions:WarrantyProvisionSetupMissing", groupId, item.ItemId));
+        }
+
+        AmountCur amount = CurrencyExchangeHelper::amount(lineValue * pct / 100, currencyCode);
+
+        if (!amount)
+        {
+            return;
+        }
+
+        DimensionDefault dim = custInvoiceTrans.DefaultDimension;
+        LedgerDimensionAccount expenseDim   = LedgerDimensionFacade::serviceCreateLedgerDimension(setup.ExpenseLedgerDimension, dim);
+        LedgerDimensionAccount provisionDim = LedgerDimensionFacade::serviceCreateLedgerDimension(setup.ProvisionLedgerDimension, dim);
+
+        LedgerVoucherObject ledgerVoucherObject = ledgerVoucher.findLedgerVoucherObject();
+
+        LedgerVoucherTransObject expenseTrans = LedgerVoucherTransObject::newTransactionAmountDefault(
+            ledgerVoucherObject,
+            LedgerPostingType::DYLO_WarrantyExpense,
+            expenseDim,
+            currencyCode,
+            amount,
+            exchangeRateHelper);
+        expenseTrans.parmText(strFmt("@DYLOExtensions:WarrantyProvisionAccrualTxt", custInvoiceJour.InvoiceId));
+        expenseTrans.parmSourceTableId(custInvoiceTrans.TableId);
+        expenseTrans.parmSourceRecId(custInvoiceTrans.RecId);
+
+        LedgerVoucherTransObject provisionTrans = LedgerVoucherTransObject::newTransactionAmountDefault(
+            ledgerVoucherObject,
+            LedgerPostingType::DYLO_WarrantyProvision,
+            provisionDim,
+            currencyCode,
+            -amount,
+            exchangeRateHelper);
+        provisionTrans.parmText(strFmt("@DYLOExtensions:WarrantyProvisionReserveTxt", custInvoiceJour.InvoiceId));
+        provisionTrans.parmSourceTableId(custInvoiceTrans.TableId);
+        provisionTrans.parmSourceRecId(custInvoiceTrans.RecId);
+
+        ledgerVoucher.addTrans(expenseTrans);
+        ledgerVoucher.addTrans(provisionTrans);
+
+        Voucher voucher = custInvoiceJour.LedgerVoucher ? custInvoiceJour.LedgerVoucher : ledgerVoucherObject.parmVoucher();
+
+        this.insertLog(item.ItemId, pct, amount, voucher, expenseDim, provisionDim);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>provisionPct</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Determines the provision % of the invoice line.
+    /// </summary>
+    /// <param name = "_item">The released product of the line.</param>
+    /// <returns>
+    /// A container with a flag that is false when nothing must be posted, and the provision %.
+    /// </returns>
+    /// <remarks>
+    /// A credit note line that is linked to an original invoice line uses the % logged on that invoice;
+    /// when the original invoice has no log, there is nothing to reverse.
+    /// </remarks>
+    private container provisionPct(InventTable _item)
+    {
+        InventTransId returnLotId = salesParmLine.salesLine().InventTransIdReturn;
+
+        if (returnLotId)
+        {
+            CustInvoiceTrans originalTrans;
+            DYLO_WarrantyProvisionTrans originalLog;
+
+            select firstonly RecId, ProvisionPct from originalLog
+                order by originalLog.InvoiceDate desc
+                exists join originalTrans
+                    where originalTrans.RecId == originalLog.CustInvoiceTransRecId
+                        && originalTrans.InventTransId == returnLotId;
+
+            if (originalLog.RecId)
+            {
+                return [true, originalLog.ProvisionPct];
+            }
+
+            select firstonly RecId from originalTrans
+                where originalTrans.InventTransId == returnLotId;
+
+            if (originalTrans.RecId)
+            {
+                // The original invoice posted no warranty provision: nothing to reverse.
+                return [false, 0];
+            }
+        }
+
+        return [true, _item.DYLO_WarrantyProvisionPct];
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>insertLog</Name>
+				<Source><![CDATA[
+    private void insertLog(
+        ItemId                      _itemId,
+        DYLO_WarrantyProvisionPct   _pct,
+        AmountCur                   _amount,
+        Voucher                     _voucher,
+        LedgerDimensionAccount      _expenseDim,
+        LedgerDimensionAccount      _provisionDim)
+    {
+        DYLO_WarrantyProvisionTrans provisionLog;
+
+        provisionLog.CustInvoiceTransRecId      = custInvoiceTrans.RecId;
+        provisionLog.InvoiceId                  = custInvoiceJour.InvoiceId;
+        provisionLog.InvoiceDate                = custInvoiceJour.InvoiceDate;
+        provisionLog.Voucher                    = _voucher;
+        provisionLog.ItemId                     = _itemId;
+        provisionLog.ProvisionPct               = _pct;
+        provisionLog.AmountCur                  = _amount;
+        provisionLog.CurrencyCode               = currencyCode;
+        provisionLog.ExpenseLedgerDimension     = _expenseDim;
+        provisionLog.ProvisionLedgerDimension   = _provisionDim;
+        provisionLog.insert();
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

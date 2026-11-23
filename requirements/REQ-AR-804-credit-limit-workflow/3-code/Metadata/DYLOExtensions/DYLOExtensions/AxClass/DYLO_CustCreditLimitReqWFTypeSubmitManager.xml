@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_CustCreditLimitReqWFTypeSubmitManager</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Submits a credit limit request to the credit limit change approval workflow.
+/// </summary>
+public class DYLO_CustCreditLimitReqWFTypeSubmitManager
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>main</Name>
+				<Source><![CDATA[
+    public static void main(Args _args)
+    {
+        RecId recId = _args.record().RecId;
+        WorkflowTypeName workflowTypeName = workFlowTypeStr(DYLO_CustCreditLimitReqWFType);
+
+        // Opens the submit to workflow dialog.
+        WorkflowSubmitDialog workflowSubmitDialog = WorkflowSubmitDialog::construct(_args.caller().getActiveWorkflowConfiguration());
+        workflowSubmitDialog.run();
+
+        if (workflowSubmitDialog.parmIsClosedOK())
+        {
+            WorkflowComment initialNote = workflowSubmitDialog.parmWorkflowComment();
+
+            try
+            {
+                ttsbegin;
+
+                // Refreshes, validates and sets the approval path; throws when the request is not valid.
+                DYLO_CustCreditLimitRequestWFProcessor::prepareSubmit(recId);
+
+                Workflow::activateFromWorkflowType(workflowTypeName, recId, initialNote, NoYes::No);
+
+                ttscommit;
+
+                info("@DYLOExtensions:CreditLimitReqSubmitted");
+            }
+            catch (Exception::Error)
+            {
+                // The validation messages are already in the infolog.
+            }
+
+            // Make sure the changes in status are reflected on the caller.
+            FormDataSource callerDS = _args.record().dataSource();
+            if (callerDS)
+            {
+                callerDS.reread();
+                callerDS.refresh();
+            }
+            _args.caller().updateWorkflowControls();
+        }
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

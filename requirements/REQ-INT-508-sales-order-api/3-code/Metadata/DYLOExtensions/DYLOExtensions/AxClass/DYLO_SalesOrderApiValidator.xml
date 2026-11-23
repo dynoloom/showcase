@@ -1,0 +1,246 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_SalesOrderApiValidator</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Business validation of an inbound sales order API request, in the current legal entity.
+/// </summary>
+public class DYLO_SalesOrderApiValidator
+{
+    List errors;
+
+    public const str ErrCustNotFound       = 'CUST_NOT_FOUND';
+    public const str ErrCustBlocked        = 'CUST_BLOCKED';
+    public const str ErrCurrencyNotFound   = 'CURRENCY_NOT_FOUND';
+    public const str ErrItemNotFound       = 'ITEM_NOT_FOUND';
+    public const str ErrItemStopped        = 'ITEM_STOPPED';
+    public const str ErrQtyInvalid         = 'QTY_INVALID';
+    public const str ErrUnitInvalid        = 'UNIT_INVALID';
+    public const str ErrSiteNotFound       = 'SITE_NOT_FOUND';
+    public const str ErrWarehouseInvalid   = 'WAREHOUSE_INVALID';
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>construct</Name>
+				<Source><![CDATA[
+    public static DYLO_SalesOrderApiValidator construct()
+    {
+        return new DYLO_SalesOrderApiValidator();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>validate</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Validates the request and collects all errors.
+    /// </summary>
+    /// <param name = "_request">The request.</param>
+    /// <returns>A list of [errorCode, message] containers; empty when the request is valid.</returns>
+    public List validate(DYLO_SalesOrderApiRequestContract _request)
+    {
+        errors = new List(Types::Container);
+
+        this.validateCustomer(_request);
+        this.validateCurrency(_request);
+        this.validateLines(_request);
+
+        return errors;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>addError</Name>
+				<Source><![CDATA[
+    private void addError(DYLO_ApiErrorCode _errorCode, str _message)
+    {
+        errors.addEnd([_errorCode, _message]);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>legalEntity</Name>
+				<Source><![CDATA[
+    private DataAreaId legalEntity()
+    {
+        return strUpr(curExt());
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>validateCustomer</Name>
+				<Source><![CDATA[
+    private void validateCustomer(DYLO_SalesOrderApiRequestContract _request)
+    {
+        CustAccount custAccount = _request.parmCustomerAccount();
+        CustTable   custTable   = CustTable::find(custAccount);
+
+        if (!custTable.RecId)
+        {
+            this.addError(DYLO_SalesOrderApiValidator::ErrCustNotFound,
+                strFmt("@DYLOExtensions:SOApiErrCustNotFound", custAccount, this.legalEntity()));
+        }
+        else if (custTable.Blocked == CustVendorBlocked::Invoice || custTable.Blocked == CustVendorBlocked::All)
+        {
+            this.addError(DYLO_SalesOrderApiValidator::ErrCustBlocked,
+                strFmt("@DYLOExtensions:SOApiErrCustBlocked", custAccount, this.legalEntity(), custTable.Blocked));
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>validateCurrency</Name>
+				<Source><![CDATA[
+    private void validateCurrency(DYLO_SalesOrderApiRequestContract _request)
+    {
+        CurrencyCode currencyCode = _request.parmCurrency();
+
+        if (currencyCode && !Currency::exist(currencyCode))
+        {
+            this.addError(DYLO_SalesOrderApiValidator::ErrCurrencyNotFound,
+                strFmt("@DYLOExtensions:SOApiErrCurrencyNotFound", currencyCode));
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>validateLines</Name>
+				<Source><![CDATA[
+    private void validateLines(DYLO_SalesOrderApiRequestContract _request)
+    {
+        List            lines = _request.parmLines();
+        ListEnumerator  enumerator;
+        int             lineNum;
+
+        if (!lines)
+        {
+            return;
+        }
+
+        enumerator = lines.getEnumerator();
+        while (enumerator.moveNext())
+        {
+            lineNum++;
+            this.validateLine(enumerator.current(), lineNum);
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>validateLine</Name>
+				<Source><![CDATA[
+    private void validateLine(DYLO_SalesOrderApiLineContract _line, int _lineNum)
+    {
+        ItemId              itemId      = _line.parmItemId();
+        UnitOfMeasureSymbol unit        = _line.parmUnit();
+        InventSiteId        site        = _line.parmSite();
+        InventLocationId    warehouse   = _line.parmWarehouse();
+        InventTable         inventTable = InventTable::find(itemId);
+        InventLocation      inventLocation;
+
+        if (!inventTable.RecId)
+        {
+            this.addError(DYLO_SalesOrderApiValidator::ErrItemNotFound,
+                strFmt("@DYLOExtensions:SOApiErrItemNotFound", _lineNum, itemId, this.legalEntity()));
+        }
+        else if (this.isItemStopped(itemId, site))
+        {
+            this.addError(DYLO_SalesOrderApiValidator::ErrItemStopped,
+                strFmt("@DYLOExtensions:SOApiErrItemStopped", _lineNum, itemId));
+        }
+
+        if (_line.parmQty() <= 0)
+        {
+            this.addError(DYLO_SalesOrderApiValidator::ErrQtyInvalid,
+                strFmt("@DYLOExtensions:SOApiErrQtyInvalid", _lineNum, itemId));
+        }
+
+        if (unit)
+        {
+            boolean unitValid = UnitOfMeasure::findBySymbol(unit).RecId != 0;
+
+            if (unitValid && inventTable.RecId)
+            {
+                unitValid = EcoResProductUnitConverter::canBeConvertedGivenUnitSymbolsForReleasedProduct(
+                    itemId,
+                    InventDim::inventDimIdBlank(),
+                    unit,
+                    inventTable.inventUnitId());
+            }
+
+            if (!unitValid)
+            {
+                this.addError(DYLO_SalesOrderApiValidator::ErrUnitInvalid,
+                    strFmt("@DYLOExtensions:SOApiErrUnitInvalid", _lineNum, unit, itemId));
+            }
+        }
+
+        if (site && !InventSite::exist(site))
+        {
+            this.addError(DYLO_SalesOrderApiValidator::ErrSiteNotFound,
+                strFmt("@DYLOExtensions:SOApiErrSiteNotFound", _lineNum, site));
+        }
+
+        if (warehouse)
+        {
+            inventLocation = InventLocation::find(warehouse);
+
+            if (!inventLocation.RecId || (site && inventLocation.InventSiteId != site))
+            {
+                this.addError(DYLO_SalesOrderApiValidator::ErrWarehouseInvalid,
+                    strFmt("@DYLOExtensions:SOApiErrWarehouseInvalid", _lineNum, warehouse, site));
+            }
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>isItemStopped</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Determines whether the item is stopped for sales orders, by default and, when a site is given, on that site.
+    /// </summary>
+    private boolean isItemStopped(ItemId _itemId, InventSiteId _site)
+    {
+        InventItemSalesSetup    salesSetup = InventItemSalesSetup::find(_itemId, InventDim::inventDimIdBlank());
+        InventDim               siteDim;
+
+        if (salesSetup.RecId && salesSetup.isStopped())
+        {
+            return true;
+        }
+
+        if (_site)
+        {
+            siteDim.InventSiteId = _site;
+            siteDim = InventDim::findDim(siteDim);
+
+            if (siteDim.inventDimId)
+            {
+                salesSetup = InventItemSalesSetup::find(_itemId, siteDim.inventDimId);
+
+                if (salesSetup.RecId && salesSetup.isStopped())
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

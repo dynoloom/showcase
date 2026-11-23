@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_CustCreditLimitReqApprovalEventHandler</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// The event handler of the Approve credit limit change workflow approval.
+/// </summary>
+public final class DYLO_CustCreditLimitReqApprovalEventHandler implements WorkflowElementCanceledEventHandler,
+    WorkflowElemChangeRequestedEventHandler,
+    WorkflowElementCompletedEventHandler,
+    WorkflowElementReturnedEventHandler,
+    WorkflowElementStartedEventHandler,
+    WorkflowElementDeniedEventHandler,
+    WorkflowWorkItemsCreatedEventHandler
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>started</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The approval has started: the request is pending approval.
+    /// </summary>
+    /// <param name = "_workflowElementEventArgs">The arguments object for the event handler.</param>
+    public void started(WorkflowElementEventArgs _workflowElementEventArgs)
+    {
+        DYLO_CustCreditLimitRequestWFProcessor::setStatus(
+            _workflowElementEventArgs.parmWorkflowContext().parmRecId(),
+            DYLO_CustCreditLimitRequestStatus::PendingApproval);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>canceled</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The approval was canceled: the request is canceled.
+    /// </summary>
+    /// <param name = "_workflowElementEventArgs">The arguments object for the event handler.</param>
+    public void canceled(WorkflowElementEventArgs _workflowElementEventArgs)
+    {
+        DYLO_CustCreditLimitRequestWFProcessor::setStatus(
+            _workflowElementEventArgs.parmWorkflowContext().parmRecId(),
+            DYLO_CustCreditLimitRequestStatus::Canceled);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>completed</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The approval has completed. The workflow type's completed event applies the approval.
+    /// </summary>
+    /// <param name = "_workflowElementEventArgs">The arguments object for the event handler.</param>
+    public void completed(WorkflowElementEventArgs _workflowElementEventArgs)
+    {
+        // The workflow type's completed event finalises the request.
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>denied</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The Deny outcome is not enabled for this approval.
+    /// </summary>
+    /// <param name = "_workflowElementEventArgs">The arguments object for the event handler.</param>
+    public void denied(WorkflowElementEventArgs _workflowElementEventArgs)
+    {
+        // Deny is disabled on the approval.
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>changeRequested</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The approver requested a change: the request returns to Draft for the submitter.
+    /// </summary>
+    /// <param name = "_workflowElementEventArgs">The arguments object for the event handler.</param>
+    public void changeRequested(WorkflowElementEventArgs _workflowElementEventArgs)
+    {
+        DYLO_CustCreditLimitRequestWFProcessor::setStatus(
+            _workflowElementEventArgs.parmWorkflowContext().parmRecId(),
+            DYLO_CustCreditLimitRequestStatus::Draft);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>returned</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The approver rejected the request.
+    /// </summary>
+    /// <param name = "_workflowElementEventArgs">The arguments object for the event handler.</param>
+    public void returned(WorkflowElementEventArgs _workflowElementEventArgs)
+    {
+        DYLO_CustCreditLimitRequestWFProcessor::setStatus(
+            _workflowElementEventArgs.parmWorkflowContext().parmRecId(),
+            DYLO_CustCreditLimitRequestStatus::Rejected);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>created</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Work items were assigned to approvers: the request is pending approval.
+    /// </summary>
+    /// <param name = "_workflowWorkItemsEventArgs">The arguments object for the event handler.</param>
+    public void created(WorkflowWorkItemsEventArgs _workflowWorkItemsEventArgs)
+    {
+        DYLO_CustCreditLimitRequestWFProcessor::setStatus(
+            _workflowWorkItemsEventArgs.parmWorkflowElementEventArgs().parmWorkflowContext().parmRecId(),
+            DYLO_CustCreditLimitRequestStatus::PendingApproval);
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

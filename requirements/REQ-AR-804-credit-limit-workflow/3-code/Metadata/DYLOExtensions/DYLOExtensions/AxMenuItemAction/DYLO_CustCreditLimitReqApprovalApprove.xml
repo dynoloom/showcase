@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxMenuItemAction xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V1">
+	<Name>DYLO_CustCreditLimitReqApprovalApprove</Name>
+	<Label>@SYS38598</Label>
+	<Object>WorkflowWorkItemActionManager</Object>
+	<ObjectType>Class</ObjectType>
+</AxMenuItemAction>

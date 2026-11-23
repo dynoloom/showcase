@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>SalesInvoiceDP_DYLO_Extension</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// REQ-INV-105: puts the delivery instructions of the invoice on the sales invoice report header.
+/// </summary>
+[ExtensionOf(classStr(SalesInvoiceDP))]
+final class SalesInvoiceDP_DYLO_Extension
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>populateSalesInvoiceHeaderFooterTmp</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Fills the report header and adds the delivery instructions of the invoice journal.
+    /// </summary>
+    /// <param name = "_custInvoiceJour">The customer invoice journal being printed.</param>
+    /// <param name = "_companyInfo">The legal entity.</param>
+    protected void populateSalesInvoiceHeaderFooterTmp(CustInvoiceJour _custInvoiceJour, CompanyInfo _companyInfo)
+    {
+        next populateSalesInvoiceHeaderFooterTmp(_custInvoiceJour, _companyInfo);
+
+        salesInvoiceHeaderFooterTmp.DYLO_DeliveryInstructions = _custInvoiceJour.DYLO_DeliveryInstructions;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

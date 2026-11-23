@@ -1,0 +1,260 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_OverdueInvoiceNotificationEmail</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Builds and sends overdue invoice notification emails and records the result on the notification log.
+/// Shared by the batch job and the resend action.
+/// </summary>
+public final class DYLO_OverdueInvoiceNotificationEmail
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>buildSubject</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Builds the subject of the notification email.
+    /// </summary>
+    /// <param name = "_log">The log line holding the invoice data.</param>
+    /// <returns>The subject.</returns>
+    public static Description255 buildSubject(DYLO_OverdueInvoiceNotificationLog _log)
+    {
+        return strFmt("@DYLOExtensions:OverdueInvNotifEmailSubjectText", _log.InvoiceId, _log.DaysOverdue);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>buildBody</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Builds the plain text body of the notification email.
+    /// </summary>
+    /// <param name = "_log">The log line holding the invoice data.</param>
+    /// <returns>The body.</returns>
+    public static Notes buildBody(DYLO_OverdueInvoiceNotificationLog _log)
+    {
+        const str NewLine = '\n';
+        str body;
+
+        body  = "@DYLOExtensions:OverdueInvNotifBodyGreeting" + NewLine;
+        body += NewLine;
+        body += strFmt("@DYLOExtensions:OverdueInvNotifBodyInvoice", _log.InvoiceId, _log.CustAccount, _log.CustName) + NewLine;
+        body += strFmt("@DYLOExtensions:OverdueInvNotifBodyAmounts",
+                    _log.CurrencyCode,
+                    DYLO_OverdueInvoiceNotificationEmail::formatAmount(_log.InvoiceAmount),
+                    DYLO_OverdueInvoiceNotificationEmail::formatAmount(_log.RemainingAmount)) + NewLine;
+        body += strFmt("@DYLOExtensions:OverdueInvNotifBodyDaysPastDue", _log.DaysOverdue) + NewLine;
+        body += NewLine;
+        body += strFmt("@DYLOExtensions:OverdueInvNotifBodyInvoiceDate", date2StrUsr(_log.InvoiceDate, DateFlags::FormatAll)) + NewLine;
+        body += strFmt("@DYLOExtensions:OverdueInvNotifBodyDueDate", date2StrUsr(_log.DueDate, DateFlags::FormatAll)) + NewLine;
+        body += strFmt("@DYLOExtensions:OverdueInvNotifBodyTier", _log.TierDays) + NewLine;
+        body += "@DYLOExtensions:OverdueInvNotifBodyAction";
+
+        return body;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>formatAmount</Name>
+				<Source><![CDATA[
+    private static str formatAmount(AmountCur _amount)
+    {
+        return num2Str(_amount, 0, 2, 1, 0);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>sendAndLog</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Sends the email stored on a log line and records the result (status, error, attempts) on the line.
+    /// </summary>
+    /// <param name = "_log">The log line to send.</param>
+    /// <returns>true if the email was sent; otherwise, false.</returns>
+    /// <remarks>
+    /// Must be called outside a transaction, so that a failing email provider can be caught and logged.
+    /// </remarks>
+    public static boolean sendAndLog(DYLO_OverdueInvoiceNotificationLog _log)
+    {
+        DYLO_OverdueNotificationParameters  parameters = DYLO_OverdueNotificationParameters::find();
+        SysMailerMessageBuilder             builder;
+        boolean                             sent;
+        int                                 infologStart = infologLine();
+        str                                 clrMessage;
+        str                                 errorText;
+
+        try
+        {
+            builder = new SysMailerMessageBuilder();
+
+            if (parameters.SenderEmail)
+            {
+                builder.setFrom(parameters.SenderEmail);
+            }
+
+            builder.addTo(_log.RecipientEmail)
+                .setSubject(_log.EmailSubject)
+                .setBody(_log.EmailBody, false);
+
+            sent = SysMailerFactory::sendNonInteractive(builder.getMessage());
+        }
+        catch (Exception::CLRError)
+        {
+            sent = false;
+            clrMessage = DYLO_OverdueInvoiceNotificationEmail::lastClrMessage();
+        }
+        catch (Exception::Error)
+        {
+            sent = false;
+        }
+
+        if (!sent)
+        {
+            errorText = DYLO_OverdueInvoiceNotificationEmail::infologTextSince(infologStart);
+
+            if (clrMessage)
+            {
+                errorText = errorText ? errorText + '\n' + clrMessage : clrMessage;
+            }
+
+            if (!errorText)
+            {
+                errorText = "@DYLOExtensions:OverdueInvNotifErrProviderRejected";
+            }
+        }
+
+        DYLO_OverdueInvoiceNotificationEmail::writeResult(_log.RecId, sent, errorText);
+
+        return sent;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>writeResult</Name>
+				<Source><![CDATA[
+    private static void writeResult(RecId _logRecId, boolean _sent, Notes _errorText)
+    {
+        DYLO_OverdueInvoiceNotificationLog log;
+        TransDateTime                      now = DateTimeUtil::utcNow();
+
+        ttsbegin;
+
+        select firstonly forupdate log
+            where log.RecId == _logRecId;
+
+        if (log.RecId)
+        {
+            if (_sent)
+            {
+                log.Status       = DYLO_OverdueNotificationStatus::Sent;
+                log.ErrorText    = '';
+                log.SentDateTime = now;
+            }
+            else
+            {
+                log.Status    = DYLO_OverdueNotificationStatus::Failed;
+                log.ErrorText = _errorText;
+            }
+
+            log.AttemptCount++;
+            log.LastAttemptDateTime = now;
+            log.update();
+        }
+
+        ttscommit;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>infologTextSince</Name>
+				<Source><![CDATA[
+    private static str infologTextSince(int _infologStart)
+    {
+        str text;
+        int line;
+
+        for (line = _infologStart + 1; line <= infologLine(); line++)
+        {
+            text = text ? text + '\n' + infolog.text(line) : infolog.text(line);
+        }
+
+        return text;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>lastClrMessage</Name>
+				<Source><![CDATA[
+    private static str lastClrMessage()
+    {
+        System.Exception clrException = CLRInterop::getLastException();
+        str              message;
+
+        while (clrException)
+        {
+            message      = clrException.get_Message();
+            clrException = clrException.get_InnerException();
+        }
+
+        return message;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>refreshCaller</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Refreshes the notification log form that called an action, including its status counts.
+    /// </summary>
+    /// <param name = "_args">The arguments of the action.</param>
+    /// <param name = "_retainPosition">true to keep the selected record.</param>
+    public static void refreshCaller(Args _args, boolean _retainPosition = true)
+    {
+        Object         callerForm;
+        FormRun        callerFormRun;
+        FormDataSource formDataSource;
+
+        if (!_args || !(_args.caller() is FormRun))
+        {
+            return;
+        }
+
+        callerFormRun = _args.caller();
+
+        if (_args.record() && _args.record().isFormDataSource())
+        {
+            formDataSource = FormDataUtil::getFormDataSource(_args.record());
+        }
+        else
+        {
+            formDataSource = callerFormRun.dataSource(1);
+        }
+
+        if (formDataSource && formDataSource.table() == tableNum(DYLO_OverdueInvoiceNotificationLog))
+        {
+            formDataSource.research(_retainPosition);
+        }
+
+        callerForm = callerFormRun;
+
+        if (formHasMethod(callerForm, identifierStr(updateCounts)))
+        {
+            callerForm.updateCounts();
+        }
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

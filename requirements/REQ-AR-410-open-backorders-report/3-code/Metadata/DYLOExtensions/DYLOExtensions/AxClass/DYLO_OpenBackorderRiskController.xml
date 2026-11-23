@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_OpenBackorderRiskController</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Runs the <c>DYLO_OpenBackorderRiskReport</c> report from its menu item.
+/// </summary>
+public class DYLO_OpenBackorderRiskController extends SrsReportRunController
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>main</Name>
+				<Source><![CDATA[
+    public static void main(Args _args)
+    {
+        DYLO_OpenBackorderRiskController controller = new DYLO_OpenBackorderRiskController();
+
+        controller.parmReportName(ssrsReportStr(DYLO_OpenBackorderRiskReport, Report));
+        controller.parmArgs(_args);
+        controller.startOperation();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>prePromptModifyContract</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Makes sure the dialog opens with valid defaults.
+    /// </summary>
+    protected void prePromptModifyContract()
+    {
+        DYLO_OpenBackorderRiskContract contract = this.parmReportContract().parmRdpContract() as DYLO_OpenBackorderRiskContract;
+
+        super();
+
+        if (contract && contract.parmMinDaysOverdue() < 1)
+        {
+            contract.parmMinDaysOverdue(1);
+        }
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

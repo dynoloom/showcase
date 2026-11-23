@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_CustCustomerV3Entity_Extension</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Extends the Customers V3 data entity with the loyalty tier: the text field <c>LoyaltyTier</c>
+/// is converted to <c>CustTable.DYLO_LoyaltyTier</c> on write and filled from it on read.
+/// </summary>
+[ExtensionOf(tableStr(CustCustomerV3Entity))]
+final class DYLO_CustCustomerV3Entity_Extension
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>mapEntityToDataSource</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Writes the loyalty tier to the customer when the caller sent it.
+    /// An empty value gives Standard; an unknown value throws an error before anything is saved.
+    /// </summary>
+    /// <param name = "_entityCtx">The entity runtime context.</param>
+    /// <param name = "_dataSourceCtx">The data source runtime context.</param>
+    public void mapEntityToDataSource(DataEntityRuntimeContext _entityCtx, DataEntityDataSourceRuntimeContext _dataSourceCtx)
+    {
+        if (_dataSourceCtx.name() == dataEntityDataSourceStr(CustCustomerV3Entity, CustTable)
+            && this.fieldState(fieldNum(CustCustomerV3Entity, LoyaltyTier)) != FieldState::NotSet)
+        {
+            DYLO_LoyaltyTier tier = DYLO_CustLoyaltyTierConverter::fromText(this.LoyaltyTier);
+            CustTable custTable = _dataSourceCtx.getBuffer();
+            custTable.DYLO_LoyaltyTier = tier;
+        }
+
+        next mapEntityToDataSource(_entityCtx, _dataSourceCtx);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>postLoad</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Fills the loyalty tier text from the customer.
+    /// </summary>
+    public void postLoad()
+    {
+        next postLoad();
+
+        DYLO_LoyaltyTier tier = DYLO_LoyaltyTier::Standard;
+
+        if (this.CustomerAccount)
+        {
+            changecompany(this.DataAreaId)
+            {
+                CustTable custTable = CustTable::find(this.CustomerAccount);
+                if (custTable.RecId)
+                {
+                    tier = custTable.DYLO_LoyaltyTier;
+                }
+            }
+        }
+
+        this.LoyaltyTier = DYLO_CustLoyaltyTierConverter::toText(tier);
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_TradeAgreementPriceAdjController</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Controller of the periodic mass trade agreement price update.
+/// </summary>
+public class DYLO_TradeAgreementPriceAdjController extends SysOperationServiceController
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>new</Name>
+				<Source><![CDATA[
+    protected void new(SysOperationExecutionMode _executionMode)
+    {
+        super(classStr(DYLO_TradeAgreementPriceAdjService),
+            methodStr(DYLO_TradeAgreementPriceAdjService, process),
+            _executionMode);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>defaultCaption</Name>
+				<Source><![CDATA[
+    protected ClassDescription defaultCaption()
+    {
+        return "@DYLOExtensions:MassPriceAdjCaption";
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>canGoBatch</Name>
+				<Source><![CDATA[
+    public boolean canGoBatch()
+    {
+        return true;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>construct</Name>
+				<Source><![CDATA[
+    public static DYLO_TradeAgreementPriceAdjController construct(SysOperationExecutionMode _executionMode = SysOperationExecutionMode::Synchronous)
+    {
+        return new DYLO_TradeAgreementPriceAdjController(_executionMode);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>main</Name>
+				<Source><![CDATA[
+    public static void main(Args _args)
+    {
+        DYLO_TradeAgreementPriceAdjController controller = DYLO_TradeAgreementPriceAdjController::construct();
+
+        controller.parmArgs(_args);
+        controller.startOperation();
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

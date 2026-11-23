@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxSecurityDuty xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_OverdueInvoiceNotificationMaintain</Name>
+	<Description>@DYLOExtensions:OverdueInvNotifMaintainDutyDescription</Description>
+	<Label>@DYLOExtensions:OverdueInvNotifMaintainDuty</Label>
+	<Privileges>
+		<AxSecurityPrivilegeReference>
+			<Name>DYLO_OverdueInvoiceNotificationLogMaintain</Name>
+		</AxSecurityPrivilegeReference>
+		<AxSecurityPrivilegeReference>
+			<Name>DYLO_OverdueInvoiceNotificationRun</Name>
+		</AxSecurityPrivilegeReference>
+		<AxSecurityPrivilegeReference>
+			<Name>DYLO_OverdueNotificationSetupMaintain</Name>
+		</AxSecurityPrivilegeReference>
+	</Privileges>
+</AxSecurityDuty>

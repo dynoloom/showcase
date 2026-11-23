@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_TradeAgreementPriceAdjTaskController</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Controller of one runtime task of the mass trade agreement price update: a bundle of items, or the summary task.
+/// </summary>
+public class DYLO_TradeAgreementPriceAdjTaskController extends SysOperationServiceController
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>defaultCaption</Name>
+				<Source><![CDATA[
+    protected ClassDescription defaultCaption()
+    {
+        return "@DYLOExtensions:MassPriceAdjCaption";
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>canGoBatch</Name>
+				<Source><![CDATA[
+    public boolean canGoBatch()
+    {
+        return true;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>newFromMethod</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Creates a task controller that runs a method of <c>DYLO_TradeAgreementPriceAdjService</c>.
+    /// </summary>
+    /// <param name = "_methodName">The service method: processBundle or finalizeRun.</param>
+    /// <returns>The task controller.</returns>
+    public static DYLO_TradeAgreementPriceAdjTaskController newFromMethod(IdentifierName _methodName)
+    {
+        DYLO_TradeAgreementPriceAdjTaskController controller = new DYLO_TradeAgreementPriceAdjTaskController(
+            classStr(DYLO_TradeAgreementPriceAdjService),
+            _methodName,
+            SysOperationExecutionMode::Synchronous);
+
+        controller.parmShowDialog(false);
+
+        return controller;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

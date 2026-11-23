@@ -1,0 +1,665 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxForm xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V6">
+	<Name>DYLO_OverdueInvoiceNotificationLog</Name>
+	<SourceCode>
+		<Methods xmlns="">
+			<Method>
+				<Name>classDeclaration</Name>
+				<Source><![CDATA[
+[Form]
+public class DYLO_OverdueInvoiceNotificationLog extends FormRun
+{
+    QueryBuildRange statusRange;
+}
+]]></Source>
+			</Method>
+			<Method>
+				<Name>updateCounts</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Shows the number of all, sent and failed notification log lines.
+    /// </summary>
+    public void updateCounts()
+    {
+        DYLO_OverdueInvoiceNotificationLog log;
+        int64                              allCount;
+        int64                              sentCount;
+        int64                              failedCount;
+
+        select count(RecId) from log;
+        allCount = log.RecId;
+
+        select count(RecId) from log
+            where log.Status == DYLO_OverdueNotificationStatus::Sent;
+        sentCount = log.RecId;
+
+        select count(RecId) from log
+            where log.Status == DYLO_OverdueNotificationStatus::Failed;
+        failedCount = log.RecId;
+
+        StatusCounts.text(strFmt("@DYLOExtensions:OverdueInvNotifCounts", allCount, sentCount, failedCount));
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+		<DataSources xmlns="">
+			<DataSource>
+				<Name>DYLO_OverdueInvoiceNotificationLog</Name>
+				<Methods>
+					<Method>
+						<Name>init</Name>
+						<Source><![CDATA[
+        public void init()
+        {
+            super();
+
+            this.queryBuildDataSource().addSortField(fieldNum(DYLO_OverdueInvoiceNotificationLog, CreatedDateTime), SortOrder::Descending);
+            statusRange = this.queryBuildDataSource().addRange(fieldNum(DYLO_OverdueInvoiceNotificationLog, Status));
+        }
+
+]]></Source>
+					</Method>
+					<Method>
+						<Name>executeQuery</Name>
+						<Source><![CDATA[
+        public void executeQuery()
+        {
+            switch (StatusFilter.selection())
+            {
+                case DYLO_OverdueNotificationStatusFilter::Sent:
+                    statusRange.value(queryValue(DYLO_OverdueNotificationStatus::Sent));
+                    break;
+
+                case DYLO_OverdueNotificationStatusFilter::Failed:
+                    statusRange.value(queryValue(DYLO_OverdueNotificationStatus::Failed));
+                    break;
+
+                default:
+                    statusRange.value(SysQuery::valueUnlimited());
+                    break;
+            }
+
+            super();
+
+            element.updateCounts();
+        }
+
+]]></Source>
+					</Method>
+					<Method>
+						<Name>active</Name>
+						<Source><![CDATA[
+        public int active()
+        {
+            int ret = super();
+
+            Details_ErrorText.visible(DYLO_OverdueInvoiceNotificationLog.Status == DYLO_OverdueNotificationStatus::Failed
+                || DYLO_OverdueInvoiceNotificationLog.ErrorText != '');
+
+            return ret;
+        }
+
+]]></Source>
+					</Method>
+					<Method>
+						<Name>displayOption</Name>
+						<Source><![CDATA[
+        public void displayOption(Common _record, FormRowDisplayOption _options)
+        {
+            DYLO_OverdueInvoiceNotificationLog log = _record;
+
+            if (log.Status == DYLO_OverdueNotificationStatus::Sent)
+            {
+                _options.backColor(WinAPI::rgb2int(230, 244, 234));
+                _options.textColor(WinAPI::rgb2int(30, 123, 52));
+            }
+            else
+            {
+                _options.backColor(WinAPI::rgb2int(253, 226, 226));
+                _options.textColor(WinAPI::rgb2int(198, 40, 40));
+            }
+
+            _options.affectedElementsByControl(LogGrid_Status.id());
+
+            super(_record, _options);
+        }
+
+]]></Source>
+					</Method>
+				</Methods>
+				<Fields />
+			</DataSource>
+		</DataSources>
+		<DataControls xmlns="">
+			<Control>
+				<Name>StatusFilter</Name>
+				<Type>ComboBox</Type>
+				<Methods>
+					<Method>
+						<Name>modified</Name>
+						<Source><![CDATA[
+        public boolean modified()
+        {
+            boolean ret = super();
+
+            DYLO_OverdueInvoiceNotificationLog_ds.executeQuery();
+
+            return ret;
+        }
+
+]]></Source>
+					</Method>
+				</Methods>
+			</Control>
+		</DataControls>
+		<Members xmlns="" />
+	</SourceCode>
+	<DataSources>
+		<AxFormDataSource xmlns="">
+			<Name>DYLO_OverdueInvoiceNotificationLog</Name>
+			<Table>DYLO_OverdueInvoiceNotificationLog</Table>
+			<Fields>
+				<AxFormDataSourceField>
+					<DataField>AttemptCount</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>CreatedDateTime</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>CurrencyCode</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>CustAccount</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>CustInvoiceJourRecId</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>CustName</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>DaysOverdue</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>DueDate</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>EmailBody</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>EmailSubject</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>ErrorText</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>InvoiceAmount</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>InvoiceDate</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>InvoiceId</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>LastAttemptDateTime</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>Partition</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>RecId</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>RecipientEmail</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>RemainingAmount</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>SentDateTime</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>Status</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>TableId</DataField>
+				</AxFormDataSourceField>
+				<AxFormDataSourceField>
+					<DataField>TierDays</DataField>
+				</AxFormDataSourceField>
+			</Fields>
+			<ReferencedDataSources />
+			<AllowCreate>No</AllowCreate>
+			<AllowDelete>No</AllowDelete>
+			<AllowEdit>No</AllowEdit>
+			<InsertAtEnd>No</InsertAtEnd>
+			<InsertIfEmpty>No</InsertIfEmpty>
+			<DataSourceLinks />
+			<DerivedDataSources />
+		</AxFormDataSource>
+	</DataSources>
+	<Design>
+		<Caption xmlns="">@DYLOExtensions:OverdueInvNotifLogMenuItem</Caption>
+		<DataSource xmlns="">DYLO_OverdueInvoiceNotificationLog</DataSource>
+		<Pattern xmlns="">SimpleListDetails-Grid</Pattern>
+		<PatternVersion xmlns="">1.4</PatternVersion>
+		<Style xmlns="">SimpleListDetails</Style>
+		<Controls xmlns="">
+			<AxFormControl xmlns=""
+				i:type="AxFormActionPaneControl">
+				<Name>FormActionPane</Name>
+				<Type>ActionPane</Type>
+				<FormControlExtension
+					i:nil="true" />
+				<Controls>
+					<AxFormControl xmlns=""
+						i:type="AxFormButtonGroupControl">
+						<Name>NotificationActions</Name>
+						<Type>ButtonGroup</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<Controls>
+							<AxFormControl xmlns=""
+								i:type="AxFormMenuFunctionButtonControl">
+								<Name>ResendNotification</Name>
+								<Type>MenuFunctionButton</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
+								<MenuItemName>DYLO_OverdueInvoiceNotificationResend</MenuItemName>
+								<MenuItemType>Action</MenuItemType>
+								<NeedsRecord>Yes</NeedsRecord>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormMenuFunctionButtonControl">
+								<Name>RunBatchNow</Name>
+								<Type>MenuFunctionButton</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
+								<MenuItemName>DYLO_OverdueInvoiceNotificationRun</MenuItemName>
+								<MenuItemType>Action</MenuItemType>
+								<NeedsRecord>No</NeedsRecord>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormMenuFunctionButtonControl">
+								<Name>PurgeOldLogs</Name>
+								<Type>MenuFunctionButton</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
+								<MenuItemName>DYLO_OverdueInvoiceNotificationPurge</MenuItemName>
+								<MenuItemType>Action</MenuItemType>
+								<NeedsRecord>No</NeedsRecord>
+							</AxFormControl>
+						</Controls>
+					</AxFormControl>
+				</Controls>
+			</AxFormControl>
+			<AxFormControl xmlns=""
+				i:type="AxFormGroupControl">
+				<Name>NavigationListGroup</Name>
+				<HeightMode>SizeToAvailable</HeightMode>
+				<Type>Group</Type>
+				<Width>300</Width>
+				<WidthMode>Manual</WidthMode>
+				<FormControlExtension
+					i:nil="true" />
+				<Controls>
+					<AxFormControl>
+						<Name>QuickFilter</Name>
+						<WidthMode>SizeToAvailable</WidthMode>
+						<FormControlExtension>
+							<Name>QuickFilterControl</Name>
+							<ExtensionComponents />
+							<ExtensionProperties>
+								<AxFormControlExtensionProperty>
+									<Name>targetControlName</Name>
+									<Type>String</Type>
+									<Value>LogGrid</Value>
+								</AxFormControlExtensionProperty>
+								<AxFormControlExtensionProperty>
+									<Name>defaultColumnName</Name>
+									<Type>String</Type>
+									<Value>LogGrid_InvoiceId</Value>
+								</AxFormControlExtensionProperty>
+								<AxFormControlExtensionProperty>
+									<Name>placeholderText</Name>
+									<Type>String</Type>
+								</AxFormControlExtensionProperty>
+							</ExtensionProperties>
+						</FormControlExtension>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormGroupControl">
+						<Name>Filter</Name>
+						<Type>Group</Type>
+						<WidthMode>SizeToAvailable</WidthMode>
+						<FormControlExtension
+							i:nil="true" />
+						<Controls>
+							<AxFormControl xmlns=""
+								i:type="AxFormComboBoxControl">
+								<Name>StatusFilter</Name>
+								<AutoDeclaration>Yes</AutoDeclaration>
+								<Type>ComboBox</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<EnumType>DYLO_OverdueNotificationStatusFilter</EnumType>
+								<Label>@DYLOExtensions:OverdueInvNotifStatus</Label>
+								<Items />
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>StatusCounts</Name>
+								<AllowEdit>No</AllowEdit>
+								<AutoDeclaration>Yes</AutoDeclaration>
+								<Skip>Yes</Skip>
+								<Type>String</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<ShowLabel>No</ShowLabel>
+							</AxFormControl>
+						</Controls>
+						<FrameType>None</FrameType>
+						<Style>CustomFilter</Style>
+						<ViewEditMode>Edit</ViewEditMode>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormGridControl">
+						<Name>LogGrid</Name>
+						<AllowEdit>No</AllowEdit>
+						<Type>Grid</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<Controls>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>LogGrid_InvoiceId</Name>
+								<Type>String</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>InvoiceId</DataField>
+								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>LogGrid_CustAccount</Name>
+								<Type>String</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>CustAccount</DataField>
+								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormDateControl">
+								<Name>LogGrid_DueDate</Name>
+								<Type>Date</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>DueDate</DataField>
+								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormIntegerControl">
+								<Name>LogGrid_DaysOverdue</Name>
+								<Type>Integer</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>DaysOverdue</DataField>
+								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormComboBoxControl">
+								<Name>LogGrid_Status</Name>
+								<AutoDeclaration>Yes</AutoDeclaration>
+								<Type>ComboBox</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>Status</DataField>
+								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
+								<Items />
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>LogGrid_RecipientEmail</Name>
+								<Type>String</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>RecipientEmail</DataField>
+								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
+							</AxFormControl>
+						</Controls>
+						<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
+						<MultiSelect>No</MultiSelect>
+						<ShowRowLabels>No</ShowRowLabels>
+						<Style>Tabular</Style>
+					</AxFormControl>
+				</Controls>
+				<FrameType>None</FrameType>
+				<Style>SidePanel</Style>
+			</AxFormControl>
+			<AxFormControl xmlns=""
+				i:type="AxFormGroupControl">
+				<Name>Splitter</Name>
+				<Type>Group</Type>
+				<FormControlExtension
+					i:nil="true" />
+				<Controls />
+				<Style>SplitterVerticalContainer</Style>
+			</AxFormControl>
+			<AxFormControl xmlns=""
+				i:type="AxFormGroupControl">
+				<Name>DetailsHeader</Name>
+				<Pattern>FieldsFieldGroups</Pattern>
+				<PatternVersion>1.1</PatternVersion>
+				<Type>Group</Type>
+				<WidthMode>SizeToAvailable</WidthMode>
+				<FormControlExtension
+					i:nil="true" />
+				<Controls>
+					<AxFormControl xmlns=""
+						i:type="AxFormGroupControl">
+						<Name>Details</Name>
+						<Type>Group</Type>
+						<WidthMode>SizeToContent</WidthMode>
+						<FormControlExtension
+							i:nil="true" />
+						<Controls>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>Details_InvoiceId</Name>
+								<Type>String</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>InvoiceId</DataField>
+								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormComboBoxControl">
+								<Name>Details_Status</Name>
+								<Type>ComboBox</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>Status</DataField>
+								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
+								<Items />
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>Details_ErrorText</Name>
+								<AllowEdit>No</AllowEdit>
+								<AutoDeclaration>Yes</AutoDeclaration>
+								<Type>String</Type>
+								<WidthMode>SizeToContent</WidthMode>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>ErrorText</DataField>
+								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
+								<DisplayHeight>4</DisplayHeight>
+								<DisplayHeightMode>Fixed</DisplayHeightMode>
+								<MultiLine>Yes</MultiLine>
+							</AxFormControl>
+						</Controls>
+						<Caption>@DYLOExtensions:OverdueInvNotifDetailsGroup</Caption>
+					</AxFormControl>
+				</Controls>
+				<ColumnsMode>Fill</ColumnsMode>
+				<FrameType>None</FrameType>
+			</AxFormControl>
+			<AxFormControl xmlns=""
+				i:type="AxFormTabControl">
+				<Name>DetailsTab</Name>
+				<Type>Tab</Type>
+				<FormControlExtension
+					i:nil="true" />
+				<Controls>
+					<AxFormControl xmlns=""
+						i:type="AxFormTabPageControl">
+						<Name>EmailPreviewTabPage</Name>
+						<Pattern>FieldsFieldGroups</Pattern>
+						<PatternVersion>1.1</PatternVersion>
+						<Type>TabPage</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<Controls>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>Email_RecipientEmail</Name>
+								<Type>String</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>RecipientEmail</DataField>
+								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>Email_EmailSubject</Name>
+								<Type>String</Type>
+								<WidthMode>SizeToContent</WidthMode>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>EmailSubject</DataField>
+								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>Email_EmailBody</Name>
+								<AllowEdit>No</AllowEdit>
+								<Type>String</Type>
+								<WidthMode>SizeToContent</WidthMode>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>EmailBody</DataField>
+								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
+								<DisplayHeight>12</DisplayHeight>
+								<DisplayHeightMode>Fixed</DisplayHeightMode>
+								<MultiLine>Yes</MultiLine>
+							</AxFormControl>
+						</Controls>
+						<ColumnsMode>Fill</ColumnsMode>
+						<Caption>@DYLOExtensions:OverdueInvNotifEmailPreviewGroup</Caption>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormTabPageControl">
+						<Name>AttemptDetailsTabPage</Name>
+						<Pattern>FieldsFieldGroups</Pattern>
+						<PatternVersion>1.1</PatternVersion>
+						<Type>TabPage</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<Controls>
+							<AxFormControl xmlns=""
+								i:type="AxFormDateControl">
+								<Name>Attempt_InvoiceDate</Name>
+								<Type>Date</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>InvoiceDate</DataField>
+								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>Attempt_CustName</Name>
+								<Type>String</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>CustName</DataField>
+								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormRealControl">
+								<Name>Attempt_InvoiceAmount</Name>
+								<Type>Real</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>InvoiceAmount</DataField>
+								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormRealControl">
+								<Name>Attempt_RemainingAmount</Name>
+								<Type>Real</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>RemainingAmount</DataField>
+								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormStringControl">
+								<Name>Attempt_CurrencyCode</Name>
+								<Type>String</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>CurrencyCode</DataField>
+								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormIntegerControl">
+								<Name>Attempt_TierDays</Name>
+								<Type>Integer</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>TierDays</DataField>
+								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormIntegerControl">
+								<Name>Attempt_AttemptCount</Name>
+								<Type>Integer</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>AttemptCount</DataField>
+								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormDateTimeControl">
+								<Name>Attempt_LastAttemptDateTime</Name>
+								<Type>DateTime</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>LastAttemptDateTime</DataField>
+								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
+							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormDateTimeControl">
+								<Name>Attempt_SentDateTime</Name>
+								<Type>DateTime</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<DataField>SentDateTime</DataField>
+								<DataSource>DYLO_OverdueInvoiceNotificationLog</DataSource>
+							</AxFormControl>
+						</Controls>
+						<ColumnsMode>Fill</ColumnsMode>
+						<Caption>@DYLOExtensions:OverdueInvNotifAttemptDetailsGroup</Caption>
+					</AxFormControl>
+				</Controls>
+				<Style>FastTabs</Style>
+			</AxFormControl>
+		</Controls>
+	</Design>
+	<Parts />
+</AxForm>

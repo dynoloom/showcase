@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxMenuExtension xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V1">
+	<Name>ProductInformationManagement.DYLOExtensions</Name>
+	<Customizations />
+	<Elements>
+		<AxMenuExtensionElement xmlns="">
+			<Parent>CategoriesAndAttributes</Parent>
+			<PositionType>AfterItem</PositionType>
+			<PreviousSibling>EcoResCategoryHierarchyRole</PreviousSibling>
+			<MenuElement xmlns=""
+				i:type="AxMenuElementMenuItem">
+				<Name>DYLO_MerchHierarchy</Name>
+				<MenuItemName>DYLO_MerchHierarchy</MenuItemName>
+			</MenuElement>
+		</AxMenuExtensionElement>
+	</Elements>
+	<MenuElementModifications />
+	<PropertyModifications />
+</AxMenuExtension>

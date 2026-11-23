@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_OpenBackorderRiskUIBuilder</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Builds the dialog of the <c>DYLO_OpenBackorderRiskReport</c> report: the warehouse lookup of the
+/// chosen site and the multi-select customer account lookup.
+/// </summary>
+public class DYLO_OpenBackorderRiskUIBuilder extends SrsReportDataContractUIBuilder
+{
+    DialogField                 inventSiteIdField;
+    DialogField                 inventLocationIdField;
+    DialogField                 custAccountField;
+    SysLookupMultiSelectCtrl    custAccountMultiSelect;
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>build</Name>
+				<Source><![CDATA[
+    public void build()
+    {
+        DYLO_OpenBackorderRiskContract contract;
+
+        super();
+
+        contract = this.dataContractObject() as DYLO_OpenBackorderRiskContract;
+
+        inventSiteIdField       = this.bindInfo().getDialogField(contract, methodStr(DYLO_OpenBackorderRiskContract, parmInventSiteId));
+        inventLocationIdField   = this.bindInfo().getDialogField(contract, methodStr(DYLO_OpenBackorderRiskContract, parmInventLocationId));
+        custAccountField        = this.bindInfo().getDialogField(contract, methodStr(DYLO_OpenBackorderRiskContract, parmCustAccountList));
+
+        if (custAccountField)
+        {
+            custAccountField.lookupButton(FormLookupButton::Always);
+        }
+
+        if (inventLocationIdField)
+        {
+            inventLocationIdField.registerOverrideMethod(methodStr(FormStringControl, lookup), methodStr(DYLO_OpenBackorderRiskUIBuilder, inventLocationLookup), this);
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>postRun</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Attaches the multi-select lookup to the customer accounts field.
+    /// </summary>
+    /// <remarks>
+    /// The default lookup is not attached to the customer accounts field (see <c>CustAgingReportUIBuilder.postRun</c>).
+    /// </remarks>
+    public void postRun()
+    {
+        Query                   query = new Query();
+        QueryBuildDataSource    qbds;
+        QueryBuildDataSource    qbdsParty;
+        TableId                lookupTable = tableNum(CustTable);
+        container               selectedFields = [lookupTable, fieldNum(CustTable, AccountNum)];
+
+        if (custAccountField)
+        {
+            qbds = query.addDataSource(lookupTable);
+            qbds.addSelectionField(fieldNum(CustTable, AccountNum));
+            qbds.addSelectionField(fieldNum(CustTable, CustGroup));
+            qbdsParty = qbds.addDataSource(tableNum(DirPartyTable));
+            qbdsParty.relations(false);
+            qbdsParty.joinMode(JoinMode::InnerJoin);
+            qbdsParty.addLink(fieldNum(CustTable, Party), fieldNum(DirPartyTable, RecId));
+            qbdsParty.addSelectionField(fieldNum(DirPartyTable, Name));
+
+            custAccountMultiSelect = SysLookupMultiSelectCtrl::constructWithQuery(
+                this.dialog().dialogForm().formRun(), custAccountField.control(), query, false, selectedFields);
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>getFromDialog</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Copies the customer accounts ticked in the multi-select lookup into the contract.
+    /// </summary>
+    public void getFromDialog()
+    {
+        DYLO_OpenBackorderRiskContract  contract;
+        List                            custAccounts;
+        container                       selected;
+        int                             i;
+
+        super();
+
+        if (custAccountMultiSelect)
+        {
+            contract     = this.dataContractObject() as DYLO_OpenBackorderRiskContract;
+            custAccounts = new List(Types::String);
+            selected     = custAccountMultiSelect.getSelectedFieldValues();
+
+            for (i = 1; i <= conLen(selected); i++)
+            {
+                if (conPeek(selected, i))
+                {
+                    custAccounts.addEnd(conPeek(selected, i));
+                }
+            }
+
+            contract.parmCustAccountList(custAccounts);
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>inventLocationLookup</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Shows the warehouses, filtered on the site chosen in the dialog.
+    /// </summary>
+    /// <param name="_control">The warehouse control.</param>
+    public void inventLocationLookup(FormStringControl _control)
+    {
+        SysTableLookup          sysTableLookup = SysTableLookup::newParameters(tableNum(InventLocation), _control);
+        Query                   query = new Query();
+        QueryBuildDataSource    qbds = query.addDataSource(tableNum(InventLocation));
+        InventSiteId            siteId = inventSiteIdField ? inventSiteIdField.value() : '';
+
+        sysTableLookup.addLookupfield(fieldNum(InventLocation, InventLocationId), true);
+        sysTableLookup.addLookupfield(fieldNum(InventLocation, Name));
+        sysTableLookup.addLookupfield(fieldNum(InventLocation, InventSiteId));
+
+        if (siteId)
+        {
+            qbds.addRange(fieldNum(InventLocation, InventSiteId)).value(queryValue(siteId));
+        }
+
+        sysTableLookup.parmQuery(query);
+        sysTableLookup.performFormLookup();
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

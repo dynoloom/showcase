@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxEnum xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_BackorderRiskLevel</Name>
+	<Label>@DYLOExtensions:OpenBackorderRiskLevel</Label>
+	<UseEnumValue>No</UseEnumValue>
+	<EnumValues>
+		<AxEnumValue>
+			<Name>Low</Name>
+			<Label>@DYLOExtensions:OpenBackorderRiskLevelLow</Label>
+		</AxEnumValue>
+		<AxEnumValue>
+			<Name>Medium</Name>
+			<Label>@DYLOExtensions:OpenBackorderRiskLevelMedium</Label>
+			<Value>1</Value>
+		</AxEnumValue>
+		<AxEnumValue>
+			<Name>High</Name>
+			<Label>@DYLOExtensions:OpenBackorderRiskLevelHigh</Label>
+			<Value>2</Value>
+		</AxEnumValue>
+	</EnumValues>
+</AxEnum>

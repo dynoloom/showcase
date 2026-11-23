@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_CustCreditLimitUpdateContext</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Marks the update of a customer's credit limit by the credit limit approval workflow,
+/// so that the credit limit lock on the customer lets it through.
+/// </summary>
+/// <remarks>
+/// Use it in a using block: using (var context = new DYLO_CustCreditLimitUpdateContext()) { ... }
+/// </remarks>
+public final class DYLO_CustCreditLimitUpdateContext implements System.IDisposable
+{
+    private static DYLO_CustCreditLimitUpdateContext instance;
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>new</Name>
+				<Source><![CDATA[
+    public void new()
+    {
+        if (instance)
+        {
+            throw error(Error::wrongUseOfFunction(classStr(DYLO_CustCreditLimitUpdateContext)));
+        }
+
+        instance = this;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>dispose</Name>
+				<Source><![CDATA[
+    public void dispose()
+    {
+        instance = null;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>isActive</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Determines whether the workflow is updating a customer's credit limit.
+    /// </summary>
+    /// <returns>true while the context is open; otherwise, false.</returns>
+    public static boolean isActive()
+    {
+        return instance != null;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

@@ -1,0 +1,547 @@
+﻿WarrantyProvisionAccrualTxt=Warranty accrual - %1
+ ;Voucher line text of the warranty expense line. %1 = invoice number
+WarrantyProvisionEligible=Warranty eligible
+ ;Released product field
+WarrantyProvisionEligibleHelp=Select this option to post a warranty provision when the item is invoiced.
+ ;Help text of the warranty eligible field
+WarrantyProvisionExpenseAccount=Warranty expense account
+ ;Main account debited on invoices
+WarrantyProvisionExpenseAccountHelp=The main account that is debited with the warranty provision when an eligible item is invoiced.
+ ;Help text of the warranty expense account
+WarrantyProvisionGroup=Warranty provision
+ ;Field group and form group caption on released products
+WarrantyProvisionPct=Warranty provision %
+ ;Provision percentage of the released product
+WarrantyProvisionPctHelp=The percentage of the invoice line net amount that is posted as warranty provision.
+ ;Help text of the provision percentage
+WarrantyProvisionPctInvalid=The warranty provision % of item %1 must be greater than 0 and no more than 100.
+ ;Validation error on released products. %1 = item number
+WarrantyProvisionPostingTypeExpense=Warranty expense
+ ;Ledger posting type of the warranty expense line
+WarrantyProvisionPostingTypeProvision=Warranty provision
+ ;Ledger posting type of the warranty provision line
+WarrantyProvisionProvisionAccount=Warranty provision account
+ ;Liability main account credited on invoices
+WarrantyProvisionProvisionAccountHelp=The liability main account that is credited with the warranty provision when an eligible item is invoiced.
+ ;Help text of the warranty provision account
+WarrantyProvisionReserveTxt=Warranty reserve - %1
+ ;Voucher line text of the warranty provision line. %1 = invoice number
+WarrantyProvisionSetup=Warranty posting setup
+ ;Setup table, form and menu item
+WarrantyProvisionSetupDevDoc=The DYLO_WarrantyPostingSetup table holds the warranty expense and provision main accounts per item group.
+ ;Developer documentation of the setup table
+WarrantyProvisionSetupHelp=Set up the warranty expense and provision accounts per item group.
+ ;Help text of the setup menu item
+WarrantyProvisionSetupMaintain=Maintain warranty posting setup
+ ;Privilege and duty name
+WarrantyProvisionSetupMaintainDesc=Create, change and delete the warranty posting setup.
+ ;Privilege and duty description
+WarrantyProvisionSetupManager=Warranty posting setup manager
+ ;Security role name
+WarrantyProvisionSetupManagerDesc=Maintains the warranty posting setup for the warranty provision posted on sales invoices.
+ ;Security role description
+WarrantyProvisionSetupMissing=Warranty posting setup is missing for item group %1 (item %2). Set it up under General ledger > Posting setup > Warranty posting setup.
+ ;Posting error. %1 = item group, %2 = item number
+WarrantyProvisionSetupView=View warranty posting setup
+ ;Privilege name
+WarrantyProvisionSetupViewDesc=View the warranty posting setup.
+ ;Privilege description
+WarrantyProvisionTrans=Warranty provision transactions
+ ;Posting log table label
+WarrantyProvisionTransDevDoc=The DYLO_WarrantyProvisionTrans table logs the warranty provision posted for each sales invoice line.
+ ;Developer documentation of the posting log table
+CustCommPrefCommercialPreferences=Commercial Preferences
+CustCommPrefDeliveryWindow=Preferred delivery window
+CustCommPrefDeliveryWindowHelp=Preferred time window for deliveries to the customer, for example 08:00 AM - 12:00 PM.
+CustCommPrefLoyaltyTier=Loyalty tier
+CustCommPrefLoyaltyTierHelp=Customer loyalty classification received from the CRM.
+CustCommPrefLoyaltyTierInvalid=Loyalty Tier value '%1' is not valid. Allowed values are Standard, Silver, Gold and Platinum.
+CustCommPrefLoyaltyTierTextHelp=Loyalty tier as text: Standard, Silver, Gold or Platinum. Empty means Standard.
+CustCommPrefTierGold=Gold
+CustCommPrefTierPlatinum=Platinum
+CustCommPrefTierSilver=Silver
+CustCommPrefTierStandard=Standard
+SOApiCallerUserId=Caller user
+ ;Trace field: D365 user that called the sales order API
+SOApiCorrelationId=Correlation ID
+ ;Correlation ID sent by the external system
+SOApiCounts=All (%1) · Success (%2) · Failed (%3) · Reprocessed (%4)
+ ;Record counts in the filter bar of the trace log form
+SOApiCustomerPoReference=Customer PO reference
+ ;Request member customerPoReference
+SOApiDetailsCaption=Payload & error details (%1)
+ ;Caption of the details pane; %1 is the correlation ID
+SOApiDurationMs=Processing duration (ms)
+ ;Duration of an API call in milliseconds
+SOApiDutyIntegrate=Integrate sales orders through the API
+ ;Duty DYLO_SalesOrderApiIntegrate
+SOApiDutyMaintain=Maintain the sales order API trace log
+ ;Duty DYLO_SalesOrderApiMaintain
+SOApiDutyMonitor=Monitor sales order API calls
+ ;Duty DYLO_SalesOrderApiMonitor
+SOApiErrCreateFailed=The sales order could not be created.
+ ;Generic error when order creation fails without an infolog message
+SOApiErrCurrencyNotFound=Validation Failed: Currency '%1' does not exist.
+ ;%1 currency code
+SOApiErrCustBlocked=Validation Failed: Customer account '%1' in legal entity %2 is on hold (%3).
+ ;%1 customer, %2 legal entity, %3 hold value
+SOApiErrCustNotFound=Validation Failed: Customer account '%1' does not exist in legal entity %2.
+ ;%1 customer, %2 legal entity
+SOApiErrHeaderRejected=The sales order header for customer account '%1' was rejected by validation.
+ ;%1 customer account
+SOApiErrItemNotFound=Validation Failed: Line %1: item '%2' is not released in legal entity %3.
+ ;%1 line number, %2 item, %3 legal entity
+SOApiErrItemStopped=Validation Failed: Line %1: item '%2' is stopped for sales orders.
+ ;%1 line number, %2 item
+SOApiErrLegalEntityNotFound=Validation Failed: Legal entity '%1' does not exist.
+ ;%1 legal entity
+SOApiErrPayloadMissingField=Validation Failed: The member '%1' is missing in the request.
+ ;%1 JSON member name
+SOApiErrPayloadNoLines=Validation Failed: The request contains no order lines.
+ ;Request without lines
+SOApiErrQtyInvalid=Validation Failed: Line %1: the quantity for item '%2' must be greater than zero.
+ ;%1 line number, %2 item
+SOApiErrSiteNotFound=Validation Failed: Line %1: site '%2' does not exist.
+ ;%1 line number, %2 site
+SOApiErrUnexpected=An unexpected error occurred: %1
+ ;%1 error text
+SOApiErrUnitInvalid=Validation Failed: Line %1: unit '%2' does not exist or cannot be converted to the inventory unit of item '%3'.
+ ;%1 line number, %2 unit, %3 item
+SOApiErrWarehouseInvalid=Validation Failed: Line %1: warehouse '%2' does not exist or does not belong to site '%3'.
+ ;%1 line number, %2 warehouse, %3 site
+SOApiErrorCode=Error code
+ ;Error code returned by the API
+SOApiErrorMessage=Error / Validation Message
+ ;Error text of an API call
+SOApiExecutedDateTime=Timestamp (UTC)
+ ;Start time of the API call
+SOApiExternalOrderRef=External order reference
+ ;Order reference of the external system
+SOApiFilterText=Filter: External Order ID / Correlation ID
+ ;Text filter in the trace log form
+SOApiGridCustomer=Customer
+ ;Grid column header
+SOApiGridExtOrderRef=Ext. Order Ref
+ ;Grid column header
+SOApiGridSalesId=D365 Sales ID
+ ;Grid column header
+SOApiIntegrationMenu=Integration
+ ;Submenu under Sales and marketing > Inquiries and reports
+SOApiLastRetryBy=Last retry by
+ ;User that last reprocessed the call
+SOApiLastRetryDateTime=Last retry
+ ;Time of the last reprocessing
+SOApiPayloadViewCaption=JSON payload (%1)
+ ;Caption of the payload viewer; %1 is the correlation ID
+SOApiPrivInvoke=Invoke the sales order creation API
+ ;Privilege DYLO_SalesOrderApiInvoke
+SOApiPrivPurge=Purge old sales order API trace records
+ ;Privilege DYLO_SalesOrderApiPurge
+SOApiPrivReprocess=Reprocess failed sales order API calls
+ ;Privilege DYLO_SalesOrderApiReprocess
+SOApiPrivTraceLogView=View the sales order API trace log
+ ;Privilege DYLO_SalesOrderApiTraceLogView
+SOApiPurgeCaption=Purge old sales order API logs
+ ;Caption of the purge dialog and batch job
+SOApiPurgeDone=%1 successful trace records were deleted.
+ ;%1 number of deleted records
+SOApiPurgeOldLogs=Purge Old Logs (>90d)
+ ;Purge button in the trace log form
+SOApiReprocessFailed=Reprocessing failed: %1
+ ;%1 error text
+SOApiReprocessFailedOrder=Reprocess Failed Order
+ ;Reprocess button in the trace log form
+SOApiReprocessNoRecord=Select a sales order API trace record.
+ ;Reprocess called without a record
+SOApiReprocessNotFailed=Only records with status Failed can be reprocessed.
+ ;Reprocess called for a record that is not Failed
+SOApiReprocessSucceeded=The order was reprocessed. Sales order %1 was created.
+ ;%1 sales order number
+SOApiRequestJson=Inbound Request JSON
+ ;Request JSON of the API call
+SOApiResponseJson=Outbound API Response JSON
+ ;Response JSON of the API call
+SOApiRetentionDays=Retention (days)
+ ;Purge parameter
+SOApiRetentionDaysHelp=Successful trace records older than this number of days are deleted. Failed and reprocessed records are kept.
+ ;Help text of the purge parameter
+SOApiRetentionDaysInvalid=The retention must be at least 1 day.
+ ;Purge parameter validation
+SOApiRetryCount=Retry count
+ ;Number of reprocessing attempts
+SOApiRoleAdministrator=Sales order API administrator
+ ;Role DYLO_SalesOrderApiAdministrator
+SOApiRoleAdministratorDesc=IT administrators who monitor, reprocess and purge sales order API calls.
+ ;Role description
+SOApiRoleIntegrationUser=Sales order API integration user
+ ;Role DYLO_SalesOrderApiIntegrationUser
+SOApiRoleIntegrationUserDesc=The D365 user mapped to an external application that creates sales orders through the API.
+ ;Role description
+SOApiRoleSupport=Sales order API support
+ ;Role DYLO_SalesOrderApiSupport
+SOApiRoleSupportDesc=Integration support specialists and sales operations coordinators who monitor and reprocess sales order API calls.
+ ;Role description
+SOApiStatus=API status
+ ;Enum DYLO_SalesOrderApiStatus
+SOApiStatusFailed=Failed
+ ;Enum value
+SOApiStatusFilter=Status
+ ;Status filter in the trace log form
+SOApiStatusFilterAll=All
+ ;Enum value of the status filter
+SOApiStatusReprocessed=Reprocessed
+ ;Enum value
+SOApiStatusSuccess=Success
+ ;Enum value
+SOApiTraceLogCaption=Sales Order API Trace Log
+ ;Form and menu item caption
+SOApiTraceTable=Sales order API trace
+ ;Table label
+SOApiTraceTableDevDoc=The DYLO_SalesOrderApiTrace table contains one record for each call of the inbound sales order API.
+ ;Developer documentation
+SOApiViewJsonPayload=View JSON Payload
+ ;Button and menu item caption
+InvPoDlvBillTo=BILL TO / SHIP TO:
+ ;REQ-INV-105: caption of the bill-to panel on the DYLO_SalesInvoice report
+InvPoDlvCopy=Copy
+ ;REQ-INV-105: subtitle on a copy of the DYLO_SalesInvoice report
+InvPoDlvCustomerPORef=Customer PO Reference:
+ ;REQ-INV-105: caption of the customer reference on the DYLO_SalesInvoice report
+InvPoDlvDeliveryInstructions=Delivery instructions
+ ;REQ-INV-105: label of the delivery instructions field
+InvPoDlvDeliveryInstructionsCaption=Delivery Instructions:
+ ;REQ-INV-105: caption of the delivery instructions on the DYLO_SalesInvoice report
+InvPoDlvDeliveryInstructionsHelp=Shipping notes for the customer's receiving location, printed on the invoice.
+ ;REQ-INV-105: help text of the delivery instructions field
+InvPoDlvDescription=Description
+ ;REQ-INV-105: column header on the DYLO_SalesInvoice report
+InvPoDlvInvoiceDate=Invoice Date:
+ ;REQ-INV-105: caption on the DYLO_SalesInvoice report
+InvPoDlvInvoiceNumber=Invoice Number:
+ ;REQ-INV-105: caption on the DYLO_SalesInvoice report
+InvPoDlvItemNumber=Item Number
+ ;REQ-INV-105: column header on the DYLO_SalesInvoice report
+InvPoDlvNetAmount=Net Amount
+ ;REQ-INV-105: column header on the DYLO_SalesInvoice report
+InvPoDlvOriginal=Original
+ ;REQ-INV-105: subtitle on the original of the DYLO_SalesInvoice report
+InvPoDlvPaymentTerms=Payment Terms:
+ ;REQ-INV-105: caption on the DYLO_SalesInvoice report
+InvPoDlvQty=Qty
+ ;REQ-INV-105: column header on the DYLO_SalesInvoice report
+InvPoDlvSalesInvoiceTitle=SALES INVOICE
+ ;REQ-INV-105: title of the DYLO_SalesInvoice report
+InvPoDlvSalesOrder=Sales Order:
+ ;REQ-INV-105: caption on the DYLO_SalesInvoice report
+InvPoDlvSalesTax=Sales Tax:
+ ;REQ-INV-105: caption in the totals block of the DYLO_SalesInvoice report
+InvPoDlvSubtotal=Subtotal:
+ ;REQ-INV-105: caption in the totals block of the DYLO_SalesInvoice report
+InvPoDlvTotalInvoiceAmount=Total Invoice Amount:
+ ;REQ-INV-105: caption in the totals block of the DYLO_SalesInvoice report
+InvPoDlvUnit=Unit
+ ;REQ-INV-105: column header on the DYLO_SalesInvoice report
+InvPoDlvUnitPrice=Unit Price
+ ;REQ-INV-105: column header on the DYLO_SalesInvoice report
+MerchHierActive=Active
+MerchHierAddProduct=Add product
+MerchHierAlreadyAssigned=Item %1 is already assigned to node %2.
+MerchHierCategoryManager=Category manager
+MerchHierCategoryManagerName=Category manager name
+MerchHierCircularParent=Node %1 cannot be moved under %2 because %2 is one of its own descendants.
+MerchHierDeleteConfirm=Delete node %1?
+MerchHierDeleteNode=Delete node
+MerchHierDetailsCaption=Node details & inherited margin rules (Node: %1)
+MerchHierDetailsHeading=Node details & inherited margin rules
+MerchHierDutyInquire=View merchandising hierarchy
+MerchHierDutyInquireDesc=View the merchandising hierarchy, its margin rules and assigned products.
+MerchHierDutyMaintain=Maintain merchandising hierarchy
+MerchHierDutyMaintainDesc=Maintain the merchandising hierarchy, its margin rules and assigned products.
+MerchHierEffectiveMargin=Effective minimum gross margin %
+MerchHierEffectiveMarginHelp=The minimum gross margin that applies to the node: its own value, or the value inherited from the nearest parent node.
+MerchHierFormCaption=Merchandising hierarchy
+MerchHierHasChildren=Node %1 has child nodes; move or delete them first.
+MerchHierHasProducts=Node %1 has assigned products; move or remove them first.
+MerchHierInactiveText=%1 (inactive)
+MerchHierInheritedFrom=Inherited from
+MerchHierLevel=Level
+MerchHierLoopDetected=The merchandising hierarchy contains a loop or is too deep.
+MerchHierMarginBelowMinimum=Item %1, valid from %2, account %3: gross margin %4 % is below the minimum %5 % of merchandising node %6.
+MerchHierMarginRange=The minimum gross margin % must be between 0 and 100.
+MerchHierMenuHelp=Maintain the merchandising hierarchy, its minimum gross margins and the released products assigned to it.
+MerchHierMinGrossMarginPct=Minimum gross margin %
+MerchHierMinGrossMarginPctHelp=Inherited by child nodes unless overridden. Leave 0 to inherit the value of the nearest parent node.
+MerchHierMoveDown=Move down
+MerchHierMoveUp=Move up
+MerchHierNewChildNode=New child node
+MerchHierNewChildNodeHelp=Create a node under the selected node.
+MerchHierNewNodeName=New node
+MerchHierNewParentNode=New parent node
+MerchHierNode=Node
+MerchHierNodeActions=Node
+MerchHierNodeCode=Node code
+MerchHierNodeInactive=Node %1 is inactive; products cannot be assigned to it.
+MerchHierNodeMissing=The merchandising hierarchy node does not exist.
+MerchHierNodeName=Node name
+MerchHierNodeTable=Merchandising hierarchy node
+MerchHierNodeTableDoc=A node of the merchandising hierarchy, with its minimum gross margin rule. Kept per legal entity.
+MerchHierNodeText=%1 - %2
+MerchHierNodeToMove=Node to move
+MerchHierNotLeaf=Node %1 has child nodes; products can only be assigned to a node without child nodes.
+MerchHierOnlyOneRoot=The merchandising hierarchy already has a root node; select a parent node.
+MerchHierOverview=Overview
+MerchHierParentHasProducts=Node %1 has assigned products; it cannot have child nodes.
+MerchHierParentInactive=Node %1 is inactive; it cannot have new child nodes.
+MerchHierParentInvalid=Select a valid parent node.
+MerchHierParentNode=Parent node
+MerchHierParentText=%1 - %2 (Level %3)
+MerchHierPrivMaintain=Maintain merchandising hierarchy
+MerchHierPrivMaintainDesc=Create, change and delete merchandising hierarchy nodes and product assignments.
+MerchHierPrivView=View merchandising hierarchy
+MerchHierPrivViewDesc=View merchandising hierarchy nodes and product assignments.
+MerchHierProductName=Product name
+MerchHierProductTable=Merchandising hierarchy product
+MerchHierProductTableDoc=The assignment of a released product to one node of the merchandising hierarchy. Kept per legal entity.
+MerchHierProductsCaption=Assigned released products (Roll-up count: %1 products)
+MerchHierProductsHeading=Assigned released products
+MerchHierRemoveProduct=Remove product
+MerchHierReparentNode=Re-parent node
+MerchHierReparentNodeHelp=Move the selected node and its sub-nodes under another node.
+MerchHierRole=Merchandising category manager
+MerchHierRoleDesc=Maintains the merchandising hierarchy, its minimum gross margins and product assignments.
+MerchHierRootName=All commercial products
+MerchHierRootNoDelete=The root node cannot be deleted.
+MerchHierRootNoMove=The root node cannot be moved.
+MerchHierSelfParent=Node %1 cannot be its own parent.
+MerchHierSortOrder=Sort order
+MerchHierStatus=Status
+MerchHierTargetMarginPct=Target margin %
+MerchHierTreeCaption=Merchandising hierarchy tree
+MerchHierUnitNotConvertible=Item %1: unit %2 cannot be converted to the inventory unit, so the minimum gross margin was not checked.
+MerchHierWrongCall=Open this dialog from the Merchandising hierarchy form.
+MassPriceAdjAutoPost=Auto-post journal
+MassPriceAdjAutoPostHelp=Validate and post the price/discount agreement journal automatically when the job finishes.
+MassPriceAdjCaption=Periodic mass trade agreement price adjustment
+MassPriceAdjCustPriceGroup=Customer price group
+MassPriceAdjCustPriceGroupHelp=The customer price group whose sales price agreements are adjusted.
+MassPriceAdjDuty=Maintain mass trade agreement price update
+MassPriceAdjDutyDescription=Run the periodic mass trade agreement price update.
+MassPriceAdjEffectiveDate=Effective from date
+MassPriceAdjEffectiveDateHelp=The date the new prices start. The current agreements end the day before.
+MassPriceAdjEmptyJournalDeleted=No journal lines were created. Journal %1 was deleted.
+MassPriceAdjErrCustPriceGroup=%1 is not a customer price group.
+MassPriceAdjErrCustPriceGroupBlank=Customer price group must be filled in.
+MassPriceAdjErrEffectiveDate=Effective from date must be filled in.
+MassPriceAdjErrItemsPerTask=Items per batch task must be at least 1.
+MassPriceAdjErrJournalName=Price/discount journal name %1 does not exist.
+MassPriceAdjErrJournalNameBlank=Price/discount journal name must be filled in.
+MassPriceAdjErrPercent=Adjustment percentage (%) must not be 0 and must be greater than -100.
+MassPriceAdjItemGroups=Item group filter
+MassPriceAdjItemGroupsHelp=The item groups to update. Leave empty to update all item groups.
+MassPriceAdjItemsPerTask=Items per batch task
+MassPriceAdjItemsPerTaskHelp=The number of items each batch task processes.
+MassPriceAdjJournalDescription=Mass price update %1% from %2
+MassPriceAdjJournalName=Price/discount journal name
+MassPriceAdjJournalNameHelp=The journal name used to create the price/discount agreement journal.
+MassPriceAdjLogTable=Mass trade agreement price update log
+MassPriceAdjLogTableDevDoc=The DYLO_PriceAdjLog table holds one row for each trade agreement that a mass trade agreement price update processed or skipped.
+MassPriceAdjMenuItem=Mass trade agreement price update
+MassPriceAdjMenuItemHelp=Create a price/discount agreement journal that adjusts sales prices of a customer price group by a percentage.
+MassPriceAdjNewAmount=New price
+MassPriceAdjNoAgreements=No active sales price agreements were found for customer price group %1. No journal was created.
+MassPriceAdjNotPosted=Journal %1 was not posted. The current prices are unchanged. Open the journal to see the reason.
+MassPriceAdjOldAmount=Old price
+MassPriceAdjParametersGroup=Parameters
+MassPriceAdjPercent=Adjustment percentage (%)
+MassPriceAdjPercentHelp=The percentage added to the current price. Use a negative value to lower prices.
+MassPriceAdjPosted=Journal %1 was posted. The old agreements are closed and the new prices are created.
+MassPriceAdjPrivilege=Run mass trade agreement price update
+MassPriceAdjReadyToPost=Journal %1 is ready. Current prices stay in force until the journal is posted.
+MassPriceAdjReason=Reason
+MassPriceAdjRoundExact=Exact
+MassPriceAdjRoundNearest005=Nearest 0.05
+MassPriceAdjRoundNearest010=Nearest 0.10
+MassPriceAdjRoundingRule=Rounding rule
+MassPriceAdjRoundingRuleHelp=How the new price is rounded.
+MassPriceAdjRunId=Run ID
+MassPriceAdjSkipError=Error while creating the journal lines
+MassPriceAdjSkipFuture=Future agreement
+MassPriceAdjSkipLocked=Locked
+MassPriceAdjSkipUnposted=On unposted journal %1
+MassPriceAdjSkipValidation=Journal line failed validation
+MassPriceAdjSkipZeroPrice=New price would be 0 or less
+MassPriceAdjSkippedItem=Item %1 skipped: %2
+MassPriceAdjStatus=Status
+MassPriceAdjStatusProcessed=Processed
+MassPriceAdjStatusSkipped=Skipped
+MassPriceAdjSummaryJournal=Journal number: %1
+MassPriceAdjSummaryLines=Journal lines created: %1
+MassPriceAdjSummaryProcessed=Agreements processed: %1
+MassPriceAdjSummarySkipped=Agreements skipped: %1
+MassPriceAdjWarnAllItemGroups=No item group selected – all item groups will be updated
+OverdueInvNotifActive=Active
+OverdueInvNotifAttemptCount=Attempts
+OverdueInvNotifAttemptDetailsGroup=Invoice and attempt details
+OverdueInvNotifBodyAction=Action Required: Please initiate collections follow-up.
+OverdueInvNotifBodyAmounts=original amount %1 %2, outstanding amount %1 %3,
+OverdueInvNotifBodyDaysPastDue=is now %1 days past due.
+OverdueInvNotifBodyDueDate=Original due date: %1
+OverdueInvNotifBodyGreeting=Dear Finance Team,
+OverdueInvNotifBodyInvoice=Invoice %1 for customer %2 (%3)
+OverdueInvNotifBodyInvoiceDate=Invoice date: %1
+OverdueInvNotifBodyTier=Overdue tier: %1 days
+OverdueInvNotifCaption=Send overdue invoice notifications
+OverdueInvNotifConfirmPurge=Delete all notification log lines created before %1?
+OverdueInvNotifConfirmResendSent=One or more selected notifications were already sent. Send them again?
+OverdueInvNotifCounts=All (%1) | Sent (%2) | Failed (%3)
+OverdueInvNotifCustGroup=Customer group
+OverdueInvNotifCustGroupHelp=Only invoices of customers in this group are checked. Leave empty to check all customers.
+OverdueInvNotifCustName=Customer name
+OverdueInvNotifDaysOverdue=Days overdue
+OverdueInvNotifDetailsGroup=Notification & error details
+OverdueInvNotifDueDate=Original due date
+OverdueInvNotifEmailBody=Body
+OverdueInvNotifEmailGroup=Email
+OverdueInvNotifEmailPreviewGroup=Rendered email content preview
+OverdueInvNotifEmailSubject=Subject
+OverdueInvNotifEmailSubjectText=[OVERDUE ALERT] Invoice %1 - %2 Days Past Due
+OverdueInvNotifErrGrace=Grace period days cannot be negative.
+OverdueInvNotifErrInvalidEmail=%1 is not a valid email address.
+OverdueInvNotifErrLogRetention=Log retention days must be greater than 0.
+OverdueInvNotifErrNoTiers=No active overdue tiers are set up. Set them up in Overdue invoice notification setup.
+OverdueInvNotifErrProviderRejected=The email provider did not accept the message.
+OverdueInvNotifErrRecipientBlank=Recipient email address must be filled in.
+OverdueInvNotifErrTierDays=Days overdue of a tier must be greater than 0.
+OverdueInvNotifErrorText=SMTP / email delivery error
+OverdueInvNotifGeneralTab=General
+OverdueInvNotifGracePeriod=Grace period days
+OverdueInvNotifGracePeriodHelp=Invoices are only checked when their due date is earlier than the run date minus this number of days.
+OverdueInvNotifInquireDuty=Inquire into overdue invoice notifications
+OverdueInvNotifInquireDutyDescription=View the overdue invoice notification log.
+OverdueInvNotifInvoiceAmount=Original amount
+OverdueInvNotifInvoiceFailed=Invoice %1 could not be processed.
+OverdueInvNotifLastAttempt=Last attempt
+OverdueInvNotifLogMaintainPrivilege=Maintain overdue invoice notification log
+OverdueInvNotifLogMenuItem=Overdue invoice notification log
+OverdueInvNotifLogMenuItemHelp=View the overdue invoice notifications that were sent or failed, resend them and purge old log lines.
+OverdueInvNotifLogTable=Overdue invoice notification log
+OverdueInvNotifLogTableDevDoc=The DYLO_OverdueInvoiceNotificationLog table holds one line for each overdue invoice and overdue tier for which a notification email was attempted.
+OverdueInvNotifLogViewPrivilege=View overdue invoice notification log
+OverdueInvNotifMaintainDuty=Maintain overdue invoice notifications
+OverdueInvNotifMaintainDutyDescription=Send, resend and purge overdue invoice notifications and maintain their setup.
+OverdueInvNotifManagerRole=Overdue invoice notification manager
+OverdueInvNotifManagerRoleDescription=Sets up, runs and monitors the overdue invoice notifications.
+OverdueInvNotifParametersGroup=Parameters
+OverdueInvNotifParametersTable=Overdue invoice notification parameters
+OverdueInvNotifParametersTableDevDoc=The DYLO_OverdueNotificationParameters table holds the overdue invoice notification setup of the company.
+OverdueInvNotifPurgeMenuItem=Purge old logs
+OverdueInvNotifPurgeMenuItemHelp=Delete notification log lines that are older than the log retention days.
+OverdueInvNotifPurged=%1 notification log lines were deleted.
+OverdueInvNotifRecipient=Recipient email address
+OverdueInvNotifRecipientHelp=The email address (or distribution list) the overdue invoice notifications are sent to.
+OverdueInvNotifRecipientTo=To
+OverdueInvNotifRemainingAmount=Outstanding amount
+OverdueInvNotifResendMenuItem=Resend notification
+OverdueInvNotifResendMenuItemHelp=Send the selected notifications again.
+OverdueInvNotifResendResult=%1 notifications sent, %2 failed.
+OverdueInvNotifRetentionDays=Log retention days
+OverdueInvNotifRetentionDaysHelp=Purge old logs deletes notification log lines created more than this number of days ago.
+OverdueInvNotifRunMenuItemHelp=Check the open customer invoices and email a notification for each invoice that reached an overdue tier.
+OverdueInvNotifRunPrivilege=Send overdue invoice notifications
+OverdueInvNotifSenderEmail=Sender email address
+OverdueInvNotifSenderEmailHelp=The sender of the notification emails. Leave empty to use the default sender of the email parameters.
+OverdueInvNotifSentAt=Sent at
+OverdueInvNotifSetupMaintainPrivilege=Maintain overdue invoice notification setup
+OverdueInvNotifSetupMenuItem=Overdue invoice notification setup
+OverdueInvNotifSetupMenuItemHelp=Set up the overdue tiers, the sender and the log retention of the overdue invoice notifications.
+OverdueInvNotifStatus=Status
+OverdueInvNotifStatusAll=All
+OverdueInvNotifStatusFailed=Failed
+OverdueInvNotifStatusFilter=Status filter
+OverdueInvNotifStatusSent=Sent
+OverdueInvNotifSummaryChecked=Invoices checked: %1
+OverdueInvNotifSummaryFailed=Notifications failed: %1
+OverdueInvNotifSummarySent=Notifications sent: %1
+OverdueInvNotifSummarySkipped=Invoices skipped: %1
+OverdueInvNotifTierDays=Tier (days overdue)
+OverdueInvNotifTierExists=A tier for %1 days overdue already exists.
+OverdueInvNotifTierTable=Overdue invoice notification tier
+OverdueInvNotifTierTableDevDoc=The DYLO_OverdueNotificationTier table holds the overdue tiers at which an overdue invoice notification is sent.
+OverdueInvNotifTiersTab=Overdue tiers
+OpenBackorderRiskAccountRep=Account rep
+OpenBackorderRiskAccountRepPrefix=Account Rep:
+OpenBackorderRiskAll=All
+OpenBackorderRiskBackorderAmount=Backorder amount
+OpenBackorderRiskCardHighRisk=HIGH RISK (> 7 DAYS LATE)
+OpenBackorderRiskCardShortage=SHORTAGE UNITS (UNCOVERED)
+OpenBackorderRiskCardTotalOrders=TOTAL OPEN BACKORDERS
+OpenBackorderRiskCardTotalValue=TOTAL BACKORDER VALUE
+OpenBackorderRiskColAvailPhysical=Avail. Phys.
+OpenBackorderRiskColBackorderAmount=Backorder Amt
+OpenBackorderRiskColDaysLate=Days Late
+OpenBackorderRiskColItemName=Item Name
+OpenBackorderRiskColItemNumber=Item Number
+OpenBackorderRiskColOpenQty=Open Qty
+OpenBackorderRiskColReqShipDate=Req. Ship Date
+OpenBackorderRiskColRiskStatus=Risk Status
+OpenBackorderRiskColSalesOrder=Sales Order
+OpenBackorderRiskCreditLimit=Credit limit
+OpenBackorderRiskCreditLimitPrefix=Credit Limit:
+OpenBackorderRiskCustAccountList=Customer accounts
+OpenBackorderRiskCustAccountListHelp=The customer accounts to include. Leave empty to include all customers.
+OpenBackorderRiskCustGroup=Customer group
+OpenBackorderRiskCustGroupFormat=%1 (%2)
+OpenBackorderRiskCustGroupHelp=The customer group to include. Leave empty to include all customer groups.
+OpenBackorderRiskCustGroupPrefix=Customer Group:
+OpenBackorderRiskCustGroupWithCustomers=%1 — %2 customers
+OpenBackorderRiskCustomerPrefix=Customer:
+OpenBackorderRiskCustomerSubtotal=Customer Subtotal:
+OpenBackorderRiskDays=Day(s)
+OpenBackorderRiskDaysLate=Days late
+OpenBackorderRiskErrMinDays=Min days overdue must be at least 1.
+OpenBackorderRiskErrWarehouseSite=Warehouse %1 does not belong to site %2.
+OpenBackorderRiskGenerated=Generated:
+OpenBackorderRiskGrandTotal=GRAND TOTAL (ALL FILTERED CUSTOMERS)
+OpenBackorderRiskHeaderTmp=Open backorder risk summary header
+OpenBackorderRiskHeaderTmpDevDoc=The DYLO_OpenBackorderRiskHeaderTmp table holds the parameters and KPI totals of one run of the open backorder risk summary report.
+OpenBackorderRiskHighRiskOrders=High risk orders
+OpenBackorderRiskHighRiskValue=High risk value
+OpenBackorderRiskIncludeCreditHold=Include credit-hold orders
+OpenBackorderRiskIncludeCreditHoldHelp=Include orders held by credit management and orders of customers whose account is blocked.
+OpenBackorderRiskIncludeOnHoldPrefix=Include On-Hold:
+OpenBackorderRiskInventLocationId=Warehouse
+OpenBackorderRiskInventLocationIdHelp=The warehouse of the order lines to include. Leave empty to include all warehouses.
+OpenBackorderRiskInventSiteId=Site
+OpenBackorderRiskInventSiteIdHelp=The site of the order lines to include. Leave empty to include all sites.
+OpenBackorderRiskLevel=Risk status
+OpenBackorderRiskLevelHigh=HIGH RISK
+OpenBackorderRiskLevelLow=LOW
+OpenBackorderRiskLevelMedium=MEDIUM
+OpenBackorderRiskLevelValue=Risk status value
+OpenBackorderRiskLineTmp=Open backorder risk summary lines
+OpenBackorderRiskLineTmpDevDoc=The DYLO_OpenBackorderRiskLineTmp table holds one row for each overdue open sales order line printed on the open backorder risk summary report.
+OpenBackorderRiskMenuItem=Open backorder risk summary
+OpenBackorderRiskMenuItemHelp=Print the open sales order lines that are past their requested ship date, with stock shortages and delivery risk, grouped by customer.
+OpenBackorderRiskMinDaysOverdue=Min days overdue
+OpenBackorderRiskMinDaysOverdueHelp=The minimum number of days past the requested ship date for an order line to be included.
+OpenBackorderRiskMinDaysPrefix=Min Days Overdue:
+OpenBackorderRiskNo=No
+OpenBackorderRiskNoAccountRep=—
+OpenBackorderRiskNoRows=No open backorders match the selected criteria.
+OpenBackorderRiskOf=of
+OpenBackorderRiskOpenQtyTotal=Open quantity total
+OpenBackorderRiskOrders=Orders
+OpenBackorderRiskPage=Page
+OpenBackorderRiskPrivilege=Generate open backorder risk summary report
+OpenBackorderRiskReportId=Report ID: AR-BO-410
+OpenBackorderRiskReportTitle=OPEN CUSTOMER BACKORDERS & FULFILLMENT RISK REPORT
+OpenBackorderRiskRunDate=Run date
+OpenBackorderRiskShortageQty=Shortage quantity
+OpenBackorderRiskShortageUnits=Shortage units
+OpenBackorderRiskSiteWarehouse=Site / warehouse
+OpenBackorderRiskSiteWarehouseFormat=%1 / %2
+OpenBackorderRiskSiteWarehousePrefix=Site / Warehouse:
+OpenBackorderRiskTotalOrders=Total open backorders
+OpenBackorderRiskTotalValue=Total backorder value
+OpenBackorderRiskUnits=Units
+OpenBackorderRiskYes=Yes

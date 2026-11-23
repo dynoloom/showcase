@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_SalesOrderApiProcessor</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Processes an inbound sales order API request in the current legal entity:
+/// payload check, duplicate check, validation and creation. Used by the service and by reprocessing.
+/// </summary>
+public class DYLO_SalesOrderApiProcessor
+{
+    public const str ErrPayloadInvalid      = 'PAYLOAD_INVALID';
+    public const str ErrLegalEntityNotFound = 'LE_NOT_FOUND';
+    public const str ErrCreateFailed        = 'CREATE_FAILED';
+    public const str ErrUnexpected          = 'UNEXPECTED';
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>process</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Processes the request.
+    /// </summary>
+    /// <param name = "_request">The request.</param>
+    /// <returns>The response.</returns>
+    public static DYLO_SalesOrderApiResponseContract process(DYLO_SalesOrderApiRequestContract _request)
+    {
+        DYLO_SalesOrderApiResponseContract  response = DYLO_SalesOrderApiResponseContract::newFromRequest(_request);
+        DYLO_SalesOrderApiTrace             original;
+        List                                validationErrors;
+        ListEnumerator                      enumerator;
+        DYLO_ApiErrorCode                   errorCode;
+        str                                 errorMessage;
+        SalesId                             salesId;
+        int                                 infologStart;
+
+        // 1. Payload check
+        if (!DYLO_SalesOrderApiProcessor::checkPayload(_request, response))
+        {
+            response.setFailed();
+            return response;
+        }
+
+        // 2. Duplicate check
+        original = DYLO_SalesOrderApiTrace::findLastSuccessByExtRef(_request.parmExternalOrderId());
+        if (original.RecId)
+        {
+            response.setSuccess(original.SalesId, true);
+            return response;
+        }
+
+        // 3. Validation
+        validationErrors = DYLO_SalesOrderApiValidator::construct().validate(_request);
+        if (!validationErrors.empty())
+        {
+            enumerator = validationErrors.getEnumerator();
+            while (enumerator.moveNext())
+            {
+                [errorCode, errorMessage] = enumerator.current();
+                response.addError(errorCode, errorMessage);
+            }
+
+            response.setFailed();
+            return response;
+        }
+
+        // 4. Creation; everything is rolled back on failure
+        infologStart = infologLine();
+        try
+        {
+            salesId = DYLO_SalesOrderApiOrderCreator::construct().create(_request);
+            response.setSuccess(salesId, false);
+        }
+        catch
+        {
+            DYLO_SalesOrderApiProcessor::addInfologErrors(response, DYLO_SalesOrderApiProcessor::ErrCreateFailed, infologStart, "@DYLOExtensions:SOApiErrCreateFailed");
+            response.setFailed();
+        }
+
+        return response;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>checkPayload</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Checks that the mandatory members and at least one line are present.
+    /// </summary>
+    private static boolean checkPayload(DYLO_SalesOrderApiRequestContract _request, DYLO_SalesOrderApiResponseContract _response)
+    {
+        boolean ok = true;
+
+        if (!_request)
+        {
+            _response.addError(DYLO_SalesOrderApiProcessor::ErrPayloadInvalid, strFmt("@DYLOExtensions:SOApiErrPayloadMissingField", '_request'));
+            return false;
+        }
+
+        if (!_request.parmCorrelationId())
+        {
+            _response.addError(DYLO_SalesOrderApiProcessor::ErrPayloadInvalid, strFmt("@DYLOExtensions:SOApiErrPayloadMissingField", 'correlationId'));
+            ok = false;
+        }
+
+        if (!_request.parmExternalOrderId())
+        {
+            _response.addError(DYLO_SalesOrderApiProcessor::ErrPayloadInvalid, strFmt("@DYLOExtensions:SOApiErrPayloadMissingField", 'externalOrderId'));
+            ok = false;
+        }
+
+        if (!_request.parmCustomerAccount())
+        {
+            _response.addError(DYLO_SalesOrderApiProcessor::ErrPayloadInvalid, strFmt("@DYLOExtensions:SOApiErrPayloadMissingField", 'customerAccount'));
+            ok = false;
+        }
+
+        if (_request.lineCount() == 0)
+        {
+            _response.addError(DYLO_SalesOrderApiProcessor::ErrPayloadInvalid, "@DYLOExtensions:SOApiErrPayloadNoLines");
+            ok = false;
+        }
+
+        return ok;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>newUnexpectedResponse</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Builds a failed response with code UNEXPECTED for an exception that was not handled.
+    /// </summary>
+    /// <param name = "_request">The request; may be null.</param>
+    /// <param name = "_infologStart">The infolog line before the call started.</param>
+    /// <param name = "_clrError">true when the exception was a CLR error.</param>
+    public static DYLO_SalesOrderApiResponseContract newUnexpectedResponse(
+        DYLO_SalesOrderApiRequestContract _request,
+        int                               _infologStart,
+        boolean                           _clrError = false)
+    {
+        DYLO_SalesOrderApiResponseContract  response = DYLO_SalesOrderApiResponseContract::newFromRequest(_request);
+        System.Exception                    clrException;
+        str                                 clrMessage;
+
+        if (_clrError)
+        {
+            clrException = CLRInterop::getLastException();
+            if (clrException)
+            {
+                clrMessage = clrException.Message;
+                if (clrException.InnerException)
+                {
+                    clrMessage = clrException.InnerException.Message;
+                }
+            }
+        }
+
+        if (clrMessage)
+        {
+            response.addError(DYLO_SalesOrderApiProcessor::ErrUnexpected, strFmt("@DYLOExtensions:SOApiErrUnexpected", clrMessage));
+        }
+        else
+        {
+            DYLO_SalesOrderApiProcessor::addInfologErrors(response, DYLO_SalesOrderApiProcessor::ErrUnexpected, _infologStart, strFmt("@DYLOExtensions:SOApiErrUnexpected", ''));
+        }
+
+        response.setFailed();
+
+        return response;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>addInfologErrors</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Adds the infolog messages written since a given line as errors; adds a default message when there are none.
+    /// </summary>
+    private static void addInfologErrors(
+        DYLO_SalesOrderApiResponseContract  _response,
+        DYLO_ApiErrorCode                   _errorCode,
+        int                                 _infologStart,
+        str                                 _defaultMessage)
+    {
+        SysInfologEnumerator    infologEnumerator;
+        boolean                 added;
+
+        if (infologLine() > _infologStart)
+        {
+            infologEnumerator = SysInfologEnumerator::newData(infolog.copy(_infologStart + 1, infologLine()));
+            while (infologEnumerator.moveNext())
+            {
+                if (infologEnumerator.currentMessage())
+                {
+                    _response.addError(_errorCode, infologEnumerator.currentMessage());
+                    added = true;
+                }
+            }
+        }
+
+        if (!added)
+        {
+            _response.addError(_errorCode, _defaultMessage);
+        }
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

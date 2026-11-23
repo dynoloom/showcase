@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_OverdueInvoiceNotificationController</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Controller of the overdue invoice notification batch job.
+/// </summary>
+public class DYLO_OverdueInvoiceNotificationController extends SysOperationServiceController
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>new</Name>
+				<Source><![CDATA[
+    protected void new(SysOperationExecutionMode _executionMode)
+    {
+        super(classStr(DYLO_OverdueInvoiceNotificationService),
+            methodStr(DYLO_OverdueInvoiceNotificationService, process),
+            _executionMode);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>defaultCaption</Name>
+				<Source><![CDATA[
+    protected ClassDescription defaultCaption()
+    {
+        return "@DYLOExtensions:OverdueInvNotifCaption";
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>canGoBatch</Name>
+				<Source><![CDATA[
+    public boolean canGoBatch()
+    {
+        return true;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>construct</Name>
+				<Source><![CDATA[
+    public static DYLO_OverdueInvoiceNotificationController construct(SysOperationExecutionMode _executionMode = SysOperationExecutionMode::Synchronous)
+    {
+        return new DYLO_OverdueInvoiceNotificationController(_executionMode);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>main</Name>
+				<Source><![CDATA[
+    public static void main(Args _args)
+    {
+        DYLO_OverdueInvoiceNotificationController controller = DYLO_OverdueInvoiceNotificationController::construct();
+
+        controller.parmArgs(_args);
+        controller.startOperation();
+
+        DYLO_OverdueInvoiceNotificationEmail::refreshCaller(_args);
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxSecurityDuty xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_MerchHierarchyInquire</Name>
+	<Description>@DYLOExtensions:MerchHierDutyInquireDesc</Description>
+	<Label>@DYLOExtensions:MerchHierDutyInquire</Label>
+	<Privileges>
+		<AxSecurityPrivilegeReference>
+			<Name>DYLO_MerchHierarchyView</Name>
+		</AxSecurityPrivilegeReference>
+	</Privileges>
+</AxSecurityDuty>

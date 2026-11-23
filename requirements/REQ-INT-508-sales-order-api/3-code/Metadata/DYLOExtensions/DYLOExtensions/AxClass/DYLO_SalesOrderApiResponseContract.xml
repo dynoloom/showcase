@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_SalesOrderApiResponseContract</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// The response of the inbound sales order API.
+/// </summary>
+[DataContractAttribute]
+public class DYLO_SalesOrderApiResponseContract
+{
+    str                     status;
+    boolean                 success;
+    SalesId                 salesId;
+    DYLO_CorrelationId      correlationId;
+    DYLO_ExternalOrderRef   externalOrderId;
+    boolean                 duplicate;
+    DYLO_ApiErrorCode       errorCode;
+    str                     message;
+    List                    errors;
+
+    public const str StatusSuccess = 'Success';
+    public const str StatusFailed  = 'Failed';
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>new</Name>
+				<Source><![CDATA[
+    public void new()
+    {
+        errors = new List(Types::String);
+        status = DYLO_SalesOrderApiResponseContract::StatusFailed;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>construct</Name>
+				<Source><![CDATA[
+    public static DYLO_SalesOrderApiResponseContract construct()
+    {
+        return new DYLO_SalesOrderApiResponseContract();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>newFromRequest</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Creates a response that echoes the identifiers of a request.
+    /// </summary>
+    public static DYLO_SalesOrderApiResponseContract newFromRequest(DYLO_SalesOrderApiRequestContract _request)
+    {
+        DYLO_SalesOrderApiResponseContract response = DYLO_SalesOrderApiResponseContract::construct();
+
+        if (_request)
+        {
+            response.parmCorrelationId(_request.parmCorrelationId());
+            response.parmExternalOrderId(_request.parmExternalOrderId());
+        }
+
+        return response;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmStatus</Name>
+				<Source><![CDATA[
+    [DataMemberAttribute('status')]
+    public str parmStatus(str _status = status)
+    {
+        status = _status;
+        return status;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmSuccess</Name>
+				<Source><![CDATA[
+    [DataMemberAttribute('success')]
+    public boolean parmSuccess(boolean _success = success)
+    {
+        success = _success;
+        return success;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmSalesId</Name>
+				<Source><![CDATA[
+    [DataMemberAttribute('salesId')]
+    public SalesId parmSalesId(SalesId _salesId = salesId)
+    {
+        salesId = _salesId;
+        return salesId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmCorrelationId</Name>
+				<Source><![CDATA[
+    [DataMemberAttribute('correlationId')]
+    public DYLO_CorrelationId parmCorrelationId(DYLO_CorrelationId _correlationId = correlationId)
+    {
+        correlationId = _correlationId;
+        return correlationId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmExternalOrderId</Name>
+				<Source><![CDATA[
+    [DataMemberAttribute('externalOrderId')]
+    public DYLO_ExternalOrderRef parmExternalOrderId(DYLO_ExternalOrderRef _externalOrderId = externalOrderId)
+    {
+        externalOrderId = _externalOrderId;
+        return externalOrderId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmDuplicate</Name>
+				<Source><![CDATA[
+    [DataMemberAttribute('duplicate')]
+    public boolean parmDuplicate(boolean _duplicate = duplicate)
+    {
+        duplicate = _duplicate;
+        return duplicate;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmErrorCode</Name>
+				<Source><![CDATA[
+    [DataMemberAttribute('errorCode')]
+    public DYLO_ApiErrorCode parmErrorCode(DYLO_ApiErrorCode _errorCode = errorCode)
+    {
+        errorCode = _errorCode;
+        return errorCode;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmMessage</Name>
+				<Source><![CDATA[
+    [DataMemberAttribute('message')]
+    public str parmMessage(str _message = message)
+    {
+        message = _message;
+        return message;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmErrors</Name>
+				<Source><![CDATA[
+    [
+        DataMemberAttribute('errors'),
+        AifCollectionTypeAttribute('_errors', Types::String),
+        AifCollectionTypeAttribute('return', Types::String),
+        DataCollectionAttribute(Types::String)
+    ]
+    public List parmErrors(List _errors = errors)
+    {
+        errors = _errors;
+        return errors;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>addError</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Adds an error; the first error added gives the error code.
+    /// </summary>
+    public void addError(DYLO_ApiErrorCode _errorCode, str _message)
+    {
+        if (!errorCode)
+        {
+            errorCode = _errorCode;
+        }
+
+        if (!errors)
+        {
+            errors = new List(Types::String);
+        }
+
+        errors.addEnd(_message);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>setFailed</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Marks the response as failed and joins all error messages into the message.
+    /// </summary>
+    public void setFailed()
+    {
+        ListEnumerator  enumerator;
+        str             joined;
+
+        status    = DYLO_SalesOrderApiResponseContract::StatusFailed;
+        success   = false;
+        salesId   = '';
+        duplicate = false;
+
+        if (errors)
+        {
+            enumerator = errors.getEnumerator();
+            while (enumerator.moveNext())
+            {
+                joined += (joined ? ' ' : '') + enumerator.current();
+            }
+        }
+
+        message = joined;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>setSuccess</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Marks the response as successful.
+    /// </summary>
+    public void setSuccess(SalesId _salesId, boolean _duplicate)
+    {
+        status    = DYLO_SalesOrderApiResponseContract::StatusSuccess;
+        success   = true;
+        salesId   = _salesId;
+        duplicate = _duplicate;
+        errorCode = '';
+        message   = '';
+        errors    = new List(Types::String);
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

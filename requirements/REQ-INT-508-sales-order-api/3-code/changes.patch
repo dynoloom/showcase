@@ -1,0 +1,3703 @@
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_JsonFormatter.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_JsonFormatter.xml
+new file mode 100644
+index 0000000..8cec483
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_JsonFormatter.xml
+@@ -0,0 +1,149 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_JsonFormatter</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Indents a JSON text for display ("pretty print"), without external libraries.
++/// </summary>
++public class DYLO_JsonFormatter
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>format</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Formats a JSON text: 2 spaces of indentation per level, a line break after each comma and
++    /// around brackets, a space after each colon. Text inside strings, escapes included, is kept as is.
++    /// </summary>
++    /// <param name = "_json">The JSON text.</param>
++    /// <returns>The formatted JSON text.</returns>
++    public static str format(str _json)
++    {
++        System.Text.StringBuilder   builder = new System.Text.StringBuilder();
++        int                         length  = strLen(_json);
++        int                         indent;
++        int                         pos;
++        int                         nextPos;
++        boolean                     inString;
++        boolean                     escaped;
++        str                         c;
++        str                         nextChar;
++
++        for (pos = 1; pos <= length; pos++)
++        {
++            c = subStr(_json, pos, 1);
++
++            if (inString)
++            {
++                builder.Append(c);
++
++                if (escaped)
++                {
++                    escaped = false;
++                }
++                else if (c == '\\')
++                {
++                    escaped = true;
++                }
++                else if (c == '"')
++                {
++                    inString = false;
++                }
++                continue;
++            }
++
++            switch (c)
++            {
++                case '"':
++                    inString = true;
++                    builder.Append(c);
++                    break;
++
++                case '{', '[':
++                    // An empty object or array stays on one line
++                    nextPos = DYLO_JsonFormatter::nextNonSpace(_json, pos + 1, length);
++                    nextChar = nextPos ? subStr(_json, nextPos, 1) : '';
++                    if ((c == '{' && nextChar == '}') || (c == '[' && nextChar == ']'))
++                    {
++                        builder.Append(c + nextChar);
++                        pos = nextPos;
++                    }
++                    else
++                    {
++                        indent++;
++                        builder.Append(c);
++                        builder.Append(DYLO_JsonFormatter::newLine(indent));
++                    }
++                    break;
++
++                case '}', ']':
++                    indent = max(indent - 1, 0);
++                    builder.Append(DYLO_JsonFormatter::newLine(indent));
++                    builder.Append(c);
++                    break;
++
++                case ',':
++                    builder.Append(c);
++                    builder.Append(DYLO_JsonFormatter::newLine(indent));
++                    break;
++
++                case ':':
++                    builder.Append(': ');
++                    break;
++
++                case ' ', '\t', '\n', '\r':
++                    // Whitespace outside strings is replaced by the formatting
++                    break;
++
++                default:
++                    builder.Append(c);
++                    break;
++            }
++        }
++
++        return builder.ToString();
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>newLine</Name>
++				<Source><![CDATA[
++    private static str newLine(int _indent)
++    {
++        return '\n' + strRep(' ', _indent * 2);
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>nextNonSpace</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Finds the position of the next character that is not whitespace; 0 when there is none.
++    /// </summary>
++    private static int nextNonSpace(str _json, int _from, int _length)
++    {
++        int pos;
++        str c;
++
++        for (pos = _from; pos <= _length; pos++)
++        {
++            c = subStr(_json, pos, 1);
++            if (c != ' ' && c != '\t' && c != '\n' && c != '\r')
++            {
++                return pos;
++            }
++        }
++
++        return 0;
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiLineContract.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiLineContract.xml
+new file mode 100644
+index 0000000..cb9fcb6
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiLineContract.xml
+@@ -0,0 +1,144 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_SalesOrderApiLineContract</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// One order line of the inbound sales order API request.
++/// </summary>
++[DataContractAttribute]
++public class DYLO_SalesOrderApiLineContract
++{
++    ItemId              itemId;
++    Qty                 qty;
++    UnitOfMeasureSymbol unit;
++    InventSiteId        site;
++    InventLocationId    warehouse;
++    Price               unitPrice;
++    boolean             unitPriceAssigned;
++    str                 hasUnitPriceText;
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>parmItemId</Name>
++				<Source><![CDATA[
++    [DataMemberAttribute('itemId')]
++    public ItemId parmItemId(ItemId _itemId = itemId)
++    {
++        itemId = _itemId;
++        return itemId;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>parmQty</Name>
++				<Source><![CDATA[
++    [DataMemberAttribute('qty')]
++    public Qty parmQty(Qty _qty = qty)
++    {
++        qty = _qty;
++        return qty;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>parmUnit</Name>
++				<Source><![CDATA[
++    [DataMemberAttribute('unit')]
++    public UnitOfMeasureSymbol parmUnit(UnitOfMeasureSymbol _unit = unit)
++    {
++        unit = _unit;
++        return unit;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>parmSite</Name>
++				<Source><![CDATA[
++    [DataMemberAttribute('site')]
++    public InventSiteId parmSite(InventSiteId _site = site)
++    {
++        site = _site;
++        return site;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>parmWarehouse</Name>
++				<Source><![CDATA[
++    [DataMemberAttribute('warehouse')]
++    public InventLocationId parmWarehouse(InventLocationId _warehouse = warehouse)
++    {
++        warehouse = _warehouse;
++        return warehouse;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>parmUnitPrice</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// The unit price override. Assigning a value marks the price as sent, so a price of 0 is told apart from no price.
++    /// </summary>
++    [DataMemberAttribute('unitPrice')]
++    public Price parmUnitPrice(Price _unitPrice = unitPrice)
++    {
++        if (!prmIsDefault(_unitPrice))
++        {
++            unitPrice         = _unitPrice;
++            unitPriceAssigned = true;
++        }
++
++        return unitPrice;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>parmHasUnitPrice</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Whether a unit price override was sent ('true' or 'false').
++    /// Written to the stored request so that reprocessing reads the same answer back;
++    /// a caller does not need to send it, it follows from unitPrice.
++    /// </summary>
++    [DataMemberAttribute('hasUnitPrice')]
++    public str parmHasUnitPrice(str _hasUnitPrice = hasUnitPriceText)
++    {
++        if (!prmIsDefault(_hasUnitPrice))
++        {
++            hasUnitPriceText = _hasUnitPrice;
++        }
++
++        return this.hasUnitPrice() ? 'true' : 'false';
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>hasUnitPrice</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Determines whether a unit price override was sent.
++    /// </summary>
++    public boolean hasUnitPrice()
++    {
++        if (hasUnitPriceText)
++        {
++            return hasUnitPriceText == 'true';
++        }
++
++        return unitPriceAssigned;
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiOrderCreator.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiOrderCreator.xml
+new file mode 100644
+index 0000000..55c2001
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiOrderCreator.xml
+@@ -0,0 +1,132 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_SalesOrderApiOrderCreator</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Creates the sales order of a validated inbound sales order API request, in one transaction.
++/// </summary>
++public class DYLO_SalesOrderApiOrderCreator
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>construct</Name>
++				<Source><![CDATA[
++    public static DYLO_SalesOrderApiOrderCreator construct()
++    {
++        return new DYLO_SalesOrderApiOrderCreator();
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>create</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Creates the sales order header and lines.
++    /// </summary>
++    /// <param name = "_request">The validated request.</param>
++    /// <returns>The ID of the new sales order.</returns>
++    public SalesId create(DYLO_SalesOrderApiRequestContract _request)
++    {
++        SalesTable      salesTable;
++        ListEnumerator  enumerator;
++
++        ttsbegin;
++
++        salesTable.clear();
++        salesTable.initValue();
++        salesTable.SalesId     = NumberSeq::newGetNum(SalesParameters::numRefSalesId()).num();
++        salesTable.CustAccount = _request.parmCustomerAccount();
++        salesTable.initFromCustTable();
++
++        if (_request.parmCurrency())
++        {
++            salesTable.CurrencyCode = _request.parmCurrency();
++        }
++
++        salesTable.PurchOrderFormNum = _request.parmCustomerPoReference();
++
++        if (_request.parmRequestedShipDate())
++        {
++            salesTable.ShippingDateRequested = _request.parmRequestedShipDate();
++        }
++
++        if (!salesTable.validateWrite())
++        {
++            throw error(strFmt("@DYLOExtensions:SOApiErrHeaderRejected", salesTable.CustAccount));
++        }
++
++        salesTable.insert();
++
++        enumerator = _request.parmLines().getEnumerator();
++        while (enumerator.moveNext())
++        {
++            this.createLine(salesTable, enumerator.current(), _request.parmRequestedShipDate());
++        }
++
++        ttscommit;
++
++        return salesTable.SalesId;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>createLine</Name>
++				<Source><![CDATA[
++    private void createLine(SalesTable _salesTable, DYLO_SalesOrderApiLineContract _line, TransDate _requestedShipDate)
++    {
++        SalesLine   salesLine;
++        InventDim   inventDim;
++
++        salesLine.clear();
++        salesLine.SalesId = _salesTable.SalesId;
++        salesLine.ItemId  = _line.parmItemId();
++
++        if (_line.parmSite() || _line.parmWarehouse())
++        {
++            if (_line.parmSite())
++            {
++                inventDim.InventSiteId = _line.parmSite();
++            }
++
++            if (_line.parmWarehouse())
++            {
++                inventDim.InventLocationId = _line.parmWarehouse();
++            }
++
++            salesLine.InventDimId = InventDim::findOrCreate(inventDim).inventDimId;
++        }
++
++        salesLine.SalesQty = _line.parmQty();
++
++        if (_line.parmUnit())
++        {
++            salesLine.SalesUnit = _line.parmUnit();
++        }
++
++        if (_requestedShipDate)
++        {
++            salesLine.ShippingDateRequested = _requestedShipDate;
++        }
++
++        salesLine.createLine(true, true, true, true, true, true);
++
++        if (_line.hasUnitPrice())
++        {
++            salesLine = SalesLine::findRecId(salesLine.RecId, true);
++            salesLine.SalesPrice = _line.parmUnitPrice();
++            salesLine.PriceUnit  = 1;
++            salesLine.LineAmount = salesLine.calcLineAmount();
++            salesLine.update();
++        }
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiProcessor.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiProcessor.xml
+new file mode 100644
+index 0000000..66dcbc8
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiProcessor.xml
+@@ -0,0 +1,216 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_SalesOrderApiProcessor</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Processes an inbound sales order API request in the current legal entity:
++/// payload check, duplicate check, validation and creation. Used by the service and by reprocessing.
++/// </summary>
++public class DYLO_SalesOrderApiProcessor
++{
++    public const str ErrPayloadInvalid      = 'PAYLOAD_INVALID';
++    public const str ErrLegalEntityNotFound = 'LE_NOT_FOUND';
++    public const str ErrCreateFailed        = 'CREATE_FAILED';
++    public const str ErrUnexpected          = 'UNEXPECTED';
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>process</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Processes the request.
++    /// </summary>
++    /// <param name = "_request">The request.</param>
++    /// <returns>The response.</returns>
++    public static DYLO_SalesOrderApiResponseContract process(DYLO_SalesOrderApiRequestContract _request)
++    {
++        DYLO_SalesOrderApiResponseContract  response = DYLO_SalesOrderApiResponseContract::newFromRequest(_request);
++        DYLO_SalesOrderApiTrace             original;
++        List                                validationErrors;
++        ListEnumerator                      enumerator;
++        DYLO_ApiErrorCode                   errorCode;
++        str                                 errorMessage;
++        SalesId                             salesId;
++        int                                 infologStart;
++
++        // 1. Payload check
++        if (!DYLO_SalesOrderApiProcessor::checkPayload(_request, response))
++        {
++            response.setFailed();
++            return response;
++        }
++
++        // 2. Duplicate check
++        original = DYLO_SalesOrderApiTrace::findLastSuccessByExtRef(_request.parmExternalOrderId());
++        if (original.RecId)
++        {
++            response.setSuccess(original.SalesId, true);
++            return response;
++        }
++
++        // 3. Validation
++        validationErrors = DYLO_SalesOrderApiValidator::construct().validate(_request);
++        if (!validationErrors.empty())
++        {
++            enumerator = validationErrors.getEnumerator();
++            while (enumerator.moveNext())
++            {
++                [errorCode, errorMessage] = enumerator.current();
++                response.addError(errorCode, errorMessage);
++            }
++
++            response.setFailed();
++            return response;
++        }
++
++        // 4. Creation; everything is rolled back on failure
++        infologStart = infologLine();
++        try
++        {
++            salesId = DYLO_SalesOrderApiOrderCreator::construct().create(_request);
++            response.setSuccess(salesId, false);
++        }
++        catch
++        {
++            DYLO_SalesOrderApiProcessor::addInfologErrors(response, DYLO_SalesOrderApiProcessor::ErrCreateFailed, infologStart, "@DYLOExtensions:SOApiErrCreateFailed");
++            response.setFailed();
++        }
++
++        return response;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>checkPayload</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Checks that the mandatory members and at least one line are present.
++    /// </summary>
++    private static boolean checkPayload(DYLO_SalesOrderApiRequestContract _request, DYLO_SalesOrderApiResponseContract _response)
++    {
++        boolean ok = true;
++
++        if (!_request)
++        {
++            _response.addError(DYLO_SalesOrderApiProcessor::ErrPayloadInvalid, strFmt("@DYLOExtensions:SOApiErrPayloadMissingField", '_request'));
++            return false;
++        }
++
++        if (!_request.parmCorrelationId())
++        {
++            _response.addError(DYLO_SalesOrderApiProcessor::ErrPayloadInvalid, strFmt("@DYLOExtensions:SOApiErrPayloadMissingField", 'correlationId'));
++            ok = false;
++        }
++
++        if (!_request.parmExternalOrderId())
++        {
++            _response.addError(DYLO_SalesOrderApiProcessor::ErrPayloadInvalid, strFmt("@DYLOExtensions:SOApiErrPayloadMissingField", 'externalOrderId'));
++            ok = false;
++        }
++
++        if (!_request.parmCustomerAccount())
++        {
++            _response.addError(DYLO_SalesOrderApiProcessor::ErrPayloadInvalid, strFmt("@DYLOExtensions:SOApiErrPayloadMissingField", 'customerAccount'));
++            ok = false;
++        }
++
++        if (_request.lineCount() == 0)
++        {
++            _response.addError(DYLO_SalesOrderApiProcessor::ErrPayloadInvalid, "@DYLOExtensions:SOApiErrPayloadNoLines");
++            ok = false;
++        }
++
++        return ok;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>newUnexpectedResponse</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Builds a failed response with code UNEXPECTED for an exception that was not handled.
++    /// </summary>
++    /// <param name = "_request">The request; may be null.</param>
++    /// <param name = "_infologStart">The infolog line before the call started.</param>
++    /// <param name = "_clrError">true when the exception was a CLR error.</param>
++    public static DYLO_SalesOrderApiResponseContract newUnexpectedResponse(
++        DYLO_SalesOrderApiRequestContract _request,
++        int                               _infologStart,
++        boolean                           _clrError = false)
++    {
++        DYLO_SalesOrderApiResponseContract  response = DYLO_SalesOrderApiResponseContract::newFromRequest(_request);
++        System.Exception                    clrException;
++        str                                 clrMessage;
++
++        if (_clrError)
++        {
++            clrException = CLRInterop::getLastException();
++            if (clrException)
++            {
++                clrMessage = clrException.Message;
++                if (clrException.InnerException)
++                {
++                    clrMessage = clrException.InnerException.Message;
++                }
++            }
++        }
++
++        if (clrMessage)
++        {
++            response.addError(DYLO_SalesOrderApiProcessor::ErrUnexpected, strFmt("@DYLOExtensions:SOApiErrUnexpected", clrMessage));
++        }
++        else
++        {
++            DYLO_SalesOrderApiProcessor::addInfologErrors(response, DYLO_SalesOrderApiProcessor::ErrUnexpected, _infologStart, strFmt("@DYLOExtensions:SOApiErrUnexpected", ''));
++        }
++
++        response.setFailed();
++
++        return response;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>addInfologErrors</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Adds the infolog messages written since a given line as errors; adds a default message when there are none.
++    /// </summary>
++    private static void addInfologErrors(
++        DYLO_SalesOrderApiResponseContract  _response,
++        DYLO_ApiErrorCode                   _errorCode,
++        int                                 _infologStart,
++        str                                 _defaultMessage)
++    {
++        SysInfologEnumerator    infologEnumerator;
++        boolean                 added;
++
++        if (infologLine() > _infologStart)
++        {
++            infologEnumerator = SysInfologEnumerator::newData(infolog.copy(_infologStart + 1, infologLine()));
++            while (infologEnumerator.moveNext())
++            {
++                if (infologEnumerator.currentMessage())
++                {
++                    _response.addError(_errorCode, infologEnumerator.currentMessage());
++                    added = true;
++                }
++            }
++        }
++
++        if (!added)
++        {
++            _response.addError(_errorCode, _defaultMessage);
++        }
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiPurgeContract.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiPurgeContract.xml
+new file mode 100644
+index 0000000..4f5e658
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiPurgeContract.xml
+@@ -0,0 +1,63 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_SalesOrderApiPurgeContract</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Parameters of the purge of old sales order API trace records.
++/// </summary>
++[DataContractAttribute]
++public class DYLO_SalesOrderApiPurgeContract implements SysOperationInitializable, SysOperationValidatable
++{
++    int retentionDays;
++
++    public const int DefaultRetentionDays = 90;
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>initialize</Name>
++				<Source><![CDATA[
++    public void initialize()
++    {
++        retentionDays = DYLO_SalesOrderApiPurgeContract::DefaultRetentionDays;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>parmRetentionDays</Name>
++				<Source><![CDATA[
++    [
++        DataMemberAttribute('RetentionDays'),
++        SysOperationLabelAttribute(literalStr("@DYLOExtensions:SOApiRetentionDays")),
++        SysOperationHelpTextAttribute(literalStr("@DYLOExtensions:SOApiRetentionDaysHelp"))
++    ]
++    public int parmRetentionDays(int _retentionDays = retentionDays)
++    {
++        retentionDays = _retentionDays;
++        return retentionDays;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>validate</Name>
++				<Source><![CDATA[
++    public boolean validate()
++    {
++        boolean ret = true;
++
++        if (retentionDays < 1)
++        {
++            ret = checkFailed("@DYLOExtensions:SOApiRetentionDaysInvalid");
++        }
++
++        return ret;
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiPurgeController.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiPurgeController.xml
+new file mode 100644
+index 0000000..cfd055b
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiPurgeController.xml
+@@ -0,0 +1,67 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_SalesOrderApiPurgeController</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Runs the purge of old sales order API trace records, from the trace log form or as a batch job.
++/// </summary>
++public class DYLO_SalesOrderApiPurgeController extends SysOperationServiceController
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>new</Name>
++				<Source><![CDATA[
++    protected void new()
++    {
++        super(
++            classStr(DYLO_SalesOrderApiPurgeService),
++            methodStr(DYLO_SalesOrderApiPurgeService, purge),
++            SysOperationExecutionMode::Synchronous);
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>construct</Name>
++				<Source><![CDATA[
++    public static DYLO_SalesOrderApiPurgeController construct()
++    {
++        return new DYLO_SalesOrderApiPurgeController();
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>defaultCaption</Name>
++				<Source><![CDATA[
++    protected ClassDescription defaultCaption()
++    {
++        return "@DYLOExtensions:SOApiPurgeCaption";
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>main</Name>
++				<Source><![CDATA[
++    public static void main(Args _args)
++    {
++        DYLO_SalesOrderApiPurgeController controller = DYLO_SalesOrderApiPurgeController::construct();
++
++        controller.parmArgs(_args);
++        controller.startOperation();
++
++        if (_args && _args.record() && FormDataUtil::isFormDataSource(_args.record()))
++        {
++            FormDataUtil::getFormDataSource(_args.record()).research();
++        }
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiPurgeService.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiPurgeService.xml
+new file mode 100644
+index 0000000..297f8c2
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiPurgeService.xml
+@@ -0,0 +1,48 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_SalesOrderApiPurgeService</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Deletes successful sales order API trace records older than the retention; failed and reprocessed records are kept.
++/// </summary>
++public class DYLO_SalesOrderApiPurgeService extends SysOperationServiceBase
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>purge</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Purges the successful trace records of the current legal entity that are older than the retention.
++    /// </summary>
++    /// <param name = "_contract">The purge parameters.</param>
++    public void purge(DYLO_SalesOrderApiPurgeContract _contract)
++    {
++        DYLO_SalesOrderApiTrace trace;
++        utcdatetime             cutoff = DateTimeUtil::addDays(DateTimeUtil::utcNow(), -_contract.parmRetentionDays());
++        int64                   purgedCount;
++
++        ttsbegin;
++
++        select count(RecId) from trace
++            where trace.Status           == DYLO_SalesOrderApiStatus::Success
++               && trace.ExecutedDateTime <  cutoff;
++
++        purgedCount = trace.RecId;
++
++        delete_from trace
++            where trace.Status           == DYLO_SalesOrderApiStatus::Success
++               && trace.ExecutedDateTime <  cutoff;
++
++        ttscommit;
++
++        info(strFmt("@DYLOExtensions:SOApiPurgeDone", purgedCount));
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiReprocess.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiReprocess.xml
+new file mode 100644
+index 0000000..4ba35b3
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiReprocess.xml
+@@ -0,0 +1,111 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_SalesOrderApiReprocess</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Reprocesses a failed inbound sales order API call from its stored request JSON.
++/// </summary>
++public class DYLO_SalesOrderApiReprocess
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>construct</Name>
++				<Source><![CDATA[
++    public static DYLO_SalesOrderApiReprocess construct()
++    {
++        return new DYLO_SalesOrderApiReprocess();
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>main</Name>
++				<Source><![CDATA[
++    public static void main(Args _args)
++    {
++        DYLO_SalesOrderApiTrace callerTrace;
++
++        if (!_args || !_args.record() || _args.dataset() != tableNum(DYLO_SalesOrderApiTrace))
++        {
++            throw error("@DYLOExtensions:SOApiReprocessNoRecord");
++        }
++
++        callerTrace = _args.record();
++
++        DYLO_SalesOrderApiReprocess::construct().reprocess(callerTrace);
++
++        if (FormDataUtil::isFormDataSource(callerTrace))
++        {
++            FormDataUtil::getFormDataSource(callerTrace).research(true);
++        }
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>reprocess</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Reprocesses a failed trace record in the company it was logged in.
++    /// </summary>
++    /// <param name = "_trace">The trace record.</param>
++    /// <returns>The response of the reprocessing.</returns>
++    public DYLO_SalesOrderApiResponseContract reprocess(DYLO_SalesOrderApiTrace _trace)
++    {
++        DYLO_SalesOrderApiResponseContract response;
++
++        changecompany(_trace.DataAreaId)
++        {
++            DYLO_SalesOrderApiTrace             trace = DYLO_SalesOrderApiTrace::findRecId(_trace.RecId);
++            DYLO_SalesOrderApiRequestContract   request;
++            System.Diagnostics.Stopwatch        stopwatch;
++            int                                 infologStart;
++
++            if (!trace.canReprocess())
++            {
++                throw error("@DYLOExtensions:SOApiReprocessNotFailed");
++            }
++
++            stopwatch = new System.Diagnostics.Stopwatch();
++            stopwatch.Start();
++            infologStart = infologLine();
++
++            try
++            {
++                request  = FormJsonSerializer::deserializeObject(classNum(DYLO_SalesOrderApiRequestContract), trace.RequestJson);
++                response = DYLO_SalesOrderApiProcessor::process(request);
++            }
++            catch (Exception::CLRError)
++            {
++                response = DYLO_SalesOrderApiProcessor::newUnexpectedResponse(request, infologStart, true);
++            }
++            catch
++            {
++                response = DYLO_SalesOrderApiProcessor::newUnexpectedResponse(request, infologStart);
++            }
++
++            stopwatch.Stop();
++
++            DYLO_SalesOrderApiTraceLogger::logRetry(trace, response, stopwatch.ElapsedMilliseconds);
++        }
++
++        if (response.parmSuccess())
++        {
++            info(strFmt("@DYLOExtensions:SOApiReprocessSucceeded", response.parmSalesId()));
++        }
++        else
++        {
++            warning(strFmt("@DYLOExtensions:SOApiReprocessFailed", response.parmMessage()));
++        }
++
++        return response;
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiRequestContract.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiRequestContract.xml
+new file mode 100644
+index 0000000..ef2a0de
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiRequestContract.xml
+@@ -0,0 +1,142 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_SalesOrderApiRequestContract</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// The request of the inbound sales order API.
++/// </summary>
++[DataContractAttribute]
++public class DYLO_SalesOrderApiRequestContract
++{
++    DYLO_CorrelationId      correlationId;
++    DYLO_ExternalOrderRef   externalOrderId;
++    DataAreaId              legalEntity;
++    CustAccount             customerAccount;
++    CurrencyCode            currency;
++    TransDate               requestedShipDate;
++    CustPurchaseOrder       customerPoReference;
++    List                    lines;
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>parmCorrelationId</Name>
++				<Source><![CDATA[
++    [DataMemberAttribute('correlationId')]
++    public DYLO_CorrelationId parmCorrelationId(DYLO_CorrelationId _correlationId = correlationId)
++    {
++        correlationId = _correlationId;
++        return correlationId;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>parmExternalOrderId</Name>
++				<Source><![CDATA[
++    [DataMemberAttribute('externalOrderId')]
++    public DYLO_ExternalOrderRef parmExternalOrderId(DYLO_ExternalOrderRef _externalOrderId = externalOrderId)
++    {
++        externalOrderId = _externalOrderId;
++        return externalOrderId;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>parmLegalEntity</Name>
++				<Source><![CDATA[
++    [DataMemberAttribute('legalEntity')]
++    public DataAreaId parmLegalEntity(DataAreaId _legalEntity = legalEntity)
++    {
++        legalEntity = _legalEntity;
++        return legalEntity;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>parmCustomerAccount</Name>
++				<Source><![CDATA[
++    [DataMemberAttribute('customerAccount')]
++    public CustAccount parmCustomerAccount(CustAccount _customerAccount = customerAccount)
++    {
++        customerAccount = _customerAccount;
++        return customerAccount;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>parmCurrency</Name>
++				<Source><![CDATA[
++    [DataMemberAttribute('currency')]
++    public CurrencyCode parmCurrency(CurrencyCode _currency = currency)
++    {
++        currency = _currency;
++        return currency;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>parmRequestedShipDate</Name>
++				<Source><![CDATA[
++    [DataMemberAttribute('requestedShipDate')]
++    public TransDate parmRequestedShipDate(TransDate _requestedShipDate = requestedShipDate)
++    {
++        requestedShipDate = _requestedShipDate;
++        return requestedShipDate;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>parmCustomerPoReference</Name>
++				<Source><![CDATA[
++    [DataMemberAttribute('customerPoReference')]
++    public CustPurchaseOrder parmCustomerPoReference(CustPurchaseOrder _customerPoReference = customerPoReference)
++    {
++        customerPoReference = _customerPoReference;
++        return customerPoReference;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>parmLines</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// The order lines, a list of <c>DYLO_SalesOrderApiLineContract</c>.
++    /// </summary>
++    [
++        DataMemberAttribute('lines'),
++        AifCollectionTypeAttribute('_lines', Types::Class, classStr(DYLO_SalesOrderApiLineContract)),
++        AifCollectionTypeAttribute('return', Types::Class, classStr(DYLO_SalesOrderApiLineContract)),
++        DataCollectionAttribute(Types::Class, classStr(DYLO_SalesOrderApiLineContract))
++    ]
++    public List parmLines(List _lines = lines)
++    {
++        lines = _lines;
++        return lines;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>lineCount</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Gets the number of order lines.
++    /// </summary>
++    public int lineCount()
++    {
++        return lines ? lines.elements() : 0;
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiResponseContract.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiResponseContract.xml
+new file mode 100644
+index 0000000..6883520
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiResponseContract.xml
+@@ -0,0 +1,256 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_SalesOrderApiResponseContract</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// The response of the inbound sales order API.
++/// </summary>
++[DataContractAttribute]
++public class DYLO_SalesOrderApiResponseContract
++{
++    str                     status;
++    boolean                 success;
++    SalesId                 salesId;
++    DYLO_CorrelationId      correlationId;
++    DYLO_ExternalOrderRef   externalOrderId;
++    boolean                 duplicate;
++    DYLO_ApiErrorCode       errorCode;
++    str                     message;
++    List                    errors;
++
++    public const str StatusSuccess = 'Success';
++    public const str StatusFailed  = 'Failed';
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>new</Name>
++				<Source><![CDATA[
++    public void new()
++    {
++        errors = new List(Types::String);
++        status = DYLO_SalesOrderApiResponseContract::StatusFailed;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>construct</Name>
++				<Source><![CDATA[
++    public static DYLO_SalesOrderApiResponseContract construct()
++    {
++        return new DYLO_SalesOrderApiResponseContract();
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>newFromRequest</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Creates a response that echoes the identifiers of a request.
++    /// </summary>
++    public static DYLO_SalesOrderApiResponseContract newFromRequest(DYLO_SalesOrderApiRequestContract _request)
++    {
++        DYLO_SalesOrderApiResponseContract response = DYLO_SalesOrderApiResponseContract::construct();
++
++        if (_request)
++        {
++            response.parmCorrelationId(_request.parmCorrelationId());
++            response.parmExternalOrderId(_request.parmExternalOrderId());
++        }
++
++        return response;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>parmStatus</Name>
++				<Source><![CDATA[
++    [DataMemberAttribute('status')]
++    public str parmStatus(str _status = status)
++    {
++        status = _status;
++        return status;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>parmSuccess</Name>
++				<Source><![CDATA[
++    [DataMemberAttribute('success')]
++    public boolean parmSuccess(boolean _success = success)
++    {
++        success = _success;
++        return success;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>parmSalesId</Name>
++				<Source><![CDATA[
++    [DataMemberAttribute('salesId')]
++    public SalesId parmSalesId(SalesId _salesId = salesId)
++    {
++        salesId = _salesId;
++        return salesId;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>parmCorrelationId</Name>
++				<Source><![CDATA[
++    [DataMemberAttribute('correlationId')]
++    public DYLO_CorrelationId parmCorrelationId(DYLO_CorrelationId _correlationId = correlationId)
++    {
++        correlationId = _correlationId;
++        return correlationId;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>parmExternalOrderId</Name>
++				<Source><![CDATA[
++    [DataMemberAttribute('externalOrderId')]
++    public DYLO_ExternalOrderRef parmExternalOrderId(DYLO_ExternalOrderRef _externalOrderId = externalOrderId)
++    {
++        externalOrderId = _externalOrderId;
++        return externalOrderId;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>parmDuplicate</Name>
++				<Source><![CDATA[
++    [DataMemberAttribute('duplicate')]
++    public boolean parmDuplicate(boolean _duplicate = duplicate)
++    {
++        duplicate = _duplicate;
++        return duplicate;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>parmErrorCode</Name>
++				<Source><![CDATA[
++    [DataMemberAttribute('errorCode')]
++    public DYLO_ApiErrorCode parmErrorCode(DYLO_ApiErrorCode _errorCode = errorCode)
++    {
++        errorCode = _errorCode;
++        return errorCode;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>parmMessage</Name>
++				<Source><![CDATA[
++    [DataMemberAttribute('message')]
++    public str parmMessage(str _message = message)
++    {
++        message = _message;
++        return message;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>parmErrors</Name>
++				<Source><![CDATA[
++    [
++        DataMemberAttribute('errors'),
++        AifCollectionTypeAttribute('_errors', Types::String),
++        AifCollectionTypeAttribute('return', Types::String),
++        DataCollectionAttribute(Types::String)
++    ]
++    public List parmErrors(List _errors = errors)
++    {
++        errors = _errors;
++        return errors;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>addError</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Adds an error; the first error added gives the error code.
++    /// </summary>
++    public void addError(DYLO_ApiErrorCode _errorCode, str _message)
++    {
++        if (!errorCode)
++        {
++            errorCode = _errorCode;
++        }
++
++        if (!errors)
++        {
++            errors = new List(Types::String);
++        }
++
++        errors.addEnd(_message);
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>setFailed</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Marks the response as failed and joins all error messages into the message.
++    /// </summary>
++    public void setFailed()
++    {
++        ListEnumerator  enumerator;
++        str             joined;
++
++        status    = DYLO_SalesOrderApiResponseContract::StatusFailed;
++        success   = false;
++        salesId   = '';
++        duplicate = false;
++
++        if (errors)
++        {
++            enumerator = errors.getEnumerator();
++            while (enumerator.moveNext())
++            {
++                joined += (joined ? ' ' : '') + enumerator.current();
++            }
++        }
++
++        message = joined;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>setSuccess</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Marks the response as successful.
++    /// </summary>
++    public void setSuccess(SalesId _salesId, boolean _duplicate)
++    {
++        status    = DYLO_SalesOrderApiResponseContract::StatusSuccess;
++        success   = true;
++        salesId   = _salesId;
++        duplicate = _duplicate;
++        errorCode = '';
++        message   = '';
++        errors    = new List(Types::String);
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiService.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiService.xml
+new file mode 100644
+index 0000000..4afde0e
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiService.xml
+@@ -0,0 +1,131 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_SalesOrderApiService</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Custom JSON service that creates a sales order from an external system (REQ-INT-508).
++/// Every call is traced in <c>DYLO_SalesOrderApiTrace</c>.
++/// </summary>
++public class DYLO_SalesOrderApiService
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>createSalesOrder</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Creates a sales order from the request and returns the outcome.
++    /// </summary>
++    /// <param name = "_request">The request.</param>
++    /// <returns>The response.</returns>
++    public DYLO_SalesOrderApiResponseContract createSalesOrder(DYLO_SalesOrderApiRequestContract _request)
++    {
++        System.Diagnostics.Stopwatch        stopwatch = new System.Diagnostics.Stopwatch();
++        utcdatetime                         executedDateTime;
++        str                                 requestJson;
++        DataAreaId                          legalEntity;
++        DYLO_SalesOrderApiResponseContract  response;
++
++        stopwatch.Start();
++        executedDateTime = DateTimeUtil::utcNow();
++
++        requestJson = this.requestJson(_request);
++        legalEntity = _request ? _request.parmLegalEntity() : '';
++
++        if (legalEntity && !xDataArea::exist(legalEntity))
++        {
++            // Unknown legal entity: logged in the caller's company
++            response = DYLO_SalesOrderApiResponseContract::newFromRequest(_request);
++            response.addError(DYLO_SalesOrderApiProcessor::ErrLegalEntityNotFound,
++                strFmt("@DYLOExtensions:SOApiErrLegalEntityNotFound", legalEntity));
++            response.setFailed();
++
++            stopwatch.Stop();
++            DYLO_SalesOrderApiTraceLogger::logCall(_request, requestJson, response, executedDateTime, stopwatch.ElapsedMilliseconds);
++
++            return response;
++        }
++
++        if (legalEntity && legalEntity != curExt())
++        {
++            changecompany(legalEntity)
++            {
++                response = this.processAndLog(_request, requestJson, executedDateTime, stopwatch);
++            }
++        }
++        else
++        {
++            response = this.processAndLog(_request, requestJson, executedDateTime, stopwatch);
++        }
++
++        return response;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>processAndLog</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Processes the request in the current company and writes the trace record. Every unexpected
++    /// exception becomes a failed response, so every call is traced.
++    /// </summary>
++    private DYLO_SalesOrderApiResponseContract processAndLog(
++        DYLO_SalesOrderApiRequestContract   _request,
++        str                                 _requestJson,
++        utcdatetime                         _executedDateTime,
++        System.Diagnostics.Stopwatch        _stopwatch)
++    {
++        DYLO_SalesOrderApiResponseContract  response;
++        int                                 infologStart = infologLine();
++
++        try
++        {
++            response = DYLO_SalesOrderApiProcessor::process(_request);
++        }
++        catch (Exception::CLRError)
++        {
++            response = DYLO_SalesOrderApiProcessor::newUnexpectedResponse(_request, infologStart, true);
++        }
++        catch
++        {
++            response = DYLO_SalesOrderApiProcessor::newUnexpectedResponse(_request, infologStart);
++        }
++
++        _stopwatch.Stop();
++        DYLO_SalesOrderApiTraceLogger::logCall(_request, _requestJson, response, _executedDateTime, _stopwatch.ElapsedMilliseconds);
++
++        return response;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>requestJson</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Serializes and formats the request as D365 read it.
++    /// </summary>
++    private str requestJson(DYLO_SalesOrderApiRequestContract _request)
++    {
++        str json;
++
++        try
++        {
++            json = DYLO_JsonFormatter::format(FormJsonSerializer::serializeClass(_request));
++        }
++        catch
++        {
++            json = '';
++        }
++
++        return json;
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiTraceLogger.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiTraceLogger.xml
+new file mode 100644
+index 0000000..a171a2b
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiTraceLogger.xml
+@@ -0,0 +1,127 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_SalesOrderApiTraceLogger</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Writes the trace records of the inbound sales order API, outside the order transaction.
++/// </summary>
++public class DYLO_SalesOrderApiTraceLogger
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>logCall</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Inserts the trace record of an API call in the current legal entity.
++    /// </summary>
++    /// <param name = "_request">The request; may be null.</param>
++    /// <param name = "_requestJson">The formatted request JSON.</param>
++    /// <param name = "_response">The response.</param>
++    /// <param name = "_executedDateTime">The start of the call.</param>
++    /// <param name = "_durationMs">The duration in milliseconds.</param>
++    /// <returns>The trace record.</returns>
++    public static DYLO_SalesOrderApiTrace logCall(
++        DYLO_SalesOrderApiRequestContract   _request,
++        str                                 _requestJson,
++        DYLO_SalesOrderApiResponseContract  _response,
++        utcdatetime                         _executedDateTime,
++        int64                               _durationMs)
++    {
++        DYLO_SalesOrderApiTrace trace;
++
++        trace.CorrelationId     = _response.parmCorrelationId();
++        trace.ExternalOrderRef  = _response.parmExternalOrderId();
++
++        if (_request)
++        {
++            trace.CustAccount   = _request.parmCustomerAccount();
++            trace.CurrencyCode  = _request.parmCurrency();
++
++            if (!trace.CurrencyCode && trace.CustAccount)
++            {
++                trace.CurrencyCode = CustTable::find(trace.CustAccount).Currency;
++            }
++        }
++
++        trace.Status            = _response.parmSuccess() ? DYLO_SalesOrderApiStatus::Success : DYLO_SalesOrderApiStatus::Failed;
++        trace.SalesId           = _response.parmSalesId();
++        trace.ErrorCode         = _response.parmErrorCode();
++        trace.ErrorMessage      = _response.parmMessage();
++        trace.RequestJson       = _requestJson;
++        trace.ResponseJson      = DYLO_SalesOrderApiTraceLogger::responseJson(_response);
++        trace.ExecutedDateTime  = _executedDateTime;
++        trace.DurationMs        = _durationMs;
++        trace.CallerUserId      = curUserId();
++
++        ttsbegin;
++        trace.insert();
++        ttscommit;
++
++        return trace;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>logRetry</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Updates a trace record after it was reprocessed.
++    /// </summary>
++    /// <param name = "_trace">The trace record.</param>
++    /// <param name = "_response">The response of the reprocessing.</param>
++    /// <param name = "_durationMs">The duration of the reprocessing in milliseconds.</param>
++    public static void logRetry(
++        DYLO_SalesOrderApiTrace             _trace,
++        DYLO_SalesOrderApiResponseContract  _response,
++        int64                               _durationMs)
++    {
++        DYLO_SalesOrderApiTrace trace;
++
++        ttsbegin;
++
++        trace = DYLO_SalesOrderApiTrace::findRecId(_trace.RecId, true);
++
++        if (trace.RecId)
++        {
++            trace.RetryCount++;
++            trace.LastRetryDateTime = DateTimeUtil::utcNow();
++            trace.LastRetryBy       = curUserId();
++            trace.ResponseJson      = DYLO_SalesOrderApiTraceLogger::responseJson(_response);
++            trace.ErrorCode         = _response.parmErrorCode();
++            trace.ErrorMessage      = _response.parmMessage();
++            trace.DurationMs        = _durationMs;
++
++            if (_response.parmSuccess())
++            {
++                trace.Status  = DYLO_SalesOrderApiStatus::Reprocessed;
++                trace.SalesId = _response.parmSalesId();
++            }
++
++            trace.update();
++        }
++
++        ttscommit;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>responseJson</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Serializes and formats a response.
++    /// </summary>
++    public static str responseJson(DYLO_SalesOrderApiResponseContract _response)
++    {
++        return DYLO_JsonFormatter::format(FormJsonSerializer::serializeClass(_response));
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiValidator.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiValidator.xml
+new file mode 100644
+index 0000000..9320389
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_SalesOrderApiValidator.xml
+@@ -0,0 +1,246 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_SalesOrderApiValidator</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Business validation of an inbound sales order API request, in the current legal entity.
++/// </summary>
++public class DYLO_SalesOrderApiValidator
++{
++    List errors;
++
++    public const str ErrCustNotFound       = 'CUST_NOT_FOUND';
++    public const str ErrCustBlocked        = 'CUST_BLOCKED';
++    public const str ErrCurrencyNotFound   = 'CURRENCY_NOT_FOUND';
++    public const str ErrItemNotFound       = 'ITEM_NOT_FOUND';
++    public const str ErrItemStopped        = 'ITEM_STOPPED';
++    public const str ErrQtyInvalid         = 'QTY_INVALID';
++    public const str ErrUnitInvalid        = 'UNIT_INVALID';
++    public const str ErrSiteNotFound       = 'SITE_NOT_FOUND';
++    public const str ErrWarehouseInvalid   = 'WAREHOUSE_INVALID';
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>construct</Name>
++				<Source><![CDATA[
++    public static DYLO_SalesOrderApiValidator construct()
++    {
++        return new DYLO_SalesOrderApiValidator();
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>validate</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Validates the request and collects all errors.
++    /// </summary>
++    /// <param name = "_request">The request.</param>
++    /// <returns>A list of [errorCode, message] containers; empty when the request is valid.</returns>
++    public List validate(DYLO_SalesOrderApiRequestContract _request)
++    {
++        errors = new List(Types::Container);
++
++        this.validateCustomer(_request);
++        this.validateCurrency(_request);
++        this.validateLines(_request);
++
++        return errors;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>addError</Name>
++				<Source><![CDATA[
++    private void addError(DYLO_ApiErrorCode _errorCode, str _message)
++    {
++        errors.addEnd([_errorCode, _message]);
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>legalEntity</Name>
++				<Source><![CDATA[
++    private DataAreaId legalEntity()
++    {
++        return strUpr(curExt());
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>validateCustomer</Name>
++				<Source><![CDATA[
++    private void validateCustomer(DYLO_SalesOrderApiRequestContract _request)
++    {
++        CustAccount custAccount = _request.parmCustomerAccount();
++        CustTable   custTable   = CustTable::find(custAccount);
++
++        if (!custTable.RecId)
++        {
++            this.addError(DYLO_SalesOrderApiValidator::ErrCustNotFound,
++                strFmt("@DYLOExtensions:SOApiErrCustNotFound", custAccount, this.legalEntity()));
++        }
++        else if (custTable.Blocked == CustVendorBlocked::Invoice || custTable.Blocked == CustVendorBlocked::All)
++        {
++            this.addError(DYLO_SalesOrderApiValidator::ErrCustBlocked,
++                strFmt("@DYLOExtensions:SOApiErrCustBlocked", custAccount, this.legalEntity(), custTable.Blocked));
++        }
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>validateCurrency</Name>
++				<Source><![CDATA[
++    private void validateCurrency(DYLO_SalesOrderApiRequestContract _request)
++    {
++        CurrencyCode currencyCode = _request.parmCurrency();
++
++        if (currencyCode && !Currency::exist(currencyCode))
++        {
++            this.addError(DYLO_SalesOrderApiValidator::ErrCurrencyNotFound,
++                strFmt("@DYLOExtensions:SOApiErrCurrencyNotFound", currencyCode));
++        }
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>validateLines</Name>
++				<Source><![CDATA[
++    private void validateLines(DYLO_SalesOrderApiRequestContract _request)
++    {
++        List            lines = _request.parmLines();
++        ListEnumerator  enumerator;
++        int             lineNum;
++
++        if (!lines)
++        {
++            return;
++        }
++
++        enumerator = lines.getEnumerator();
++        while (enumerator.moveNext())
++        {
++            lineNum++;
++            this.validateLine(enumerator.current(), lineNum);
++        }
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>validateLine</Name>
++				<Source><![CDATA[
++    private void validateLine(DYLO_SalesOrderApiLineContract _line, int _lineNum)
++    {
++        ItemId              itemId      = _line.parmItemId();
++        UnitOfMeasureSymbol unit        = _line.parmUnit();
++        InventSiteId        site        = _line.parmSite();
++        InventLocationId    warehouse   = _line.parmWarehouse();
++        InventTable         inventTable = InventTable::find(itemId);
++        InventLocation      inventLocation;
++
++        if (!inventTable.RecId)
++        {
++            this.addError(DYLO_SalesOrderApiValidator::ErrItemNotFound,
++                strFmt("@DYLOExtensions:SOApiErrItemNotFound", _lineNum, itemId, this.legalEntity()));
++        }
++        else if (this.isItemStopped(itemId, site))
++        {
++            this.addError(DYLO_SalesOrderApiValidator::ErrItemStopped,
++                strFmt("@DYLOExtensions:SOApiErrItemStopped", _lineNum, itemId));
++        }
++
++        if (_line.parmQty() <= 0)
++        {
++            this.addError(DYLO_SalesOrderApiValidator::ErrQtyInvalid,
++                strFmt("@DYLOExtensions:SOApiErrQtyInvalid", _lineNum, itemId));
++        }
++
++        if (unit)
++        {
++            boolean unitValid = UnitOfMeasure::findBySymbol(unit).RecId != 0;
++
++            if (unitValid && inventTable.RecId)
++            {
++                unitValid = EcoResProductUnitConverter::canBeConvertedGivenUnitSymbolsForReleasedProduct(
++                    itemId,
++                    InventDim::inventDimIdBlank(),
++                    unit,
++                    inventTable.inventUnitId());
++            }
++
++            if (!unitValid)
++            {
++                this.addError(DYLO_SalesOrderApiValidator::ErrUnitInvalid,
++                    strFmt("@DYLOExtensions:SOApiErrUnitInvalid", _lineNum, unit, itemId));
++            }
++        }
++
++        if (site && !InventSite::exist(site))
++        {
++            this.addError(DYLO_SalesOrderApiValidator::ErrSiteNotFound,
++                strFmt("@DYLOExtensions:SOApiErrSiteNotFound", _lineNum, site));
++        }
++
++        if (warehouse)
++        {
++            inventLocation = InventLocation::find(warehouse);
++
++            if (!inventLocation.RecId || (site && inventLocation.InventSiteId != site))
++            {
++                this.addError(DYLO_SalesOrderApiValidator::ErrWarehouseInvalid,
++                    strFmt("@DYLOExtensions:SOApiErrWarehouseInvalid", _lineNum, warehouse, site));
++            }
++        }
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>isItemStopped</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Determines whether the item is stopped for sales orders, by default and, when a site is given, on that site.
++    /// </summary>
++    private boolean isItemStopped(ItemId _itemId, InventSiteId _site)
++    {
++        InventItemSalesSetup    salesSetup = InventItemSalesSetup::find(_itemId, InventDim::inventDimIdBlank());
++        InventDim               siteDim;
++
++        if (salesSetup.RecId && salesSetup.isStopped())
++        {
++            return true;
++        }
++
++        if (_site)
++        {
++            siteDim.InventSiteId = _site;
++            siteDim = InventDim::findDim(siteDim);
++
++            if (siteDim.inventDimId)
++            {
++                salesSetup = InventItemSalesSetup::find(_itemId, siteDim.inventDimId);
++
++                if (salesSetup.RecId && salesSetup.isStopped())
++                {
++                    return true;
++                }
++            }
++        }
++
++        return false;
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_ApiDurationMs.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_ApiDurationMs.xml
+new file mode 100644
+index 0000000..f15a586
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_ApiDurationMs.xml
+@@ -0,0 +1,9 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxEdt xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns=""
++	i:type="AxEdtInt64">
++	<Name>DYLO_ApiDurationMs</Name>
++	<Label>@DYLOExtensions:SOApiDurationMs</Label>
++	<ArrayElements />
++	<Relations />
++	<TableReferences />
++</AxEdt>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_ApiErrorCode.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_ApiErrorCode.xml
+new file mode 100644
+index 0000000..e5013ca
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_ApiErrorCode.xml
+@@ -0,0 +1,10 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxEdt xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns=""
++	i:type="AxEdtString">
++	<Name>DYLO_ApiErrorCode</Name>
++	<Label>@DYLOExtensions:SOApiErrorCode</Label>
++	<ArrayElements />
++	<Relations />
++	<TableReferences />
++	<StringSize>30</StringSize>
++</AxEdt>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_ApiRetryCount.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_ApiRetryCount.xml
+new file mode 100644
+index 0000000..411be03
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_ApiRetryCount.xml
+@@ -0,0 +1,10 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxEdt xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns=""
++	i:type="AxEdtInt">
++	<Name>DYLO_ApiRetryCount</Name>
++	<Extends>Integer</Extends>
++	<Label>@DYLOExtensions:SOApiRetryCount</Label>
++	<ArrayElements />
++	<Relations />
++	<TableReferences />
++</AxEdt>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_CorrelationId.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_CorrelationId.xml
+new file mode 100644
+index 0000000..fe56078
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_CorrelationId.xml
+@@ -0,0 +1,10 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxEdt xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns=""
++	i:type="AxEdtString">
++	<Name>DYLO_CorrelationId</Name>
++	<Label>@DYLOExtensions:SOApiCorrelationId</Label>
++	<ArrayElements />
++	<Relations />
++	<TableReferences />
++	<StringSize>60</StringSize>
++</AxEdt>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_ExternalOrderRef.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_ExternalOrderRef.xml
+new file mode 100644
+index 0000000..dff05e1
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_ExternalOrderRef.xml
+@@ -0,0 +1,10 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxEdt xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns=""
++	i:type="AxEdtString">
++	<Name>DYLO_ExternalOrderRef</Name>
++	<Label>@DYLOExtensions:SOApiExternalOrderRef</Label>
++	<ArrayElements />
++	<Relations />
++	<TableReferences />
++	<StringSize>60</StringSize>
++</AxEdt>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxEnum/DYLO_SalesOrderApiStatus.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxEnum/DYLO_SalesOrderApiStatus.xml
+new file mode 100644
+index 0000000..f9bef02
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxEnum/DYLO_SalesOrderApiStatus.xml
+@@ -0,0 +1,22 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxEnum xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_SalesOrderApiStatus</Name>
++	<Label>@DYLOExtensions:SOApiStatus</Label>
++	<UseEnumValue>No</UseEnumValue>
++	<EnumValues>
++		<AxEnumValue>
++			<Name>Success</Name>
++			<Label>@DYLOExtensions:SOApiStatusSuccess</Label>
++		</AxEnumValue>
++		<AxEnumValue>
++			<Name>Failed</Name>
++			<Label>@DYLOExtensions:SOApiStatusFailed</Label>
++			<Value>1</Value>
++		</AxEnumValue>
++		<AxEnumValue>
++			<Name>Reprocessed</Name>
++			<Label>@DYLOExtensions:SOApiStatusReprocessed</Label>
++			<Value>2</Value>
++		</AxEnumValue>
++	</EnumValues>
++</AxEnum>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxEnum/DYLO_SalesOrderApiStatusFilter.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxEnum/DYLO_SalesOrderApiStatusFilter.xml
+new file mode 100644
+index 0000000..f90c143
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxEnum/DYLO_SalesOrderApiStatusFilter.xml
+@@ -0,0 +1,27 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxEnum xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_SalesOrderApiStatusFilter</Name>
++	<Label>@DYLOExtensions:SOApiStatusFilter</Label>
++	<UseEnumValue>No</UseEnumValue>
++	<EnumValues>
++		<AxEnumValue>
++			<Name>All</Name>
++			<Label>@DYLOExtensions:SOApiStatusFilterAll</Label>
++		</AxEnumValue>
++		<AxEnumValue>
++			<Name>Success</Name>
++			<Label>@DYLOExtensions:SOApiStatusSuccess</Label>
++			<Value>1</Value>
++		</AxEnumValue>
++		<AxEnumValue>
++			<Name>Failed</Name>
++			<Label>@DYLOExtensions:SOApiStatusFailed</Label>
++			<Value>2</Value>
++		</AxEnumValue>
++		<AxEnumValue>
++			<Name>Reprocessed</Name>
++			<Label>@DYLOExtensions:SOApiStatusReprocessed</Label>
++			<Value>3</Value>
++		</AxEnumValue>
++	</EnumValues>
++</AxEnum>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxForm/DYLO_SalesOrderApiPayloadView.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxForm/DYLO_SalesOrderApiPayloadView.xml
+new file mode 100644
+index 0000000..42f6e38
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxForm/DYLO_SalesOrderApiPayloadView.xml
+@@ -0,0 +1,140 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxForm xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V6">
++	<Name>DYLO_SalesOrderApiPayloadView</Name>
++	<SourceCode>
++		<Methods xmlns="">
++			<Method>
++				<Name>classDeclaration</Name>
++				<Source><![CDATA[
++/// <summary>
++/// Shows the request and response JSON of a sales order API trace record in a large viewer.
++/// </summary>
++[Form]
++public class DYLO_SalesOrderApiPayloadView extends FormRun
++{
++}
++]]></Source>
++			</Method>
++			<Method>
++				<Name>init</Name>
++				<Source><![CDATA[
++    public void init()
++    {
++        DYLO_SalesOrderApiTrace trace;
++
++        if (!element.args() || !element.args().record() || element.args().dataset() != tableNum(DYLO_SalesOrderApiTrace))
++        {
++            throw error("@DYLOExtensions:SOApiReprocessNoRecord");
++        }
++
++        super();
++
++        trace = element.args().record();
++
++        element.design().caption(strFmt("@DYLOExtensions:SOApiPayloadViewCaption", trace.CorrelationId));
++        RequestJsonView.text(trace.RequestJson);
++        ResponseJsonView.text(trace.ResponseJson);
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++		<DataSources xmlns="" />
++		<DataControls xmlns="" />
++		<Members xmlns="" />
++	</SourceCode>
++	<DataSources />
++	<Design>
++		<Caption xmlns="">@DYLOExtensions:SOApiViewJsonPayload</Caption>
++		<DialogSize xmlns="">Medium</DialogSize>
++		<Pattern xmlns="">DialogReadOnly</Pattern>
++		<PatternVersion xmlns="">1.2</PatternVersion>
++		<Style xmlns="">Dialog</Style>
++		<ViewEditMode xmlns="">View</ViewEditMode>
++		<Controls xmlns="">
++			<AxFormControl xmlns=""
++				i:type="AxFormGroupControl">
++				<Name>RequestJsonGroup</Name>
++				<HeightMode>SizeToContent</HeightMode>
++				<Pattern>FillText</Pattern>
++				<PatternVersion>UX7 1.0</PatternVersion>
++				<Type>Group</Type>
++				<WidthMode>SizeToAvailable</WidthMode>
++				<FormControlExtension
++					i:nil="true" />
++				<Controls>
++					<AxFormControl xmlns=""
++						i:type="AxFormStringControl">
++						<Name>RequestJsonView</Name>
++						<AutoDeclaration>Yes</AutoDeclaration>
++						<HeightMode>SizeToAvailable</HeightMode>
++						<Type>String</Type>
++						<WidthMode>SizeToAvailable</WidthMode>
++						<FormControlExtension
++							i:nil="true" />
++						<DisplayHeight>25</DisplayHeight>
++						<DisplayHeightMode>Fixed</DisplayHeightMode>
++						<ExtendedDataType>Notes</ExtendedDataType>
++						<MultiLine>Yes</MultiLine>
++						<ShowLabel>No</ShowLabel>
++					</AxFormControl>
++				</Controls>
++				<Caption>@DYLOExtensions:SOApiRequestJson</Caption>
++				<Style>DialogContent</Style>
++			</AxFormControl>
++			<AxFormControl xmlns=""
++				i:type="AxFormGroupControl">
++				<Name>ResponseJsonGroup</Name>
++				<HeightMode>SizeToAvailable</HeightMode>
++				<Pattern>FillText</Pattern>
++				<PatternVersion>UX7 1.0</PatternVersion>
++				<Type>Group</Type>
++				<WidthMode>SizeToAvailable</WidthMode>
++				<FormControlExtension
++					i:nil="true" />
++				<Controls>
++					<AxFormControl xmlns=""
++						i:type="AxFormStringControl">
++						<Name>ResponseJsonView</Name>
++						<AutoDeclaration>Yes</AutoDeclaration>
++						<HeightMode>SizeToAvailable</HeightMode>
++						<Type>String</Type>
++						<WidthMode>SizeToAvailable</WidthMode>
++						<FormControlExtension
++							i:nil="true" />
++						<DisplayHeight>25</DisplayHeight>
++						<DisplayHeightMode>Fixed</DisplayHeightMode>
++						<ExtendedDataType>Notes</ExtendedDataType>
++						<MultiLine>Yes</MultiLine>
++						<ShowLabel>No</ShowLabel>
++					</AxFormControl>
++				</Controls>
++				<Caption>@DYLOExtensions:SOApiResponseJson</Caption>
++				<Style>DialogContent</Style>
++			</AxFormControl>
++			<AxFormControl xmlns=""
++				i:type="AxFormButtonGroupControl">
++				<Name>DialogCommitButtons</Name>
++				<Type>ButtonGroup</Type>
++				<WidthMode>SizeToAvailable</WidthMode>
++				<FormControlExtension
++					i:nil="true" />
++				<Controls>
++					<AxFormControl xmlns=""
++						i:type="AxFormCommandButtonControl">
++						<Name>CloseButton</Name>
++						<Type>CommandButton</Type>
++						<FormControlExtension
++							i:nil="true" />
++						<Command>Cancel</Command>
++						<SaveRecord>No</SaveRecord>
++						<Text>@SYS15212</Text>
++					</AxFormControl>
++				</Controls>
++				<ArrangeMethod>HorizontalRight</ArrangeMethod>
++				<Style>DialogCommitContainer</Style>
++			</AxFormControl>
++		</Controls>
++	</Design>
++	<Parts />
++</AxForm>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxForm/DYLO_SalesOrderApiTraceLog.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxForm/DYLO_SalesOrderApiTraceLog.xml
+new file mode 100644
+index 0000000..acd2cc7
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxForm/DYLO_SalesOrderApiTraceLog.xml
+@@ -0,0 +1,642 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxForm xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V6">
++	<Name>DYLO_SalesOrderApiTraceLog</Name>
++	<SourceCode>
++		<Methods xmlns="">
++			<Method>
++				<Name>classDeclaration</Name>
++				<Source><![CDATA[
++/// <summary>
++/// Sales Order API Trace Log: inbound sales order API calls on the left, payload and error details on the right.
++/// </summary>
++[Form]
++public class DYLO_SalesOrderApiTraceLog extends FormRun
++{
++}
++]]></Source>
++			</Method>
++			<Method>
++				<Name>applyFilters</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Applies the text filter and the status filter of the filter bar to the query.
++    /// </summary>
++    public void applyFilters()
++    {
++        QueryBuildDataSource    qbds        = DYLO_SalesOrderApiTrace_ds.queryBuildDataSource();
++        QueryBuildRange         textRange   = SysQuery::findOrCreateRange(qbds, fieldNum(DYLO_SalesOrderApiTrace, RecId));
++        QueryBuildRange         statusRange = SysQuery::findOrCreateRange(qbds, fieldNum(DYLO_SalesOrderApiTrace, Status));
++        str                     searchText  = strRem(FilterText.valueStr(), '"()\\\'');
++
++        if (searchText)
++        {
++            textRange.value(strFmt('((%1.%2 like "*%4*") || (%1.%3 like "*%4*"))',
++                qbds.name(),
++                fieldStr(DYLO_SalesOrderApiTrace, CorrelationId),
++                fieldStr(DYLO_SalesOrderApiTrace, ExternalOrderRef),
++                searchText));
++        }
++        else
++        {
++            textRange.value(SysQuery::valueUnlimited());
++        }
++
++        switch (StatusFilter.selection())
++        {
++            case DYLO_SalesOrderApiStatusFilter::Success:
++                statusRange.value(queryValue(DYLO_SalesOrderApiStatus::Success));
++                break;
++
++            case DYLO_SalesOrderApiStatusFilter::Failed:
++                statusRange.value(queryValue(DYLO_SalesOrderApiStatus::Failed));
++                break;
++
++            case DYLO_SalesOrderApiStatusFilter::Reprocessed:
++                statusRange.value(queryValue(DYLO_SalesOrderApiStatus::Reprocessed));
++                break;
++
++            default:
++                statusRange.value(SysQuery::valueUnlimited());
++                break;
++        }
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>updateCounts</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Shows the number of trace records of the current legal entity per status.
++    /// </summary>
++    public void updateCounts()
++    {
++        DYLO_SalesOrderApiTrace trace;
++        int64                   countAll;
++        int64                   countSuccess;
++        int64                   countFailed;
++        int64                   countReprocessed;
++
++        select count(RecId) from trace;
++        countAll = trace.RecId;
++
++        select count(RecId) from trace
++            where trace.Status == DYLO_SalesOrderApiStatus::Success;
++        countSuccess = trace.RecId;
++
++        select count(RecId) from trace
++            where trace.Status == DYLO_SalesOrderApiStatus::Failed;
++        countFailed = trace.RecId;
++
++        select count(RecId) from trace
++            where trace.Status == DYLO_SalesOrderApiStatus::Reprocessed;
++        countReprocessed = trace.RecId;
++
++        CountsText.text(strFmt("@DYLOExtensions:SOApiCounts", countAll, countSuccess, countFailed, countReprocessed));
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++		<DataSources xmlns="">
++			<DataSource>
++				<Name>DYLO_SalesOrderApiTrace</Name>
++				<Methods>
++					<Method>
++						<Name>init</Name>
++						<Source><![CDATA[
++        public void init()
++        {
++            super();
++
++            this.queryBuildDataSource().addSortField(fieldNum(DYLO_SalesOrderApiTrace, ExecutedDateTime), SortOrder::Descending);
++        }
++
++]]></Source>
++					</Method>
++					<Method>
++						<Name>executeQuery</Name>
++						<Source><![CDATA[
++        public void executeQuery()
++        {
++            element.applyFilters();
++
++            super();
++
++            element.updateCounts();
++        }
++
++]]></Source>
++					</Method>
++					<Method>
++						<Name>active</Name>
++						<Source><![CDATA[
++        public int active()
++        {
++            int ret = super();
++
++            ReprocessButton.enabled(DYLO_SalesOrderApiTrace.canReprocess());
++            DetailsTabPage.caption(strFmt("@DYLOExtensions:SOApiDetailsCaption", DYLO_SalesOrderApiTrace.CorrelationId));
++
++            return ret;
++        }
++
++]]></Source>
++					</Method>
++					<Method>
++						<Name>displayOption</Name>
++						<Source><![CDATA[
++        public void displayOption(Common _record, FormRowDisplayOption _options)
++        {
++            DYLO_SalesOrderApiTrace trace = _record;
++
++            switch (trace.Status)
++            {
++                case DYLO_SalesOrderApiStatus::Success:
++                    _options.backColor(WinAPI::RGB2int(220, 245, 227));  // #DCF5E3
++                    break;
++
++                case DYLO_SalesOrderApiStatus::Failed:
++                    _options.backColor(WinAPI::RGB2int(253, 226, 226));  // #FDE2E2
++                    break;
++
++                case DYLO_SalesOrderApiStatus::Reprocessed:
++                    _options.backColor(WinAPI::RGB2int(255, 244, 206));  // #FFF4CE
++                    break;
++            }
++
++            _options.affectedElementsByControl(Grid_Status.id());
++
++            super(_record, _options);
++        }
++
++]]></Source>
++					</Method>
++				</Methods>
++				<Fields />
++			</DataSource>
++		</DataSources>
++		<DataControls xmlns="">
++			<Control>
++				<Name>FilterText</Name>
++				<Type>String</Type>
++				<Methods>
++					<Method>
++						<Name>modified</Name>
++						<Source><![CDATA[
++        public boolean modified()
++        {
++            boolean ret = super();
++
++            DYLO_SalesOrderApiTrace_ds.executeQuery();
++
++            return ret;
++        }
++
++]]></Source>
++					</Method>
++				</Methods>
++			</Control>
++			<Control>
++				<Name>StatusFilter</Name>
++				<Type>ComboBox</Type>
++				<Methods>
++					<Method>
++						<Name>modified</Name>
++						<Source><![CDATA[
++        public boolean modified()
++        {
++            boolean ret = super();
++
++            DYLO_SalesOrderApiTrace_ds.executeQuery();
++
++            return ret;
++        }
++
++]]></Source>
++					</Method>
++				</Methods>
++			</Control>
++		</DataControls>
++		<Members xmlns="" />
++	</SourceCode>
++	<DataSources>
++		<AxFormDataSource xmlns="">
++			<Name>DYLO_SalesOrderApiTrace</Name>
++			<Table>DYLO_SalesOrderApiTrace</Table>
++			<Fields>
++				<AxFormDataSourceField>
++					<DataField>CallerUserId</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>CorrelationId</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>CurrencyCode</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>CustAccount</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>dataAreaId</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>DurationMs</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>ErrorCode</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>ErrorMessage</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>ExecutedDateTime</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>ExternalOrderRef</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>LastRetryBy</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>LastRetryDateTime</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>RecId</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>RequestJson</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>ResponseJson</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>RetryCount</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>SalesId</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>Status</DataField>
++				</AxFormDataSourceField>
++				<AxFormDataSourceField>
++					<DataField>TableId</DataField>
++				</AxFormDataSourceField>
++			</Fields>
++			<ReferencedDataSources />
++			<AllowCreate>No</AllowCreate>
++			<AllowDelete>No</AllowDelete>
++			<AllowEdit>No</AllowEdit>
++			<InsertIfEmpty>No</InsertIfEmpty>
++			<DataSourceLinks />
++			<DerivedDataSources />
++		</AxFormDataSource>
++	</DataSources>
++	<Design>
++		<Caption xmlns="">@DYLOExtensions:SOApiTraceLogCaption</Caption>
++		<DataSource xmlns="">DYLO_SalesOrderApiTrace</DataSource>
++		<Pattern xmlns="">SimpleListDetails-Grid</Pattern>
++		<PatternVersion xmlns="">1.4</PatternVersion>
++		<ShowDeleteButton xmlns="">No</ShowDeleteButton>
++		<ShowNewButton xmlns="">No</ShowNewButton>
++		<Style xmlns="">SimpleListDetails</Style>
++		<ViewEditMode xmlns="">View</ViewEditMode>
++		<Controls xmlns="">
++			<AxFormControl xmlns=""
++				i:type="AxFormActionPaneControl">
++				<Name>ActionPane</Name>
++				<Type>ActionPane</Type>
++				<FormControlExtension
++					i:nil="true" />
++				<Controls>
++					<AxFormControl xmlns=""
++						i:type="AxFormButtonGroupControl">
++						<Name>TraceButtonGroup</Name>
++						<Type>ButtonGroup</Type>
++						<FormControlExtension
++							i:nil="true" />
++						<Controls>
++							<AxFormControl xmlns=""
++								i:type="AxFormCommandButtonControl">
++								<Name>RefreshButton</Name>
++								<Type>CommandButton</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<ButtonDisplay>TextWithImageLeft</ButtonDisplay>
++								<Command>Refresh</Command>
++								<NormalImage>Refresh</NormalImage>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormMenuFunctionButtonControl">
++								<Name>ReprocessButton</Name>
++								<AutoDeclaration>Yes</AutoDeclaration>
++								<Type>MenuFunctionButton</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataSource>DYLO_SalesOrderApiTrace</DataSource>
++								<MenuItemName>DYLO_SalesOrderApiReprocess</MenuItemName>
++								<MenuItemType>Action</MenuItemType>
++								<NeedsRecord>Yes</NeedsRecord>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormMenuFunctionButtonControl">
++								<Name>ViewPayloadButton</Name>
++								<Type>MenuFunctionButton</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataSource>DYLO_SalesOrderApiTrace</DataSource>
++								<MenuItemName>DYLO_SalesOrderApiPayloadView</MenuItemName>
++								<NeedsRecord>Yes</NeedsRecord>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormMenuFunctionButtonControl">
++								<Name>PurgeButton</Name>
++								<Type>MenuFunctionButton</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataSource>DYLO_SalesOrderApiTrace</DataSource>
++								<MenuItemName>DYLO_SalesOrderApiPurge</MenuItemName>
++								<MenuItemType>Action</MenuItemType>
++							</AxFormControl>
++						</Controls>
++						<DataSource>DYLO_SalesOrderApiTrace</DataSource>
++					</AxFormControl>
++				</Controls>
++				<DataSource>DYLO_SalesOrderApiTrace</DataSource>
++			</AxFormControl>
++			<AxFormControl xmlns=""
++				i:type="AxFormGroupControl">
++				<Name>ListPanel</Name>
++				<HeightMode>SizeToAvailable</HeightMode>
++				<Type>Group</Type>
++				<Width>300</Width>
++				<WidthMode>Manual</WidthMode>
++				<FormControlExtension
++					i:nil="true" />
++				<Controls>
++					<AxFormControl>
++						<Name>QuickFilterControl</Name>
++						<WidthMode>SizeToAvailable</WidthMode>
++						<FormControlExtension>
++							<Name>QuickFilterControl</Name>
++							<ExtensionComponents />
++							<ExtensionProperties>
++								<AxFormControlExtensionProperty>
++									<Name>targetControlName</Name>
++									<Type>String</Type>
++									<Value>TraceGrid</Value>
++								</AxFormControlExtensionProperty>
++								<AxFormControlExtensionProperty>
++									<Name>placeholderText</Name>
++									<Type>String</Type>
++								</AxFormControlExtensionProperty>
++								<AxFormControlExtensionProperty>
++									<Name>defaultColumnName</Name>
++									<Type>String</Type>
++									<Value>Grid_CorrelationId</Value>
++								</AxFormControlExtensionProperty>
++							</ExtensionProperties>
++						</FormControlExtension>
++					</AxFormControl>
++					<AxFormControl xmlns=""
++						i:type="AxFormGroupControl">
++						<Name>CustomFilterGroup</Name>
++						<Type>Group</Type>
++						<WidthMode>SizeToAvailable</WidthMode>
++						<FormControlExtension
++							i:nil="true" />
++						<Controls>
++							<AxFormControl xmlns=""
++								i:type="AxFormStringControl">
++								<Name>FilterText</Name>
++								<AutoDeclaration>Yes</AutoDeclaration>
++								<Type>String</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<ExtendedDataType>DYLO_CorrelationId</ExtendedDataType>
++								<Label>@DYLOExtensions:SOApiFilterText</Label>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormComboBoxControl">
++								<Name>StatusFilter</Name>
++								<AutoDeclaration>Yes</AutoDeclaration>
++								<Type>ComboBox</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<EnumType>DYLO_SalesOrderApiStatusFilter</EnumType>
++								<Label>@DYLOExtensions:SOApiStatusFilter</Label>
++								<Items />
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormStringControl">
++								<Name>CountsText</Name>
++								<AllowEdit>No</AllowEdit>
++								<AutoDeclaration>Yes</AutoDeclaration>
++								<Skip>Yes</Skip>
++								<Type>String</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DisplayLength>60</DisplayLength>
++								<DisplayLengthMode>Fixed</DisplayLengthMode>
++								<ExtendedDataType>Notes</ExtendedDataType>
++								<ShowLabel>No</ShowLabel>
++							</AxFormControl>
++						</Controls>
++						<ArrangeMethod>Vertical</ArrangeMethod>
++						<FrameType>None</FrameType>
++						<Style>CustomFilter</Style>
++						<ViewEditMode>Edit</ViewEditMode>
++					</AxFormControl>
++					<AxFormControl xmlns=""
++						i:type="AxFormGridControl">
++						<Name>TraceGrid</Name>
++						<AllowEdit>No</AllowEdit>
++						<Type>Grid</Type>
++						<FormControlExtension
++							i:nil="true" />
++						<Controls>
++							<AxFormControl xmlns=""
++								i:type="AxFormStringControl">
++								<Name>Grid_CorrelationId</Name>
++								<Type>String</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataField>CorrelationId</DataField>
++								<DataSource>DYLO_SalesOrderApiTrace</DataSource>
++								<DisplayLength>15</DisplayLength>
++								<DisplayLengthMode>Fixed</DisplayLengthMode>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormStringControl">
++								<Name>Grid_ExternalOrderRef</Name>
++								<Type>String</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataField>ExternalOrderRef</DataField>
++								<DataSource>DYLO_SalesOrderApiTrace</DataSource>
++								<DisplayLength>14</DisplayLength>
++								<DisplayLengthMode>Fixed</DisplayLengthMode>
++								<Label>@DYLOExtensions:SOApiGridExtOrderRef</Label>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormStringControl">
++								<Name>Grid_CustAccount</Name>
++								<Type>String</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataField>CustAccount</DataField>
++								<DataSource>DYLO_SalesOrderApiTrace</DataSource>
++								<DisplayLength>11</DisplayLength>
++								<DisplayLengthMode>Fixed</DisplayLengthMode>
++								<Label>@DYLOExtensions:SOApiGridCustomer</Label>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormStringControl">
++								<Name>Grid_SalesId</Name>
++								<Type>String</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataField>SalesId</DataField>
++								<DataSource>DYLO_SalesOrderApiTrace</DataSource>
++								<DisplayLength>12</DisplayLength>
++								<DisplayLengthMode>Fixed</DisplayLengthMode>
++								<Label>@DYLOExtensions:SOApiGridSalesId</Label>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormComboBoxControl">
++								<Name>Grid_Status</Name>
++								<AutoDeclaration>Yes</AutoDeclaration>
++								<Type>ComboBox</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataField>Status</DataField>
++								<DataSource>DYLO_SalesOrderApiTrace</DataSource>
++								<Label>@DYLOExtensions:SOApiStatusFilter</Label>
++								<Items />
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormDateTimeControl">
++								<Name>Grid_ExecutedDateTime</Name>
++								<Type>DateTime</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<DataField>ExecutedDateTime</DataField>
++								<DataSource>DYLO_SalesOrderApiTrace</DataSource>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormIntegerControl">
++								<Name>Grid_RetryCount</Name>
++								<Type>Integer</Type>
++								<FormControlExtension
++									i:nil="true" />
++								<Alignment>Right</Alignment>
++								<DataField>RetryCount</DataField>
++								<DataSource>DYLO_SalesOrderApiTrace</DataSource>
++							</AxFormControl>
++						</Controls>
++						<DataSource>DYLO_SalesOrderApiTrace</DataSource>
++						<MultiSelect>No</MultiSelect>
++						<ShowRowLabels>No</ShowRowLabels>
++						<Style>Tabular</Style>
++					</AxFormControl>
++				</Controls>
++				<FrameType>None</FrameType>
++				<Style>SidePanel</Style>
++			</AxFormControl>
++			<AxFormControl xmlns=""
++				i:type="AxFormGroupControl">
++				<Name>ListDetailSplitter</Name>
++				<Type>Group</Type>
++				<FormControlExtension
++					i:nil="true" />
++				<Controls />
++				<Style>SplitterVerticalContainer</Style>
++			</AxFormControl>
++			<AxFormControl xmlns=""
++				i:type="AxFormGroupControl">
++				<Name>DetailsHeader</Name>
++				<Pattern>FieldsFieldGroups</Pattern>
++				<PatternVersion>1.1</PatternVersion>
++				<Type>Group</Type>
++				<WidthMode>SizeToAvailable</WidthMode>
++				<FormControlExtension
++					i:nil="true" />
++				<Controls />
++				<ColumnsMode>Fill</ColumnsMode>
++				<FrameType>None</FrameType>
++			</AxFormControl>
++			<AxFormControl xmlns=""
++				i:type="AxFormTabControl">
++				<Name>DetailsPanel</Name>
++				<Type>Tab</Type>
++				<FormControlExtension
++					i:nil="true" />
++				<Controls>
++					<AxFormControl xmlns=""
++						i:type="AxFormTabPageControl">
++						<Name>DetailsTabPage</Name>
++						<AutoDeclaration>Yes</AutoDeclaration>
++						<Pattern>FieldsFieldGroups</Pattern>
++						<PatternVersion>1.1</PatternVersion>
++						<Type>TabPage</Type>
++						<WidthMode>SizeToAvailable</WidthMode>
++						<FormControlExtension
++							i:nil="true" />
++						<Controls>
++							<AxFormControl xmlns=""
++								i:type="AxFormStringControl">
++								<Name>ErrorMessage</Name>
++								<Type>String</Type>
++								<WidthMode>SizeToContent</WidthMode>
++								<FormControlExtension
++									i:nil="true" />
++								<DataField>ErrorMessage</DataField>
++								<DataSource>DYLO_SalesOrderApiTrace</DataSource>
++								<DisplayHeight>4</DisplayHeight>
++								<DisplayHeightMode>Fixed</DisplayHeightMode>
++								<DisplayLength>60</DisplayLength>
++								<DisplayLengthMode>Fixed</DisplayLengthMode>
++								<MultiLine>Yes</MultiLine>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormStringControl">
++								<Name>RequestJson</Name>
++								<Type>String</Type>
++								<WidthMode>SizeToContent</WidthMode>
++								<FormControlExtension
++									i:nil="true" />
++								<DataField>RequestJson</DataField>
++								<DataSource>DYLO_SalesOrderApiTrace</DataSource>
++								<DisplayHeight>14</DisplayHeight>
++								<DisplayHeightMode>Fixed</DisplayHeightMode>
++								<DisplayLength>60</DisplayLength>
++								<DisplayLengthMode>Fixed</DisplayLengthMode>
++								<MultiLine>Yes</MultiLine>
++							</AxFormControl>
++							<AxFormControl xmlns=""
++								i:type="AxFormStringControl">
++								<Name>ResponseJson</Name>
++								<Type>String</Type>
++								<WidthMode>SizeToContent</WidthMode>
++								<FormControlExtension
++									i:nil="true" />
++								<DataField>ResponseJson</DataField>
++								<DataSource>DYLO_SalesOrderApiTrace</DataSource>
++								<DisplayHeight>10</DisplayHeight>
++								<DisplayHeightMode>Fixed</DisplayHeightMode>
++								<DisplayLength>60</DisplayLength>
++								<DisplayLengthMode>Fixed</DisplayLengthMode>
++								<MultiLine>Yes</MultiLine>
++							</AxFormControl>
++						</Controls>
++						<ColumnsMode>Fill</ColumnsMode>
++						<Caption>@DYLOExtensions:SOApiDetailsCaption</Caption>
++						<FastTabExpanded>Yes</FastTabExpanded>
++					</AxFormControl>
++				</Controls>
++				<Style>FastTabs</Style>
++			</AxFormControl>
++		</Controls>
++	</Design>
++	<Parts />
++</AxForm>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxLabelFile/LabelResources/en-US/DYLOExtensions.en-US.label.txt b/Metadata/DYLOExtensions/DYLOExtensions/AxLabelFile/LabelResources/en-US/DYLOExtensions.en-US.label.txt
+index e077856..8b906dc 100644
+--- a/Metadata/DYLOExtensions/DYLOExtensions/AxLabelFile/LabelResources/en-US/DYLOExtensions.en-US.label.txt
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxLabelFile/LabelResources/en-US/DYLOExtensions.en-US.label.txt
+@@ -1,4 +1,144 @@
+-﻿InvPoDlvBillTo=BILL TO / SHIP TO:
++﻿SOApiCallerUserId=Caller user
++ ;Trace field: D365 user that called the sales order API
++SOApiCorrelationId=Correlation ID
++ ;Correlation ID sent by the external system
++SOApiCounts=All (%1) · Success (%2) · Failed (%3) · Reprocessed (%4)
++ ;Record counts in the filter bar of the trace log form
++SOApiCustomerPoReference=Customer PO reference
++ ;Request member customerPoReference
++SOApiDetailsCaption=Payload & error details (%1)
++ ;Caption of the details pane; %1 is the correlation ID
++SOApiDurationMs=Processing duration (ms)
++ ;Duration of an API call in milliseconds
++SOApiDutyIntegrate=Integrate sales orders through the API
++ ;Duty DYLO_SalesOrderApiIntegrate
++SOApiDutyMaintain=Maintain the sales order API trace log
++ ;Duty DYLO_SalesOrderApiMaintain
++SOApiDutyMonitor=Monitor sales order API calls
++ ;Duty DYLO_SalesOrderApiMonitor
++SOApiErrCreateFailed=The sales order could not be created.
++ ;Generic error when order creation fails without an infolog message
++SOApiErrCurrencyNotFound=Validation Failed: Currency '%1' does not exist.
++ ;%1 currency code
++SOApiErrCustBlocked=Validation Failed: Customer account '%1' in legal entity %2 is on hold (%3).
++ ;%1 customer, %2 legal entity, %3 hold value
++SOApiErrCustNotFound=Validation Failed: Customer account '%1' does not exist in legal entity %2.
++ ;%1 customer, %2 legal entity
++SOApiErrHeaderRejected=The sales order header for customer account '%1' was rejected by validation.
++ ;%1 customer account
++SOApiErrItemNotFound=Validation Failed: Line %1: item '%2' is not released in legal entity %3.
++ ;%1 line number, %2 item, %3 legal entity
++SOApiErrItemStopped=Validation Failed: Line %1: item '%2' is stopped for sales orders.
++ ;%1 line number, %2 item
++SOApiErrLegalEntityNotFound=Validation Failed: Legal entity '%1' does not exist.
++ ;%1 legal entity
++SOApiErrPayloadMissingField=Validation Failed: The member '%1' is missing in the request.
++ ;%1 JSON member name
++SOApiErrPayloadNoLines=Validation Failed: The request contains no order lines.
++ ;Request without lines
++SOApiErrQtyInvalid=Validation Failed: Line %1: the quantity for item '%2' must be greater than zero.
++ ;%1 line number, %2 item
++SOApiErrSiteNotFound=Validation Failed: Line %1: site '%2' does not exist.
++ ;%1 line number, %2 site
++SOApiErrUnexpected=An unexpected error occurred: %1
++ ;%1 error text
++SOApiErrUnitInvalid=Validation Failed: Line %1: unit '%2' does not exist or cannot be converted to the inventory unit of item '%3'.
++ ;%1 line number, %2 unit, %3 item
++SOApiErrWarehouseInvalid=Validation Failed: Line %1: warehouse '%2' does not exist or does not belong to site '%3'.
++ ;%1 line number, %2 warehouse, %3 site
++SOApiErrorCode=Error code
++ ;Error code returned by the API
++SOApiErrorMessage=Error / Validation Message
++ ;Error text of an API call
++SOApiExecutedDateTime=Timestamp (UTC)
++ ;Start time of the API call
++SOApiExternalOrderRef=External order reference
++ ;Order reference of the external system
++SOApiFilterText=Filter: External Order ID / Correlation ID
++ ;Text filter in the trace log form
++SOApiGridCustomer=Customer
++ ;Grid column header
++SOApiGridExtOrderRef=Ext. Order Ref
++ ;Grid column header
++SOApiGridSalesId=D365 Sales ID
++ ;Grid column header
++SOApiIntegrationMenu=Integration
++ ;Submenu under Sales and marketing > Inquiries and reports
++SOApiLastRetryBy=Last retry by
++ ;User that last reprocessed the call
++SOApiLastRetryDateTime=Last retry
++ ;Time of the last reprocessing
++SOApiPayloadViewCaption=JSON payload (%1)
++ ;Caption of the payload viewer; %1 is the correlation ID
++SOApiPrivInvoke=Invoke the sales order creation API
++ ;Privilege DYLO_SalesOrderApiInvoke
++SOApiPrivPurge=Purge old sales order API trace records
++ ;Privilege DYLO_SalesOrderApiPurge
++SOApiPrivReprocess=Reprocess failed sales order API calls
++ ;Privilege DYLO_SalesOrderApiReprocess
++SOApiPrivTraceLogView=View the sales order API trace log
++ ;Privilege DYLO_SalesOrderApiTraceLogView
++SOApiPurgeCaption=Purge old sales order API logs
++ ;Caption of the purge dialog and batch job
++SOApiPurgeDone=%1 successful trace records were deleted.
++ ;%1 number of deleted records
++SOApiPurgeOldLogs=Purge Old Logs (>90d)
++ ;Purge button in the trace log form
++SOApiReprocessFailed=Reprocessing failed: %1
++ ;%1 error text
++SOApiReprocessFailedOrder=Reprocess Failed Order
++ ;Reprocess button in the trace log form
++SOApiReprocessNoRecord=Select a sales order API trace record.
++ ;Reprocess called without a record
++SOApiReprocessNotFailed=Only records with status Failed can be reprocessed.
++ ;Reprocess called for a record that is not Failed
++SOApiReprocessSucceeded=The order was reprocessed. Sales order %1 was created.
++ ;%1 sales order number
++SOApiRequestJson=Inbound Request JSON
++ ;Request JSON of the API call
++SOApiResponseJson=Outbound API Response JSON
++ ;Response JSON of the API call
++SOApiRetentionDays=Retention (days)
++ ;Purge parameter
++SOApiRetentionDaysHelp=Successful trace records older than this number of days are deleted. Failed and reprocessed records are kept.
++ ;Help text of the purge parameter
++SOApiRetentionDaysInvalid=The retention must be at least 1 day.
++ ;Purge parameter validation
++SOApiRetryCount=Retry count
++ ;Number of reprocessing attempts
++SOApiRoleAdministrator=Sales order API administrator
++ ;Role DYLO_SalesOrderApiAdministrator
++SOApiRoleAdministratorDesc=IT administrators who monitor, reprocess and purge sales order API calls.
++ ;Role description
++SOApiRoleIntegrationUser=Sales order API integration user
++ ;Role DYLO_SalesOrderApiIntegrationUser
++SOApiRoleIntegrationUserDesc=The D365 user mapped to an external application that creates sales orders through the API.
++ ;Role description
++SOApiRoleSupport=Sales order API support
++ ;Role DYLO_SalesOrderApiSupport
++SOApiRoleSupportDesc=Integration support specialists and sales operations coordinators who monitor and reprocess sales order API calls.
++ ;Role description
++SOApiStatus=API status
++ ;Enum DYLO_SalesOrderApiStatus
++SOApiStatusFailed=Failed
++ ;Enum value
++SOApiStatusFilter=Status
++ ;Status filter in the trace log form
++SOApiStatusFilterAll=All
++ ;Enum value of the status filter
++SOApiStatusReprocessed=Reprocessed
++ ;Enum value
++SOApiStatusSuccess=Success
++ ;Enum value
++SOApiTraceLogCaption=Sales Order API Trace Log
++ ;Form and menu item caption
++SOApiTraceTable=Sales order API trace
++ ;Table label
++SOApiTraceTableDevDoc=The DYLO_SalesOrderApiTrace table contains one record for each call of the inbound sales order API.
++ ;Developer documentation
++SOApiViewJsonPayload=View JSON Payload
++ ;Button and menu item caption
++InvPoDlvBillTo=BILL TO / SHIP TO:
+  ;REQ-INV-105: caption of the bill-to panel on the DYLO_SalesInvoice report
+ InvPoDlvCopy=Copy
+  ;REQ-INV-105: subtitle on a copy of the DYLO_SalesInvoice report
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxMenuExtension/SalesAndMarketing.DYLOExtensions.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuExtension/SalesAndMarketing.DYLOExtensions.xml
+index 12a9589..f018f86 100644
+--- a/Metadata/DYLOExtensions/DYLOExtensions/AxMenuExtension/SalesAndMarketing.DYLOExtensions.xml
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuExtension/SalesAndMarketing.DYLOExtensions.xml
+@@ -3,6 +3,21 @@
+ 	<Name>SalesAndMarketing.DYLOExtensions</Name>
+ 	<Customizations />
+ 	<Elements>
++		<AxMenuExtensionElement xmlns="">
++			<Parent>InquiriesAndReports</Parent>
++			<MenuElement xmlns=""
++				i:type="AxMenuElementSubMenu">
++				<Name>DYLO_Integration</Name>
++				<Label>@DYLOExtensions:SOApiIntegrationMenu</Label>
++				<Elements>
++					<AxMenuElement xmlns=""
++						i:type="AxMenuElementMenuItem">
++						<Name>DYLO_SalesOrderApiTraceLog</Name>
++						<MenuItemName>DYLO_SalesOrderApiTraceLog</MenuItemName>
++					</AxMenuElement>
++				</Elements>
++			</MenuElement>
++		</AxMenuExtensionElement>
+ 		<AxMenuExtensionElement xmlns="">
+ 			<Parent>PeriodicTasks</Parent>
+ 			<MenuElement xmlns=""
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_SalesOrderApiPurge.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_SalesOrderApiPurge.xml
+new file mode 100644
+index 0000000..99a9fb3
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_SalesOrderApiPurge.xml
+@@ -0,0 +1,7 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxMenuItemAction xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V1">
++	<Name>DYLO_SalesOrderApiPurge</Name>
++	<Label>@DYLOExtensions:SOApiPurgeOldLogs</Label>
++	<Object>DYLO_SalesOrderApiPurgeController</Object>
++	<ObjectType>Class</ObjectType>
++</AxMenuItemAction>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_SalesOrderApiReprocess.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_SalesOrderApiReprocess.xml
+new file mode 100644
+index 0000000..5e001df
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemAction/DYLO_SalesOrderApiReprocess.xml
+@@ -0,0 +1,7 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxMenuItemAction xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V1">
++	<Name>DYLO_SalesOrderApiReprocess</Name>
++	<Label>@DYLOExtensions:SOApiReprocessFailedOrder</Label>
++	<Object>DYLO_SalesOrderApiReprocess</Object>
++	<ObjectType>Class</ObjectType>
++</AxMenuItemAction>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemDisplay/DYLO_SalesOrderApiPayloadView.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemDisplay/DYLO_SalesOrderApiPayloadView.xml
+new file mode 100644
+index 0000000..5e79779
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemDisplay/DYLO_SalesOrderApiPayloadView.xml
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxMenuItemDisplay xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V1">
++	<Name>DYLO_SalesOrderApiPayloadView</Name>
++	<Label>@DYLOExtensions:SOApiViewJsonPayload</Label>
++	<Object>DYLO_SalesOrderApiPayloadView</Object>
++</AxMenuItemDisplay>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemDisplay/DYLO_SalesOrderApiTraceLog.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemDisplay/DYLO_SalesOrderApiTraceLog.xml
+new file mode 100644
+index 0000000..730c987
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxMenuItemDisplay/DYLO_SalesOrderApiTraceLog.xml
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxMenuItemDisplay xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V1">
++	<Name>DYLO_SalesOrderApiTraceLog</Name>
++	<Label>@DYLOExtensions:SOApiTraceLogCaption</Label>
++	<Object>DYLO_SalesOrderApiTraceLog</Object>
++</AxMenuItemDisplay>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityDuty/DYLO_SalesOrderApiIntegrate.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityDuty/DYLO_SalesOrderApiIntegrate.xml
+new file mode 100644
+index 0000000..4102619
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityDuty/DYLO_SalesOrderApiIntegrate.xml
+@@ -0,0 +1,10 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityDuty xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_SalesOrderApiIntegrate</Name>
++	<Label>@DYLOExtensions:SOApiDutyIntegrate</Label>
++	<Privileges>
++		<AxSecurityPrivilegeReference>
++			<Name>DYLO_SalesOrderApiInvoke</Name>
++		</AxSecurityPrivilegeReference>
++	</Privileges>
++</AxSecurityDuty>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityDuty/DYLO_SalesOrderApiMaintain.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityDuty/DYLO_SalesOrderApiMaintain.xml
+new file mode 100644
+index 0000000..4510b3a
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityDuty/DYLO_SalesOrderApiMaintain.xml
+@@ -0,0 +1,10 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityDuty xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_SalesOrderApiMaintain</Name>
++	<Label>@DYLOExtensions:SOApiDutyMaintain</Label>
++	<Privileges>
++		<AxSecurityPrivilegeReference>
++			<Name>DYLO_SalesOrderApiPurge</Name>
++		</AxSecurityPrivilegeReference>
++	</Privileges>
++</AxSecurityDuty>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityDuty/DYLO_SalesOrderApiMonitor.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityDuty/DYLO_SalesOrderApiMonitor.xml
+new file mode 100644
+index 0000000..eae8f30
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityDuty/DYLO_SalesOrderApiMonitor.xml
+@@ -0,0 +1,13 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityDuty xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_SalesOrderApiMonitor</Name>
++	<Label>@DYLOExtensions:SOApiDutyMonitor</Label>
++	<Privileges>
++		<AxSecurityPrivilegeReference>
++			<Name>DYLO_SalesOrderApiTraceLogView</Name>
++		</AxSecurityPrivilegeReference>
++		<AxSecurityPrivilegeReference>
++			<Name>DYLO_SalesOrderApiReprocess</Name>
++		</AxSecurityPrivilegeReference>
++	</Privileges>
++</AxSecurityDuty>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_SalesOrderApiInvoke.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_SalesOrderApiInvoke.xml
+new file mode 100644
+index 0000000..359be58
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_SalesOrderApiInvoke.xml
+@@ -0,0 +1,20 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityPrivilege xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_SalesOrderApiInvoke</Name>
++	<Label>@DYLOExtensions:SOApiPrivInvoke</Label>
++	<DataEntityPermissions />
++	<DirectAccessPermissions />
++	<EntryPoints>
++		<AxSecurityEntryPointReference>
++			<Name>DYLO_SalesOrderApiService_createSalesOrder</Name>
++			<Grant>
++				<Invoke>Allow</Invoke>
++			</Grant>
++			<ObjectChildName>createSalesOrder</ObjectChildName>
++			<ObjectName>DYLO_SalesOrderApiService</ObjectName>
++			<ObjectType>ServiceOperation</ObjectType>
++			<Forms />
++		</AxSecurityEntryPointReference>
++	</EntryPoints>
++	<FormControlOverrides />
++</AxSecurityPrivilege>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_SalesOrderApiPurge.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_SalesOrderApiPurge.xml
+new file mode 100644
+index 0000000..0b8de6d
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_SalesOrderApiPurge.xml
+@@ -0,0 +1,23 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityPrivilege xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_SalesOrderApiPurge</Name>
++	<Label>@DYLOExtensions:SOApiPrivPurge</Label>
++	<DataEntityPermissions />
++	<DirectAccessPermissions />
++	<EntryPoints>
++		<AxSecurityEntryPointReference>
++			<Name>DYLO_SalesOrderApiPurge</Name>
++			<Grant>
++				<Correct>Allow</Correct>
++				<Create>Allow</Create>
++				<Delete>Allow</Delete>
++				<Read>Allow</Read>
++				<Update>Allow</Update>
++			</Grant>
++			<ObjectName>DYLO_SalesOrderApiPurge</ObjectName>
++			<ObjectType>MenuItemAction</ObjectType>
++			<Forms />
++		</AxSecurityEntryPointReference>
++	</EntryPoints>
++	<FormControlOverrides />
++</AxSecurityPrivilege>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_SalesOrderApiReprocess.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_SalesOrderApiReprocess.xml
+new file mode 100644
+index 0000000..18c2d61
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_SalesOrderApiReprocess.xml
+@@ -0,0 +1,19 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityPrivilege xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_SalesOrderApiReprocess</Name>
++	<Label>@DYLOExtensions:SOApiPrivReprocess</Label>
++	<DataEntityPermissions />
++	<DirectAccessPermissions />
++	<EntryPoints>
++		<AxSecurityEntryPointReference>
++			<Name>DYLO_SalesOrderApiReprocess</Name>
++			<Grant>
++				<Invoke>Allow</Invoke>
++			</Grant>
++			<ObjectName>DYLO_SalesOrderApiReprocess</ObjectName>
++			<ObjectType>MenuItemAction</ObjectType>
++			<Forms />
++		</AxSecurityEntryPointReference>
++	</EntryPoints>
++	<FormControlOverrides />
++</AxSecurityPrivilege>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_SalesOrderApiTraceLogView.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_SalesOrderApiTraceLogView.xml
+new file mode 100644
+index 0000000..09d14e8
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityPrivilege/DYLO_SalesOrderApiTraceLogView.xml
+@@ -0,0 +1,28 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityPrivilege xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_SalesOrderApiTraceLogView</Name>
++	<Label>@DYLOExtensions:SOApiPrivTraceLogView</Label>
++	<DataEntityPermissions />
++	<DirectAccessPermissions />
++	<EntryPoints>
++		<AxSecurityEntryPointReference>
++			<Name>DYLO_SalesOrderApiTraceLog</Name>
++			<Grant>
++				<Read>Allow</Read>
++			</Grant>
++			<ObjectName>DYLO_SalesOrderApiTraceLog</ObjectName>
++			<ObjectType>MenuItemDisplay</ObjectType>
++			<Forms />
++		</AxSecurityEntryPointReference>
++		<AxSecurityEntryPointReference>
++			<Name>DYLO_SalesOrderApiPayloadView</Name>
++			<Grant>
++				<Read>Allow</Read>
++			</Grant>
++			<ObjectName>DYLO_SalesOrderApiPayloadView</ObjectName>
++			<ObjectType>MenuItemDisplay</ObjectType>
++			<Forms />
++		</AxSecurityEntryPointReference>
++	</EntryPoints>
++	<FormControlOverrides />
++</AxSecurityPrivilege>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityRole/DYLO_SalesOrderApiAdministrator.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityRole/DYLO_SalesOrderApiAdministrator.xml
+new file mode 100644
+index 0000000..5355e4d
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityRole/DYLO_SalesOrderApiAdministrator.xml
+@@ -0,0 +1,17 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityRole xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_SalesOrderApiAdministrator</Name>
++	<Description>@DYLOExtensions:SOApiRoleAdministratorDesc</Description>
++	<Label>@DYLOExtensions:SOApiRoleAdministrator</Label>
++	<DirectAccessPermissions />
++	<Duties>
++		<AxSecurityDutyReference>
++			<Name>DYLO_SalesOrderApiMonitor</Name>
++		</AxSecurityDutyReference>
++		<AxSecurityDutyReference>
++			<Name>DYLO_SalesOrderApiMaintain</Name>
++		</AxSecurityDutyReference>
++	</Duties>
++	<Privileges />
++	<SubRoles />
++</AxSecurityRole>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityRole/DYLO_SalesOrderApiIntegrationUser.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityRole/DYLO_SalesOrderApiIntegrationUser.xml
+new file mode 100644
+index 0000000..449b8a0
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityRole/DYLO_SalesOrderApiIntegrationUser.xml
+@@ -0,0 +1,14 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityRole xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_SalesOrderApiIntegrationUser</Name>
++	<Description>@DYLOExtensions:SOApiRoleIntegrationUserDesc</Description>
++	<Label>@DYLOExtensions:SOApiRoleIntegrationUser</Label>
++	<DirectAccessPermissions />
++	<Duties>
++		<AxSecurityDutyReference>
++			<Name>DYLO_SalesOrderApiIntegrate</Name>
++		</AxSecurityDutyReference>
++	</Duties>
++	<Privileges />
++	<SubRoles />
++</AxSecurityRole>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityRole/DYLO_SalesOrderApiSupport.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityRole/DYLO_SalesOrderApiSupport.xml
+new file mode 100644
+index 0000000..9dda2ed
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxSecurityRole/DYLO_SalesOrderApiSupport.xml
+@@ -0,0 +1,14 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxSecurityRole xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_SalesOrderApiSupport</Name>
++	<Description>@DYLOExtensions:SOApiRoleSupportDesc</Description>
++	<Label>@DYLOExtensions:SOApiRoleSupport</Label>
++	<DirectAccessPermissions />
++	<Duties>
++		<AxSecurityDutyReference>
++			<Name>DYLO_SalesOrderApiMonitor</Name>
++		</AxSecurityDutyReference>
++	</Duties>
++	<Privileges />
++	<SubRoles />
++</AxSecurityRole>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxService/DYLO_SalesOrderApiService.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxService/DYLO_SalesOrderApiService.xml
+new file mode 100644
+index 0000000..a6a1353
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxService/DYLO_SalesOrderApiService.xml
+@@ -0,0 +1,12 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxService xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_SalesOrderApiService</Name>
++	<Class>DYLO_SalesOrderApiService</Class>
++	<ExternalName>DYLO_SalesOrderApiService</ExternalName>
++	<ServiceOperations>
++		<AxServiceOperation>
++			<Name>createSalesOrder</Name>
++			<Method>createSalesOrder</Method>
++		</AxServiceOperation>
++	</ServiceOperations>
++</AxService>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxServiceGroup/DYLO_SalesOrderApiServices.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxServiceGroup/DYLO_SalesOrderApiServices.xml
+new file mode 100644
+index 0000000..4249cba
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxServiceGroup/DYLO_SalesOrderApiServices.xml
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxServiceGroup xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_SalesOrderApiServices</Name>
++	<AutoDeploy>Yes</AutoDeploy>
++	<Services>
++		<AxServiceGroupService>
++			<Name>DYLO_SalesOrderApiService</Name>
++			<Service>DYLO_SalesOrderApiService</Service>
++		</AxServiceGroupService>
++	</Services>
++</AxServiceGroup>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxTable/DYLO_SalesOrderApiTrace.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxTable/DYLO_SalesOrderApiTrace.xml
+new file mode 100644
+index 0000000..1d7ae83
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxTable/DYLO_SalesOrderApiTrace.xml
+@@ -0,0 +1,336 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxTable xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_SalesOrderApiTrace</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// One record for each call of the inbound sales order API (REQ-INT-508).
++/// </summary>
++public class DYLO_SalesOrderApiTrace extends common
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>canReprocess</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Determines whether the call can be reprocessed.
++    /// </summary>
++    /// <returns>true when the call failed; otherwise, false.</returns>
++    public boolean canReprocess()
++    {
++        return this.RecId != 0 && this.Status == DYLO_SalesOrderApiStatus::Failed;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>findRecId</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Finds a trace record by its record ID.
++    /// </summary>
++    public static DYLO_SalesOrderApiTrace findRecId(RecId _recId, boolean _forUpdate = false)
++    {
++        DYLO_SalesOrderApiTrace trace;
++
++        if (_recId)
++        {
++            trace.selectForUpdate(_forUpdate);
++
++            select firstonly trace
++                where trace.RecId == _recId;
++        }
++
++        return trace;
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>findLastSuccessByExtRef</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Finds the newest successful or reprocessed call for an external order reference whose sales order still exists.
++    /// </summary>
++    /// <param name = "_externalOrderRef">The external order reference.</param>
++    /// <returns>The trace record; an empty buffer when there is none.</returns>
++    public static DYLO_SalesOrderApiTrace findLastSuccessByExtRef(DYLO_ExternalOrderRef _externalOrderRef)
++    {
++        DYLO_SalesOrderApiTrace trace;
++        DYLO_SalesOrderApiTrace notFound;
++
++        if (_externalOrderRef)
++        {
++            while select trace
++                order by ExecutedDateTime desc
++                where trace.ExternalOrderRef == _externalOrderRef
++                   && (trace.Status == DYLO_SalesOrderApiStatus::Success
++                    || trace.Status == DYLO_SalesOrderApiStatus::Reprocessed)
++            {
++                if (trace.SalesId && SalesTable::exist(trace.SalesId))
++                {
++                    return trace;
++                }
++            }
++        }
++
++        return notFound;
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++	<DeveloperDocumentation>@DYLOExtensions:SOApiTraceTableDevDoc</DeveloperDocumentation>
++	<FormRef>DYLO_SalesOrderApiTraceLog</FormRef>
++	<Label>@DYLOExtensions:SOApiTraceTable</Label>
++	<TableGroup>Transaction</TableGroup>
++	<TitleField1>CorrelationId</TitleField1>
++	<TitleField2>ExternalOrderRef</TitleField2>
++	<CreatedBy>Yes</CreatedBy>
++	<CreatedDateTime>Yes</CreatedDateTime>
++	<Modules>SalesAndMarketing</Modules>
++	<DeleteActions />
++	<FieldGroups>
++		<AxTableFieldGroup>
++			<Name>AutoReport</Name>
++			<Fields>
++				<AxTableFieldGroupField>
++					<DataField>CorrelationId</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>ExternalOrderRef</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>CustAccount</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>SalesId</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>Status</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>ExecutedDateTime</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>RetryCount</DataField>
++				</AxTableFieldGroupField>
++			</Fields>
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoLookup</Name>
++			<Fields />
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoIdentification</Name>
++			<AutoPopulate>Yes</AutoPopulate>
++			<Fields />
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoSummary</Name>
++			<Fields />
++		</AxTableFieldGroup>
++		<AxTableFieldGroup>
++			<Name>AutoBrowse</Name>
++			<Fields />
++		</AxTableFieldGroup>
++	</FieldGroups>
++	<Fields>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>CorrelationId</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>DYLO_CorrelationId</ExtendedDataType>
++			<Mandatory>Yes</Mandatory>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>ExternalOrderRef</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>DYLO_ExternalOrderRef</ExtendedDataType>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>CustAccount</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>CustAccount</ExtendedDataType>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>CurrencyCode</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>CurrencyCode</ExtendedDataType>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>SalesId</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>SalesId</ExtendedDataType>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldEnum">
++			<Name>Status</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>Customer Content</AssetClassification>
++			<EnumType>DYLO_SalesOrderApiStatus</EnumType>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>ErrorCode</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>DYLO_ApiErrorCode</ExtendedDataType>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>ErrorMessage</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>Notes</ExtendedDataType>
++			<Label>@DYLOExtensions:SOApiErrorMessage</Label>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>RequestJson</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>Notes</ExtendedDataType>
++			<Label>@DYLOExtensions:SOApiRequestJson</Label>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>ResponseJson</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>Notes</ExtendedDataType>
++			<Label>@DYLOExtensions:SOApiResponseJson</Label>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldUtcDateTime">
++			<Name>ExecutedDateTime</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>TransDateTime</ExtendedDataType>
++			<Label>@DYLOExtensions:SOApiExecutedDateTime</Label>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldInt64">
++			<Name>DurationMs</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>DYLO_ApiDurationMs</ExtendedDataType>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>CallerUserId</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>UserId</ExtendedDataType>
++			<Label>@DYLOExtensions:SOApiCallerUserId</Label>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldInt">
++			<Name>RetryCount</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>DYLO_ApiRetryCount</ExtendedDataType>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldUtcDateTime">
++			<Name>LastRetryDateTime</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>TransDateTime</ExtendedDataType>
++			<Label>@DYLOExtensions:SOApiLastRetryDateTime</Label>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>LastRetryBy</Name>
++			<AllowEdit>No</AllowEdit>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>UserId</ExtendedDataType>
++			<Label>@DYLOExtensions:SOApiLastRetryBy</Label>
++		</AxTableField>
++	</Fields>
++	<FullTextIndexes />
++	<Indexes>
++		<AxTableIndex>
++			<Name>ExtRefStatusIdx</Name>
++			<AllowDuplicates>Yes</AllowDuplicates>
++			<Fields>
++				<AxTableIndexField>
++					<DataField>ExternalOrderRef</DataField>
++				</AxTableIndexField>
++				<AxTableIndexField>
++					<DataField>Status</DataField>
++				</AxTableIndexField>
++			</Fields>
++		</AxTableIndex>
++		<AxTableIndex>
++			<Name>ExecutedIdx</Name>
++			<AllowDuplicates>Yes</AllowDuplicates>
++			<Fields>
++				<AxTableIndexField>
++					<DataField>ExecutedDateTime</DataField>
++				</AxTableIndexField>
++			</Fields>
++		</AxTableIndex>
++	</Indexes>
++	<Mappings />
++	<Relations>
++		<AxTableRelation>
++			<Name>SalesTable</Name>
++			<Cardinality>ZeroMore</Cardinality>
++			<RelatedTable>SalesTable</RelatedTable>
++			<RelatedTableCardinality>ZeroOne</RelatedTableCardinality>
++			<RelationshipType>Association</RelationshipType>
++			<Constraints>
++				<AxTableRelationConstraint xmlns=""
++					i:type="AxTableRelationConstraintField">
++					<Name>SalesId</Name>
++					<Field>SalesId</Field>
++					<RelatedField>SalesId</RelatedField>
++				</AxTableRelationConstraint>
++			</Constraints>
++		</AxTableRelation>
++		<AxTableRelation>
++			<Name>CustTable</Name>
++			<Cardinality>ZeroMore</Cardinality>
++			<RelatedTable>CustTable</RelatedTable>
++			<RelatedTableCardinality>ZeroOne</RelatedTableCardinality>
++			<RelationshipType>Association</RelationshipType>
++			<Constraints>
++				<AxTableRelationConstraint xmlns=""
++					i:type="AxTableRelationConstraintField">
++					<Name>CustAccount</Name>
++					<Field>CustAccount</Field>
++					<RelatedField>AccountNum</RelatedField>
++				</AxTableRelationConstraint>
++			</Constraints>
++		</AxTableRelation>
++		<AxTableRelation>
++			<Name>UserInfo</Name>
++			<Cardinality>ZeroMore</Cardinality>
++			<RelatedTable>UserInfo</RelatedTable>
++			<RelatedTableCardinality>ZeroOne</RelatedTableCardinality>
++			<RelationshipType>Association</RelationshipType>
++			<Constraints>
++				<AxTableRelationConstraint xmlns=""
++					i:type="AxTableRelationConstraintField">
++					<Name>CallerUserId</Name>
++					<Field>CallerUserId</Field>
++					<RelatedField>id</RelatedField>
++				</AxTableRelationConstraint>
++			</Constraints>
++		</AxTableRelation>
++	</Relations>
++	<StateMachines />
++</AxTable>
+diff --git a/Metadata/DYLOExtensions/Descriptor/DYLOExtensions.xml b/Metadata/DYLOExtensions/Descriptor/DYLOExtensions.xml
+index 7dfd4be..5c43c6b 100644
+--- a/Metadata/DYLOExtensions/Descriptor/DYLOExtensions.xml
++++ b/Metadata/DYLOExtensions/Descriptor/DYLOExtensions.xml
+@@ -16,10 +16,23 @@
+ 		<d2p1:string>ApplicationFoundation</d2p1:string>
+ 		<d2p1:string>ApplicationPlatform</d2p1:string>
+ 		<d2p1:string>ApplicationSuite</d2p1:string>
++		<d2p1:string>Calendar</d2p1:string>
++		<d2p1:string>CaseManagement</d2p1:string>
++		<d2p1:string>ContactPerson</d2p1:string>
+ 		<d2p1:string>Currency</d2p1:string>
++		<d2p1:string>Dimensions</d2p1:string>
+ 		<d2p1:string>Directory</d2p1:string>
++		<d2p1:string>FiscalBooks</d2p1:string>
++		<d2p1:string>GeneralLedger</d2p1:string>
+ 		<d2p1:string>Ledger</d2p1:string>
+ 		<d2p1:string>PersonnelCore</d2p1:string>
++		<d2p1:string>PersonnelManagement</d2p1:string>
++		<d2p1:string>Retail</d2p1:string>
++		<d2p1:string>SourceDocumentation</d2p1:string>
++		<d2p1:string>SourceDocumentationTypes</d2p1:string>
++		<d2p1:string>Subledger</d2p1:string>
++		<d2p1:string>Tax</d2p1:string>
++		<d2p1:string>TaxEngine</d2p1:string>
+ 		<d2p1:string>UnitOfMeasure</d2p1:string>
+ 	</ModuleReferences>
+ 	<Name>DYLOExtensions</Name>

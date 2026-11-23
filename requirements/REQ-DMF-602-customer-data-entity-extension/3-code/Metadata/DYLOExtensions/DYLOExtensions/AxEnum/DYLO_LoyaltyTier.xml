@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxEnum xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_LoyaltyTier</Name>
+	<Help>@DYLOExtensions:CustCommPrefLoyaltyTierHelp</Help>
+	<Label>@DYLOExtensions:CustCommPrefLoyaltyTier</Label>
+	<UseEnumValue>Yes</UseEnumValue>
+	<EnumValues>
+		<AxEnumValue>
+			<Name>Standard</Name>
+			<Label>@DYLOExtensions:CustCommPrefTierStandard</Label>
+		</AxEnumValue>
+		<AxEnumValue>
+			<Name>Silver</Name>
+			<Label>@DYLOExtensions:CustCommPrefTierSilver</Label>
+			<Value>1</Value>
+		</AxEnumValue>
+		<AxEnumValue>
+			<Name>Gold</Name>
+			<Label>@DYLOExtensions:CustCommPrefTierGold</Label>
+			<Value>2</Value>
+		</AxEnumValue>
+		<AxEnumValue>
+			<Name>Platinum</Name>
+			<Label>@DYLOExtensions:CustCommPrefTierPlatinum</Label>
+			<Value>3</Value>
+		</AxEnumValue>
+	</EnumValues>
+</AxEnum>

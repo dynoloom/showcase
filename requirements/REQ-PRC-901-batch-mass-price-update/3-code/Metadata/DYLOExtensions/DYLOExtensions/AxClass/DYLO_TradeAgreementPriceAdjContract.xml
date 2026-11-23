@@ -1,0 +1,271 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_TradeAgreementPriceAdjContract</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Data contract of the periodic mass trade agreement price update.
+/// </summary>
+[
+    DataContractAttribute,
+    SysOperationContractProcessingAttribute(classStr(DYLO_TradeAgreementPriceAdjUIBuilder)),
+    SysOperationGroupAttribute('Parameters', "@DYLOExtensions:MassPriceAdjParametersGroup", '1')
+]
+public class DYLO_TradeAgreementPriceAdjContract implements SysOperationValidatable
+{
+    PriceDiscJournalName        journalName;
+    List                        itemGroupIds;
+    PriceGroupId                custPriceGroup;
+    DYLO_PriceAdjPercent        adjustmentPct;
+    TransDate                   effectiveFromDate;
+    DYLO_PriceAdjRoundingRule   roundingRule;
+    NoYes                       autoPost;
+    int                         itemsPerTask;
+
+    #define.DefaultItemsPerTask(500)
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>new</Name>
+				<Source><![CDATA[
+    public void new()
+    {
+        itemsPerTask = #DefaultItemsPerTask;
+        roundingRule = DYLO_PriceAdjRoundingRule::Exact;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmJournalName</Name>
+				<Source><![CDATA[
+    [
+        DataMemberAttribute('JournalName'),
+        SysOperationLabelAttribute(literalStr("@DYLOExtensions:MassPriceAdjJournalName")),
+        SysOperationHelpTextAttribute(literalStr("@DYLOExtensions:MassPriceAdjJournalNameHelp")),
+        SysOperationGroupMemberAttribute('Parameters'),
+        SysOperationDisplayOrderAttribute('1')
+    ]
+    public PriceDiscJournalName parmJournalName(PriceDiscJournalName _journalName = journalName)
+    {
+        journalName = _journalName;
+        return journalName;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmItemGroupIds</Name>
+				<Source><![CDATA[
+    [
+        DataMemberAttribute('ItemGroupIds'),
+        SysOperationLabelAttribute(literalStr("@DYLOExtensions:MassPriceAdjItemGroups")),
+        SysOperationHelpTextAttribute(literalStr("@DYLOExtensions:MassPriceAdjItemGroupsHelp")),
+        SysOperationGroupMemberAttribute('Parameters'),
+        SysOperationDisplayOrderAttribute('2'),
+        AifCollectionTypeAttribute('return', Types::String)
+    ]
+    public List parmItemGroupIds(List _itemGroupIds = itemGroupIds)
+    {
+        itemGroupIds = _itemGroupIds;
+        return itemGroupIds;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmCustPriceGroup</Name>
+				<Source><![CDATA[
+    [
+        DataMemberAttribute('CustPriceGroup'),
+        SysOperationLabelAttribute(literalStr("@DYLOExtensions:MassPriceAdjCustPriceGroup")),
+        SysOperationHelpTextAttribute(literalStr("@DYLOExtensions:MassPriceAdjCustPriceGroupHelp")),
+        SysOperationGroupMemberAttribute('Parameters'),
+        SysOperationDisplayOrderAttribute('3')
+    ]
+    public PriceGroupId parmCustPriceGroup(PriceGroupId _custPriceGroup = custPriceGroup)
+    {
+        custPriceGroup = _custPriceGroup;
+        return custPriceGroup;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmAdjustmentPct</Name>
+				<Source><![CDATA[
+    [
+        DataMemberAttribute('AdjustmentPct'),
+        SysOperationLabelAttribute(literalStr("@DYLOExtensions:MassPriceAdjPercent")),
+        SysOperationHelpTextAttribute(literalStr("@DYLOExtensions:MassPriceAdjPercentHelp")),
+        SysOperationGroupMemberAttribute('Parameters'),
+        SysOperationDisplayOrderAttribute('4')
+    ]
+    public DYLO_PriceAdjPercent parmAdjustmentPct(DYLO_PriceAdjPercent _adjustmentPct = adjustmentPct)
+    {
+        adjustmentPct = _adjustmentPct;
+        return adjustmentPct;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmEffectiveFromDate</Name>
+				<Source><![CDATA[
+    [
+        DataMemberAttribute('EffectiveFromDate'),
+        SysOperationLabelAttribute(literalStr("@DYLOExtensions:MassPriceAdjEffectiveDate")),
+        SysOperationHelpTextAttribute(literalStr("@DYLOExtensions:MassPriceAdjEffectiveDateHelp")),
+        SysOperationGroupMemberAttribute('Parameters'),
+        SysOperationDisplayOrderAttribute('5')
+    ]
+    public TransDate parmEffectiveFromDate(TransDate _effectiveFromDate = effectiveFromDate)
+    {
+        effectiveFromDate = _effectiveFromDate;
+        return effectiveFromDate;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmRoundingRule</Name>
+				<Source><![CDATA[
+    [
+        DataMemberAttribute('RoundingRule'),
+        SysOperationLabelAttribute(literalStr("@DYLOExtensions:MassPriceAdjRoundingRule")),
+        SysOperationHelpTextAttribute(literalStr("@DYLOExtensions:MassPriceAdjRoundingRuleHelp")),
+        SysOperationGroupMemberAttribute('Parameters'),
+        SysOperationDisplayOrderAttribute('6')
+    ]
+    public DYLO_PriceAdjRoundingRule parmRoundingRule(DYLO_PriceAdjRoundingRule _roundingRule = roundingRule)
+    {
+        roundingRule = _roundingRule;
+        return roundingRule;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmAutoPost</Name>
+				<Source><![CDATA[
+    [
+        DataMemberAttribute('AutoPost'),
+        SysOperationLabelAttribute(literalStr("@DYLOExtensions:MassPriceAdjAutoPost")),
+        SysOperationHelpTextAttribute(literalStr("@DYLOExtensions:MassPriceAdjAutoPostHelp")),
+        SysOperationGroupMemberAttribute('Parameters'),
+        SysOperationDisplayOrderAttribute('7')
+    ]
+    public NoYes parmAutoPost(NoYes _autoPost = autoPost)
+    {
+        autoPost = _autoPost;
+        return autoPost;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmItemsPerTask</Name>
+				<Source><![CDATA[
+    [
+        DataMemberAttribute('ItemsPerTask'),
+        SysOperationLabelAttribute(literalStr("@DYLOExtensions:MassPriceAdjItemsPerTask")),
+        SysOperationHelpTextAttribute(literalStr("@DYLOExtensions:MassPriceAdjItemsPerTaskHelp")),
+        SysOperationGroupMemberAttribute('Parameters'),
+        SysOperationDisplayOrderAttribute('8')
+    ]
+    public int parmItemsPerTask(int _itemsPerTask = itemsPerTask)
+    {
+        itemsPerTask = _itemsPerTask;
+        return itemsPerTask;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>hasItemGroupFilter</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Checks whether at least one item group is selected.
+    /// </summary>
+    /// <returns>true if item groups are selected; false means all item groups.</returns>
+    public boolean hasItemGroupFilter()
+    {
+        return itemGroupIds && !itemGroupIds.empty();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>validateParameters</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Validates the parameters without showing the item group warning.
+    /// </summary>
+    /// <returns>true if the parameters are valid; otherwise, false.</returns>
+    public boolean validateParameters()
+    {
+        boolean ret = true;
+
+        if (!journalName)
+        {
+            ret = checkFailed("@DYLOExtensions:MassPriceAdjErrJournalNameBlank");
+        }
+        else if (!PriceDiscAdmName::find(journalName).RecId)
+        {
+            ret = checkFailed(strFmt("@DYLOExtensions:MassPriceAdjErrJournalName", journalName));
+        }
+
+        if (!custPriceGroup)
+        {
+            ret = checkFailed("@DYLOExtensions:MassPriceAdjErrCustPriceGroupBlank");
+        }
+        else if (!PriceDiscGroup::exist(ModuleInventCustVend::Cust, PriceGroupType::PriceGroup, custPriceGroup))
+        {
+            ret = checkFailed(strFmt("@DYLOExtensions:MassPriceAdjErrCustPriceGroup", custPriceGroup));
+        }
+
+        if (adjustmentPct == 0 || adjustmentPct <= -100)
+        {
+            ret = checkFailed("@DYLOExtensions:MassPriceAdjErrPercent");
+        }
+
+        if (!effectiveFromDate)
+        {
+            ret = checkFailed("@DYLOExtensions:MassPriceAdjErrEffectiveDate");
+        }
+
+        if (itemsPerTask < 1)
+        {
+            ret = checkFailed("@DYLOExtensions:MassPriceAdjErrItemsPerTask");
+        }
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>validate</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Validates the dialog values when OK is pressed.
+    /// </summary>
+    /// <returns>true if the parameters are valid; otherwise, false.</returns>
+    public boolean validate()
+    {
+        boolean ret = this.validateParameters();
+
+        if (ret && !this.hasItemGroupFilter())
+        {
+            warning("@DYLOExtensions:MassPriceAdjWarnAllItemGroups");
+        }
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxSecurityDuty xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_WarrantyPostingSetupMaintain</Name>
+	<Description>@DYLOExtensions:WarrantyProvisionSetupMaintainDesc</Description>
+	<Label>@DYLOExtensions:WarrantyProvisionSetupMaintain</Label>
+	<Privileges>
+		<AxSecurityPrivilegeReference>
+			<Name>DYLO_WarrantyPostingSetupMaintain</Name>
+		</AxSecurityPrivilegeReference>
+		<AxSecurityPrivilegeReference>
+			<Name>DYLO_WarrantyPostingSetupView</Name>
+		</AxSecurityPrivilegeReference>
+	</Privileges>
+</AxSecurityDuty>

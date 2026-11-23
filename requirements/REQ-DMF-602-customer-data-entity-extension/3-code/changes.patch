@@ -1,0 +1,417 @@
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustCustomerV3Entity_Extension.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustCustomerV3Entity_Extension.xml
+new file mode 100644
+index 0000000..6dbf4f8
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustCustomerV3Entity_Extension.xml
+@@ -0,0 +1,71 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_CustCustomerV3Entity_Extension</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Extends the Customers V3 data entity with the loyalty tier: the text field <c>LoyaltyTier</c>
++/// is converted to <c>CustTable.DYLO_LoyaltyTier</c> on write and filled from it on read.
++/// </summary>
++[ExtensionOf(tableStr(CustCustomerV3Entity))]
++final class DYLO_CustCustomerV3Entity_Extension
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>mapEntityToDataSource</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Writes the loyalty tier to the customer when the caller sent it.
++    /// An empty value gives Standard; an unknown value throws an error before anything is saved.
++    /// </summary>
++    /// <param name = "_entityCtx">The entity runtime context.</param>
++    /// <param name = "_dataSourceCtx">The data source runtime context.</param>
++    public void mapEntityToDataSource(DataEntityRuntimeContext _entityCtx, DataEntityDataSourceRuntimeContext _dataSourceCtx)
++    {
++        if (_dataSourceCtx.name() == dataEntityDataSourceStr(CustCustomerV3Entity, CustTable)
++            && this.fieldState(fieldNum(CustCustomerV3Entity, LoyaltyTier)) != FieldState::NotSet)
++        {
++            DYLO_LoyaltyTier tier = DYLO_CustLoyaltyTierConverter::fromText(this.LoyaltyTier);
++            CustTable custTable = _dataSourceCtx.getBuffer();
++            custTable.DYLO_LoyaltyTier = tier;
++        }
++
++        next mapEntityToDataSource(_entityCtx, _dataSourceCtx);
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>postLoad</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Fills the loyalty tier text from the customer.
++    /// </summary>
++    public void postLoad()
++    {
++        next postLoad();
++
++        DYLO_LoyaltyTier tier = DYLO_LoyaltyTier::Standard;
++
++        if (this.CustomerAccount)
++        {
++            changecompany(this.DataAreaId)
++            {
++                CustTable custTable = CustTable::find(this.CustomerAccount);
++                if (custTable.RecId)
++                {
++                    tier = custTable.DYLO_LoyaltyTier;
++                }
++            }
++        }
++
++        this.LoyaltyTier = DYLO_CustLoyaltyTierConverter::toText(tier);
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustLoyaltyTierConverter.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustLoyaltyTierConverter.xml
+new file mode 100644
+index 0000000..6403d82
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_CustLoyaltyTierConverter.xml
+@@ -0,0 +1,69 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_CustLoyaltyTierConverter</Name>
++	<SourceCode>
++		<Declaration><![CDATA[
++/// <summary>
++/// Converts the customer loyalty tier between its text form, used by the Customers V3 data entity,
++/// and the <c>DYLO_LoyaltyTier</c> enum stored on <c>CustTable</c>.
++/// </summary>
++public final class DYLO_CustLoyaltyTierConverter
++{
++}
++]]></Declaration>
++		<Methods>
++			<Method>
++				<Name>fromText</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Converts a loyalty tier text to the enum value. Empty or blank text gives Standard.
++    /// The text is matched, ignoring case and surrounding spaces, to the enum element names and labels.
++    /// </summary>
++    /// <param name = "_text">The loyalty tier text.</param>
++    /// <returns>The loyalty tier.</returns>
++    /// <exception>An error is thrown when the text is not a known loyalty tier.</exception>
++    public static DYLO_LoyaltyTier fromText(DYLO_LoyaltyTierText _text)
++    {
++        str value = strLRTrim(_text);
++
++        if (value == '')
++        {
++            return DYLO_LoyaltyTier::Standard;
++        }
++
++        str valueUpr = strUpr(value);
++        DictEnum dictEnum = new DictEnum(enumNum(DYLO_LoyaltyTier));
++
++        for (int i = 0; i < dictEnum.values(); i++)
++        {
++            if (valueUpr == strUpr(dictEnum.index2Symbol(i))
++                || valueUpr == strUpr(dictEnum.index2Label(i)))
++            {
++                DYLO_LoyaltyTier tier = dictEnum.index2Value(i);
++                return tier;
++            }
++        }
++
++        throw error(strFmt("@DYLOExtensions:CustCommPrefLoyaltyTierInvalid", value));
++    }
++
++]]></Source>
++			</Method>
++			<Method>
++				<Name>toText</Name>
++				<Source><![CDATA[
++    /// <summary>
++    /// Converts a loyalty tier to its text: Standard, Silver, Gold or Platinum.
++    /// </summary>
++    /// <param name = "_tier">The loyalty tier.</param>
++    /// <returns>The element name of the loyalty tier.</returns>
++    public static DYLO_LoyaltyTierText toText(DYLO_LoyaltyTier _tier)
++    {
++        return enum2Symbol(enumNum(DYLO_LoyaltyTier), enum2int(_tier));
++    }
++
++]]></Source>
++			</Method>
++		</Methods>
++	</SourceCode>
++</AxClass>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxDataEntityViewExtension/CustCustomerV3Entity.DYLOExtensions.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxDataEntityViewExtension/CustCustomerV3Entity.DYLOExtensions.xml
+new file mode 100644
+index 0000000..4e978af
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxDataEntityViewExtension/CustCustomerV3Entity.DYLOExtensions.xml
+@@ -0,0 +1,29 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxDataEntityViewExtension xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>CustCustomerV3Entity.DYLOExtensions</Name>
++	<DataSources />
++	<FieldGroupExtensions />
++	<FieldGroups />
++	<FieldModifications />
++	<Fields>
++		<AxDataEntityViewField xmlns=""
++			i:type="AxDataEntityViewUnmappedFieldString">
++			<Name>LoyaltyTier</Name>
++			<AllowEdit>Yes</AllowEdit>
++			<AllowEditOnCreate>Yes</AllowEditOnCreate>
++			<Mandatory>No</Mandatory>
++			<ExtendedDataType>DYLO_LoyaltyTierText</ExtendedDataType>
++			<IsComputedField>No</IsComputedField>
++		</AxDataEntityViewField>
++		<AxDataEntityViewField xmlns=""
++			i:type="AxDataEntityViewMappedField">
++			<Name>PreferredDeliveryWindow</Name>
++			<Mandatory>No</Mandatory>
++			<DataField>DYLO_PreferredDeliveryWindow</DataField>
++			<DataSource>CustTable</DataSource>
++		</AxDataEntityViewField>
++	</Fields>
++	<Mappings />
++	<PropertyModifications />
++	<Relations />
++</AxDataEntityViewExtension>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_LoyaltyTierText.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_LoyaltyTierText.xml
+new file mode 100644
+index 0000000..ef1ee49
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_LoyaltyTierText.xml
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxEdt xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns=""
++	i:type="AxEdtString">
++	<Name>DYLO_LoyaltyTierText</Name>
++	<HelpText>@DYLOExtensions:CustCommPrefLoyaltyTierTextHelp</HelpText>
++	<Label>@DYLOExtensions:CustCommPrefLoyaltyTier</Label>
++	<ArrayElements />
++	<Relations />
++	<TableReferences />
++	<StringSize>20</StringSize>
++</AxEdt>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_PreferredDeliveryWindow.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_PreferredDeliveryWindow.xml
+new file mode 100644
+index 0000000..d17f008
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxEdt/DYLO_PreferredDeliveryWindow.xml
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxEdt xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns=""
++	i:type="AxEdtString">
++	<Name>DYLO_PreferredDeliveryWindow</Name>
++	<HelpText>@DYLOExtensions:CustCommPrefDeliveryWindowHelp</HelpText>
++	<Label>@DYLOExtensions:CustCommPrefDeliveryWindow</Label>
++	<ArrayElements />
++	<Relations />
++	<TableReferences />
++	<StringSize>50</StringSize>
++</AxEdt>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxEnum/DYLO_LoyaltyTier.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxEnum/DYLO_LoyaltyTier.xml
+new file mode 100644
+index 0000000..c8cd827
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxEnum/DYLO_LoyaltyTier.xml
+@@ -0,0 +1,28 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxEnum xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>DYLO_LoyaltyTier</Name>
++	<Help>@DYLOExtensions:CustCommPrefLoyaltyTierHelp</Help>
++	<Label>@DYLOExtensions:CustCommPrefLoyaltyTier</Label>
++	<UseEnumValue>Yes</UseEnumValue>
++	<EnumValues>
++		<AxEnumValue>
++			<Name>Standard</Name>
++			<Label>@DYLOExtensions:CustCommPrefTierStandard</Label>
++		</AxEnumValue>
++		<AxEnumValue>
++			<Name>Silver</Name>
++			<Label>@DYLOExtensions:CustCommPrefTierSilver</Label>
++			<Value>1</Value>
++		</AxEnumValue>
++		<AxEnumValue>
++			<Name>Gold</Name>
++			<Label>@DYLOExtensions:CustCommPrefTierGold</Label>
++			<Value>2</Value>
++		</AxEnumValue>
++		<AxEnumValue>
++			<Name>Platinum</Name>
++			<Label>@DYLOExtensions:CustCommPrefTierPlatinum</Label>
++			<Value>3</Value>
++		</AxEnumValue>
++	</EnumValues>
++</AxEnum>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxFormExtension/CustTable.DYLOExtensions.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxFormExtension/CustTable.DYLOExtensions.xml
+new file mode 100644
+index 0000000..d92b6a5
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxFormExtension/CustTable.DYLOExtensions.xml
+@@ -0,0 +1,54 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxFormExtension xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V6">
++	<Name>CustTable.DYLOExtensions</Name>
++	<ControlModifications />
++	<Controls>
++		<AxFormExtensionControl xmlns="">
++			<Name>DYLO_CommercialPreferencesExt</Name>
++			<FormControl xmlns=""
++				i:type="AxFormGroupControl">
++				<Name>DYLO_CommercialPreferences</Name>
++				<FilterExpression>%1</FilterExpression>
++				<Type>Group</Type>
++				<VerticalSpacing>-1</VerticalSpacing>
++				<FormControlExtension
++					i:nil="true" />
++				<Controls>
++					<AxFormControl xmlns=""
++						i:type="AxFormComboBoxControl">
++						<Name>DYLO_CommercialPreferences_DYLO_LoyaltyTier</Name>
++						<FilterExpression>%1</FilterExpression>
++						<Type>ComboBox</Type>
++						<VerticalSpacing>-1</VerticalSpacing>
++						<FormControlExtension
++							i:nil="true" />
++						<DataField>DYLO_LoyaltyTier</DataField>
++						<DataSource>CustTable</DataSource>
++						<Items />
++					</AxFormControl>
++					<AxFormControl xmlns=""
++						i:type="AxFormStringControl">
++						<Name>DYLO_CommercialPreferences_DYLO_PreferredDeliveryWindow</Name>
++						<FilterExpression>%1</FilterExpression>
++						<Type>String</Type>
++						<VerticalSpacing>-1</VerticalSpacing>
++						<FormControlExtension
++							i:nil="true" />
++						<DataField>DYLO_PreferredDeliveryWindow</DataField>
++						<DataSource>CustTable</DataSource>
++					</AxFormControl>
++				</Controls>
++				<DataGroup>DYLO_CommercialPreferences</DataGroup>
++				<DataSource>CustTable</DataSource>
++			</FormControl>
++			<Parent>TabPageSales</Parent>
++			<PositionType>AfterItem</PositionType>
++			<PreviousSibling>SalesOrder</PreviousSibling>
++		</AxFormExtensionControl>
++	</Controls>
++	<DataSourceModifications />
++	<DataSourceReferences />
++	<DataSources />
++	<Parts />
++	<PropertyModifications />
++</AxFormExtension>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxLabelFile/LabelResources/en-US/DYLOExtensions.en-US.label.txt b/Metadata/DYLOExtensions/DYLOExtensions/AxLabelFile/LabelResources/en-US/DYLOExtensions.en-US.label.txt
+index 8b906dc..56dfb8f 100644
+--- a/Metadata/DYLOExtensions/DYLOExtensions/AxLabelFile/LabelResources/en-US/DYLOExtensions.en-US.label.txt
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxLabelFile/LabelResources/en-US/DYLOExtensions.en-US.label.txt
+@@ -1,4 +1,15 @@
+-﻿SOApiCallerUserId=Caller user
++﻿CustCommPrefCommercialPreferences=Commercial Preferences
++CustCommPrefDeliveryWindow=Preferred delivery window
++CustCommPrefDeliveryWindowHelp=Preferred time window for deliveries to the customer, for example 08:00 AM - 12:00 PM.
++CustCommPrefLoyaltyTier=Loyalty tier
++CustCommPrefLoyaltyTierHelp=Customer loyalty classification received from the CRM.
++CustCommPrefLoyaltyTierInvalid=Loyalty Tier value '%1' is not valid. Allowed values are Standard, Silver, Gold and Platinum.
++CustCommPrefLoyaltyTierTextHelp=Loyalty tier as text: Standard, Silver, Gold or Platinum. Empty means Standard.
++CustCommPrefTierGold=Gold
++CustCommPrefTierPlatinum=Platinum
++CustCommPrefTierSilver=Silver
++CustCommPrefTierStandard=Standard
++SOApiCallerUserId=Caller user
+  ;Trace field: D365 user that called the sales order API
+ SOApiCorrelationId=Correlation ID
+  ;Correlation ID sent by the external system
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxTableExtension/CustCustomerV3Staging.DYLOExtensions.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxTableExtension/CustCustomerV3Staging.DYLOExtensions.xml
+new file mode 100644
+index 0000000..f2104fe
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxTableExtension/CustCustomerV3Staging.DYLOExtensions.xml
+@@ -0,0 +1,28 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxTableExtension xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>CustCustomerV3Staging.DYLOExtensions</Name>
++	<FieldGroupExtensions />
++	<FieldGroups />
++	<FieldModifications />
++	<Fields>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>LoyaltyTier</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>DYLO_LoyaltyTierText</ExtendedDataType>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>PreferredDeliveryWindow</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>DYLO_PreferredDeliveryWindow</ExtendedDataType>
++		</AxTableField>
++	</Fields>
++	<FullTextIndexes />
++	<Indexes />
++	<Mappings />
++	<PropertyModifications />
++	<RelationExtensions />
++	<RelationModifications />
++	<Relations />
++</AxTableExtension>
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxTableExtension/CustTable.DYLOExtensions.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxTableExtension/CustTable.DYLOExtensions.xml
+new file mode 100644
+index 0000000..ee77d60
+--- /dev/null
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxTableExtension/CustTable.DYLOExtensions.xml
+@@ -0,0 +1,41 @@
++<?xml version="1.0" encoding="utf-8"?>
++<AxTableExtension xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
++	<Name>CustTable.DYLOExtensions</Name>
++	<FieldGroupExtensions />
++	<FieldGroups>
++		<AxTableFieldGroup>
++			<Name>DYLO_CommercialPreferences</Name>
++			<Label>@DYLOExtensions:CustCommPrefCommercialPreferences</Label>
++			<Fields>
++				<AxTableFieldGroupField>
++					<DataField>DYLO_LoyaltyTier</DataField>
++				</AxTableFieldGroupField>
++				<AxTableFieldGroupField>
++					<DataField>DYLO_PreferredDeliveryWindow</DataField>
++				</AxTableFieldGroupField>
++			</Fields>
++		</AxTableFieldGroup>
++	</FieldGroups>
++	<FieldModifications />
++	<Fields>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldEnum">
++			<Name>DYLO_LoyaltyTier</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<EnumType>DYLO_LoyaltyTier</EnumType>
++		</AxTableField>
++		<AxTableField xmlns=""
++			i:type="AxTableFieldString">
++			<Name>DYLO_PreferredDeliveryWindow</Name>
++			<AssetClassification>Customer Content</AssetClassification>
++			<ExtendedDataType>DYLO_PreferredDeliveryWindow</ExtendedDataType>
++		</AxTableField>
++	</Fields>
++	<FullTextIndexes />
++	<Indexes />
++	<Mappings />
++	<PropertyModifications />
++	<RelationExtensions />
++	<RelationModifications />
++	<Relations />
++</AxTableExtension>

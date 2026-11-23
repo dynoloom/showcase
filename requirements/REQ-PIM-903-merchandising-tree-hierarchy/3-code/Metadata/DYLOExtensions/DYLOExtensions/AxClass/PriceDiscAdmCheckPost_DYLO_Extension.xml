@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>PriceDiscAdmCheckPost_DYLO_Extension</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// REQ-PIM-903: warns, when a trade agreement journal is posted, about sales prices below the
+/// minimum gross margin of the item's merchandising node. Posting continues.
+/// </summary>
+[ExtensionOf(classStr(PriceDiscAdmCheckPost))]
+final class PriceDiscAdmCheckPost_DYLO_Extension
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>createOrUpdatePriceDiscTableRecords</Name>
+				<Source><![CDATA[
+    protected void createOrUpdatePriceDiscTableRecords()
+    {
+        DYLO_MerchMarginCheck::construct().checkJournal(journalNum);
+
+        next createOrUpdatePriceDiscTableRecords();
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

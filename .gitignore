@@ -1,0 +1,16 @@
+# D365 build output — never part of the delivered source
+**/bin/
+**/XppMetadata/
+**/Delta/
+**/Resources/*.dll
+*.xref
+*.netmodule
+
+# Editors and OS
+.vs/
+.vscode/
+*.suo
+*.user
+Thumbs.db
+.DS_Store
+~$*

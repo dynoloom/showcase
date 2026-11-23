@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxWorkflowTemplate xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V2">
+	<Name>DYLO_CustCreditLimitReqWFType</Name>
+	<CancelMenuItem>DYLO_CustCreditLimitReqWFTypeCancelMenuItem</CancelMenuItem>
+	<CanceledEventHandler>DYLO_CustCreditLimitReqWFTypeEventHandler</CanceledEventHandler>
+	<Category>CustCategory</Category>
+	<CompletedEventHandler>DYLO_CustCreditLimitReqWFTypeEventHandler</CompletedEventHandler>
+	<Document>DYLO_CustCreditLimitReqWFDocument</Document>
+	<DocumentMenuItem>DYLO_CustCreditLimitRequest</DocumentMenuItem>
+	<HelpText>@DYLOExtensions:CreditLimitReqWorkflowTypeHelp</HelpText>
+	<Label>@DYLOExtensions:CreditLimitReqWorkflowType</Label>
+	<StartedEventHandler>DYLO_CustCreditLimitReqWFTypeEventHandler</StartedEventHandler>
+	<SubmitToWorkflowMenuItem>DYLO_CustCreditLimitReqWFTypeSubmitMenuItem</SubmitToWorkflowMenuItem>
+	<LineItemWorkflows />
+	<SupportedElements>
+		<AxWorkflowElementReference xmlns="">
+			<Name>DYLO_CustCreditLimitReqApproval</Name>
+			<ElementName>DYLO_CustCreditLimitReqApproval</ElementName>
+		</AxWorkflowElementReference>
+	</SupportedElements>
+</AxWorkflowTemplate>

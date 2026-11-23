@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_SalesOrderApiPurgeController</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Runs the purge of old sales order API trace records, from the trace log form or as a batch job.
+/// </summary>
+public class DYLO_SalesOrderApiPurgeController extends SysOperationServiceController
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>new</Name>
+				<Source><![CDATA[
+    protected void new()
+    {
+        super(
+            classStr(DYLO_SalesOrderApiPurgeService),
+            methodStr(DYLO_SalesOrderApiPurgeService, purge),
+            SysOperationExecutionMode::Synchronous);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>construct</Name>
+				<Source><![CDATA[
+    public static DYLO_SalesOrderApiPurgeController construct()
+    {
+        return new DYLO_SalesOrderApiPurgeController();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>defaultCaption</Name>
+				<Source><![CDATA[
+    protected ClassDescription defaultCaption()
+    {
+        return "@DYLOExtensions:SOApiPurgeCaption";
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>main</Name>
+				<Source><![CDATA[
+    public static void main(Args _args)
+    {
+        DYLO_SalesOrderApiPurgeController controller = DYLO_SalesOrderApiPurgeController::construct();
+
+        controller.parmArgs(_args);
+        controller.startOperation();
+
+        if (_args && _args.record() && FormDataUtil::isFormDataSource(_args.record()))
+        {
+            FormDataUtil::getFormDataSource(_args.record()).research();
+        }
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

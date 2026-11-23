@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxTable xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_MerchHierarchyProduct</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// The assignment of a released product to one leaf node of the merchandising hierarchy (REQ-PIM-903).
+/// One node per product per legal entity.
+/// </summary>
+public class DYLO_MerchHierarchyProduct extends common
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>findByItemId</Name>
+				<Source><![CDATA[
+    public static DYLO_MerchHierarchyProduct findByItemId(ItemId _itemId, boolean _forUpdate = false)
+    {
+        DYLO_MerchHierarchyProduct product;
+
+        if (_itemId)
+        {
+            product.selectForUpdate(_forUpdate);
+
+            select firstonly product
+                where product.ItemId == _itemId;
+        }
+
+        return product;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>validateWrite</Name>
+				<Source><![CDATA[
+    public boolean validateWrite()
+    {
+        boolean                     ret = super();
+        DYLO_MerchHierarchyNode     node;
+        DYLO_MerchHierarchyProduct  other;
+
+        if (ret)
+        {
+            node = DYLO_MerchHierarchyNode::find(this.Node);
+
+            if (!node.RecId)
+            {
+                ret = checkFailed("@DYLOExtensions:MerchHierNodeMissing");
+            }
+            else
+            {
+                if (!node.Active)
+                {
+                    ret = checkFailed(strFmt("@DYLOExtensions:MerchHierNodeInactive", node.NodeId));
+                }
+
+                if (!node.isLeaf())
+                {
+                    ret = checkFailed(strFmt("@DYLOExtensions:MerchHierNotLeaf", node.NodeId));
+                }
+            }
+
+            select firstonly Node, RecId from other
+                where other.ItemId == this.ItemId
+                   && other.RecId  != this.RecId;
+
+            if (other.RecId)
+            {
+                ret = checkFailed(strFmt("@DYLOExtensions:MerchHierAlreadyAssigned",
+                    this.ItemId,
+                    DYLO_MerchHierarchyNode::find(other.Node).nodeDisplay()));
+            }
+        }
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>productName</Name>
+				<Source><![CDATA[
+    public display EcoResProductName productName()
+    {
+        return InventTable::find(this.ItemId).defaultProductName();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>targetMarginPct</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The target margin of the product: the effective (inherited) minimum gross margin of its node.
+    /// </summary>
+    public display DYLO_MerchMinGrossMarginPct targetMarginPct()
+    {
+        return DYLO_MerchHierarchyNode::find(this.Node).EffectiveMinGrossMarginPct;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>lifecycleState</Name>
+				<Source><![CDATA[
+    public display EcoResProductLifecycleStateId lifecycleState()
+    {
+        return InventTable::find(this.ItemId).ProductLifecycleStateId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>nodeDisplay</Name>
+				<Source><![CDATA[
+    public display Description255 nodeDisplay()
+    {
+        return DYLO_MerchHierarchyNode::find(this.Node).nodeDisplay();
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+	<DeveloperDocumentation>@DYLOExtensions:MerchHierProductTableDoc</DeveloperDocumentation>
+	<FormRef>DYLO_MerchHierarchy</FormRef>
+	<Label>@DYLOExtensions:MerchHierProductTable</Label>
+	<TableGroup>Main</TableGroup>
+	<TitleField1>ItemId</TitleField1>
+	<TitleField2>Node</TitleField2>
+	<CacheLookup>Found</CacheLookup>
+	<ReplacementKey>ItemIdx</ReplacementKey>
+	<DeleteActions />
+	<FieldGroups>
+		<AxTableFieldGroup>
+			<Name>AutoReport</Name>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>ItemId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Node</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoLookup</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoIdentification</Name>
+			<AutoPopulate>Yes</AutoPopulate>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>ItemId</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoSummary</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoBrowse</Name>
+			<Fields />
+		</AxTableFieldGroup>
+	</FieldGroups>
+	<Fields>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>ItemId</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>ItemId</ExtendedDataType>
+			<Mandatory>Yes</Mandatory>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldInt64">
+			<Name>Node</Name>
+			<AllowEdit>No</AllowEdit>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>DYLO_MerchNodeRefRecId</ExtendedDataType>
+			<Mandatory>Yes</Mandatory>
+		</AxTableField>
+	</Fields>
+	<FullTextIndexes />
+	<Indexes>
+		<AxTableIndex>
+			<Name>ItemIdx</Name>
+			<AlternateKey>Yes</AlternateKey>
+			<Fields>
+				<AxTableIndexField>
+					<DataField>ItemId</DataField>
+				</AxTableIndexField>
+			</Fields>
+		</AxTableIndex>
+		<AxTableIndex>
+			<Name>NodeIdx</Name>
+			<AllowDuplicates>Yes</AllowDuplicates>
+			<Fields>
+				<AxTableIndexField>
+					<DataField>Node</DataField>
+				</AxTableIndexField>
+			</Fields>
+		</AxTableIndex>
+	</Indexes>
+	<Mappings />
+	<Relations>
+		<AxTableRelation>
+			<Name>InventTable</Name>
+			<Cardinality>ZeroOne</Cardinality>
+			<OnDelete>Cascade</OnDelete>
+			<RelatedTable>InventTable</RelatedTable>
+			<RelatedTableCardinality>ExactlyOne</RelatedTableCardinality>
+			<RelationshipType>Association</RelationshipType>
+			<Constraints>
+				<AxTableRelationConstraint xmlns=""
+					i:type="AxTableRelationConstraintField">
+					<Name>ItemId</Name>
+					<Field>ItemId</Field>
+					<RelatedField>ItemId</RelatedField>
+				</AxTableRelationConstraint>
+			</Constraints>
+		</AxTableRelation>
+		<AxTableRelation xmlns=""
+			i:type="AxTableRelationForeignKey">
+			<Name>Node</Name>
+			<Cardinality>ZeroMore</Cardinality>
+			<RelatedTable>DYLO_MerchHierarchyNode</RelatedTable>
+			<RelatedTableCardinality>ExactlyOne</RelatedTableCardinality>
+			<RelationshipType>Association</RelationshipType>
+			<Constraints>
+				<AxTableRelationConstraint xmlns=""
+					i:type="AxTableRelationConstraintField">
+					<Name>Node</Name>
+					<Field>Node</Field>
+					<RelatedField>RecId</RelatedField>
+				</AxTableRelationConstraint>
+			</Constraints>
+			<Index>RecId</Index>
+		</AxTableRelation>
+	</Relations>
+	<StateMachines />
+</AxTable>

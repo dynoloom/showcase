@@ -1,0 +1,354 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_MerchHierarchyTreeDatasource</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Drives the tree control of the merchandising hierarchy form (REQ-PIM-903).
+/// The tree's root item is the hierarchy's root node record; item data is the node's RecId.
+/// </summary>
+public class DYLO_MerchHierarchyTreeDatasource extends CcFormTreeDatasource
+{
+    QueryBuildRange nodeRecIdRange;
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>new</Name>
+				<Source><![CDATA[
+    public void new(FormDataSource _formDataSource, FormTreeControl _formTreeControl)
+    {
+        Query                   query = _formDataSource.query();
+        QueryBuildDataSource    qbds  = query.dataSourceTable(tableNum(DYLO_MerchHierarchyNode));
+
+        nodeRecIdRange = qbds.findRange(fieldNum(DYLO_MerchHierarchyNode, RecId));
+
+        if (!nodeRecIdRange)
+        {
+            nodeRecIdRange = qbds.addRange(fieldNum(DYLO_MerchHierarchyNode, RecId));
+        }
+
+        super(_formDataSource,
+              _formTreeControl,
+              fieldNum(DYLO_MerchHierarchyNode, RecId),
+              fieldNum(DYLO_MerchHierarchyNode, ParentNode),
+              fieldNum(DYLO_MerchHierarchyNode, Name),
+              false,
+              false,
+              fieldNum(DYLO_MerchHierarchyNode, NodeId),
+              fieldNum(DYLO_MerchHierarchyNode, SortOrder));
+
+        nodeRecIdRange.value(queryValue(DYLO_MerchHierarchyNode::findRoot().RecId));
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>construct</Name>
+				<Source><![CDATA[
+    public static DYLO_MerchHierarchyTreeDatasource construct(FormDataSource _formDataSource, FormTreeControl _formTreeControl)
+    {
+        return new DYLO_MerchHierarchyTreeDatasource(_formDataSource, _formTreeControl);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>loadPosition</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Starts at the root node. Overridden because the base sets the selected data to a string,
+    /// which does not compare with the RecId item data.
+    /// </summary>
+    public void loadPosition()
+    {
+        selectedData = DYLO_MerchHierarchyNode::findRoot().RecId;
+        this.getRelations(selectedData);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>initTree</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Builds the tree from the root node, expands the path to a node and selects it.
+    /// </summary>
+    /// <param name = "_selectRecId">The node to select; 0 selects the default.</param>
+    public void initTree(RecId _selectRecId = 0)
+    {
+        DYLO_MerchHierarchyNode root = DYLO_MerchHierarchyNode::findRoot();
+
+        if (!root.RecId)
+        {
+            tree.deleteAll();
+            return;
+        }
+
+        selectIdx      = 0;
+        selectionStack = new Stack();
+
+        if (_selectRecId && _selectRecId != root.RecId)
+        {
+            // Push the path target..root; the root itself is the tree's root item, so drop it again.
+            this.getRelations(_selectRecId);
+            selectionStack.pop();
+        }
+        else
+        {
+            // Consumed when the root item is expanded.
+            selectionStack.push([root.RecId]);
+        }
+
+        this.initRoot(this.itemText(root.RecId, ''), root.RecId, this.image());
+
+        if (_selectRecId == root.RecId)
+        {
+            tree.select(tree.getRoot());
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>itemText</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The tree text of a node: "NodeId - Name", with "(inactive)" for an inactive node.
+    /// </summary>
+    public str itemText(anytype _idTxt, anytype _descriptionTxt)
+    {
+        RecId nodeRecId = _idTxt;
+
+        return DYLO_MerchHierarchyNode::find(nodeRecId).treeText();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>selectedNode</Name>
+				<Source><![CDATA[
+    public DYLO_MerchHierarchyNode selectedNode()
+    {
+        FormTreeItem    item = tree.getItem(tree.getSelection());
+        RecId           nodeRecId;
+
+        if (item)
+        {
+            nodeRecId = item.data();
+        }
+
+        return DYLO_MerchHierarchyNode::find(nodeRecId);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>selectionChanged</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Shows the selected node in the form data source.
+    /// </summary>
+    public void selectionChanged(FormTreeItem _oldItem, FormTreeItem _newItem)
+    {
+        RecId nodeRecId;
+
+        if (_oldItem)
+        {
+            oldIdx = _oldItem.idx();
+        }
+
+        if (_newItem)
+        {
+            newIdx       = _newItem.idx();
+            selectedData = _newItem.data();
+            nodeRecId    = _newItem.data();
+            this.setDatasourceStatus(newIdx);
+        }
+
+        nodeRecIdRange.value(queryValue(nodeRecId));
+        formDataSource.executeQuery();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>selectionChanging</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Vetoes the selection change when the current node cannot be saved.
+    /// </summary>
+    public boolean selectionChanging(FormTreeItem _oldItem, FormTreeItem _newItem, FormTreeSelect _how)
+    {
+        return !formDataSource.leaveRecord();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>setDatasourceStatus</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// The root item is a real node here: it can be edited but not deleted.
+    /// </summary>
+    public void setDatasourceStatus(int _idx)
+    {
+        formDataSource.allowDelete(_idx != tree.getRoot());
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>create</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Creates a child node under the selected node and selects it.
+    /// </summary>
+    public void create()
+    {
+        int                     idx = tree.getSelection();
+        FormTreeItem            parentItem = tree.getItem(idx);
+        DYLO_MerchHierarchyNode parent;
+        DYLO_MerchHierarchyNode node;
+        RecId                   parentRecId;
+        int                     idxNew;
+
+        if (!parentItem || !formDataSource.leaveRecord())
+        {
+            return;
+        }
+
+        parentRecId = parentItem.data();
+        parent      = DYLO_MerchHierarchyNode::find(parentRecId);
+
+        if (!DYLO_MerchHierarchyManager::canAddChild(parent))
+        {
+            return;
+        }
+
+        node.initValue();
+        node.initFromParent(parent);
+        node.NodeId = DYLO_MerchHierarchyManager::newChildNodeId(parent, node.SortOrder);
+        node.Name   = "@DYLOExtensions:MerchHierNewNodeName";
+
+        if (node.validateWrite())
+        {
+            ttsbegin;
+            node.insert();
+            ttscommit;
+
+            basicRecId = node.RecId;
+            idxNew = this.buildSubTree(idx, parentRecId, true);
+            tree.expand(idx, FormTreeExpand::Expand);
+
+            if (idxNew)
+            {
+                tree.select(idxNew);
+            }
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>delete</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Deletes the selected node after the delete guard (no root, no child nodes, no products).
+    /// </summary>
+    public void delete()
+    {
+        int                     idx  = tree.getSelection();
+        FormTreeItem            item = tree.getItem(idx);
+        int                     idxParent;
+        RecId                   nodeRecId;
+        DYLO_MerchHierarchyNode node;
+
+        if (!item)
+        {
+            return;
+        }
+
+        nodeRecId = item.data();
+        node      = DYLO_MerchHierarchyNode::find(nodeRecId, true);
+
+        if (!node.RecId || !node.validateDelete())
+        {
+            return;
+        }
+
+        if (Box::yesNo(strFmt("@DYLOExtensions:MerchHierDeleteConfirm", item.text()), DialogButton::No) == DialogButton::Yes)
+        {
+            idxParent = tree.getParent(idx);
+
+            ttsbegin;
+            node = DYLO_MerchHierarchyNode::find(nodeRecId, true);
+            node.delete();
+            ttscommit;
+
+            tree.delete(idx);
+
+            if (idxParent)
+            {
+                item = tree.getItem(idxParent);
+                item.children(tree.getChild(idxParent));
+                tree.setItem(item);
+                tree.select(idxParent);
+            }
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>refreshSubtree</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Rebuilds the branch under a tree item and selects a node in it.
+    /// </summary>
+    public int refreshSubtree(int _idx, RecId _selectRecId = 0)
+    {
+        FormTreeItem    item = tree.getItem(_idx);
+        int             idxSelect;
+
+        if (!item)
+        {
+            return 0;
+        }
+
+        basicRecId = _selectRecId;
+        idxSelect  = this.buildSubTree(_idx, item.data(), true);
+        tree.expand(_idx, FormTreeExpand::Expand);
+
+        if (idxSelect)
+        {
+            tree.select(idxSelect);
+        }
+
+        return idxSelect;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>refreshSelectedText</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Refreshes the text of the selected tree item from the database.
+    /// </summary>
+    public void refreshSelectedText()
+    {
+        FormTreeItem item = tree.getItem(tree.getSelection());
+
+        if (item)
+        {
+            item.text(this.itemText(item.data(), ''));
+            tree.setItem(item);
+        }
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

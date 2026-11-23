@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_CustCreditLimitReqWFDocument</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// The workflow document of the credit limit change approval workflow.
+/// </summary>
+class DYLO_CustCreditLimitReqWFDocument extends WorkflowDocument
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>getQueryName</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Returns the query name of the workflow document.
+    /// </summary>
+    /// <returns>The name of the query <c>DYLO_CustCreditLimitReqWFQuery</c>.</returns>
+    public queryName getQueryName()
+    {
+        return querystr(DYLO_CustCreditLimitReqWFQuery);
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

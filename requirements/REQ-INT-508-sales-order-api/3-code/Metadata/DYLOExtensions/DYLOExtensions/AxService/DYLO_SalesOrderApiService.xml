@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxService xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_SalesOrderApiService</Name>
+	<Class>DYLO_SalesOrderApiService</Class>
+	<ExternalName>DYLO_SalesOrderApiService</ExternalName>
+	<ServiceOperations>
+		<AxServiceOperation>
+			<Name>createSalesOrder</Name>
+			<Method>createSalesOrder</Method>
+		</AxServiceOperation>
+	</ServiceOperations>
+</AxService>

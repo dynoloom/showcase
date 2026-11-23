@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_SalesOrderApiPurgeContract</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Parameters of the purge of old sales order API trace records.
+/// </summary>
+[DataContractAttribute]
+public class DYLO_SalesOrderApiPurgeContract implements SysOperationInitializable, SysOperationValidatable
+{
+    int retentionDays;
+
+    public const int DefaultRetentionDays = 90;
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>initialize</Name>
+				<Source><![CDATA[
+    public void initialize()
+    {
+        retentionDays = DYLO_SalesOrderApiPurgeContract::DefaultRetentionDays;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmRetentionDays</Name>
+				<Source><![CDATA[
+    [
+        DataMemberAttribute('RetentionDays'),
+        SysOperationLabelAttribute(literalStr("@DYLOExtensions:SOApiRetentionDays")),
+        SysOperationHelpTextAttribute(literalStr("@DYLOExtensions:SOApiRetentionDaysHelp"))
+    ]
+    public int parmRetentionDays(int _retentionDays = retentionDays)
+    {
+        retentionDays = _retentionDays;
+        return retentionDays;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>validate</Name>
+				<Source><![CDATA[
+    public boolean validate()
+    {
+        boolean ret = true;
+
+        if (retentionDays < 1)
+        {
+            ret = checkFailed("@DYLOExtensions:SOApiRetentionDaysInvalid");
+        }
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

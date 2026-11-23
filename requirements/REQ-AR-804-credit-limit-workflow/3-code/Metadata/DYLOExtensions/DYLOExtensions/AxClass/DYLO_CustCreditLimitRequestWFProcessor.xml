@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_CustCreditLimitRequestWFProcessor</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Business logic of the credit limit change approval workflow: submit validation,
+/// approval path, status changes and the update of the customer's credit limit.
+/// </summary>
+public final class DYLO_CustCreditLimitRequestWFProcessor
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>canEditCreditLimit</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Determines whether the current user may edit a customer's credit limit directly.
+    /// </summary>
+    /// <returns>true if the user has access to the Edit customer credit limit menu item; otherwise, false.</returns>
+    public static boolean canEditCreditLimit()
+    {
+        return hasMenuItemAccess(menuItemDisplayStr(DYLO_CustCreditLimitEdit), MenuItemType::Display);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>calcApprovalPath</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Calculates the approval path of a request from the thresholds of the legal entity.
+    /// </summary>
+    /// <param name = "_net">The net change of the credit limit.</param>
+    /// <param name = "_new">The requested new credit limit.</param>
+    /// <param name = "_parameters">The Accounts receivable parameters.</param>
+    /// <returns>The approval path.</returns>
+    public static DYLO_CustCreditLimitApprovalPath calcApprovalPath(AmountMST _net, CustCreditMaxMST _new, CustParameters _parameters)
+    {
+        if (_net < 0)
+        {
+            return DYLO_CustCreditLimitApprovalPath::Decrease;
+        }
+
+        if (_net > _parameters.DYLO_CreditLimitIncreaseThreshold
+            || _new > _parameters.DYLO_CreditLimitNewLimitThreshold)
+        {
+            return DYLO_CustCreditLimitApprovalPath::TwoStep;
+        }
+
+        return DYLO_CustCreditLimitApprovalPath::SingleStep;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>validateSubmit</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Validates a request before it is submitted to workflow.
+    /// </summary>
+    /// <param name = "_request">The request.</param>
+    /// <returns>true if the request can be submitted; otherwise, false.</returns>
+    public static boolean validateSubmit(DYLO_CustCreditLimitRequest _request)
+    {
+        boolean ret = true;
+
+        if (!_request.CustAccount)
+        {
+            ret = checkFailed("@DYLOExtensions:CreditLimitReqErrCustomer");
+        }
+
+        if (!_request.Justification)
+        {
+            ret = checkFailed("@DYLOExtensions:CreditLimitReqErrJustification");
+        }
+
+        if (_request.RequestedCreditMax < 0)
+        {
+            ret = checkFailed("@DYLOExtensions:CreditLimitReqErrNegative");
+        }
+
+        if (_request.RequestedCreditMax == _request.CurrentCreditMax)
+        {
+            ret = checkFailed("@DYLOExtensions:CreditLimitReqErrNoChange");
+        }
+
+        DYLO_CustCreditLimitRequest openRequest = DYLO_CustCreditLimitRequest::findOpenRequest(_request.CustAccount, _request.RecId);
+        if (openRequest.RecId)
+        {
+            ret = checkFailed(strFmt("@DYLOExtensions:CreditLimitReqErrOpenRequest", _request.CustAccount, openRequest.RequestId));
+        }
+
+        return ret;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>prepareSubmit</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Refreshes, validates and prepares a request for submission or resubmission to workflow.
+    /// </summary>
+    /// <param name = "_recId">The record ID of the request.</param>
+    /// <remarks>
+    /// Throws an error when the request is not valid, so the submission is not made.
+    /// </remarks>
+    public static void prepareSubmit(RefRecId _recId)
+    {
+        ttsbegin;
+
+        DYLO_CustCreditLimitRequest request = DYLO_CustCreditLimitRequest::findRecId(_recId, true);
+
+        request.CurrentCreditMax = CustTable::find(request.CustAccount).CreditMax;
+        request.NetChange        = request.RequestedCreditMax - request.CurrentCreditMax;
+
+        if (!DYLO_CustCreditLimitRequestWFProcessor::validateSubmit(request))
+        {
+            throw error("@SYS18447");
+        }
+
+        request.ApprovalPath   = DYLO_CustCreditLimitRequestWFProcessor::calcApprovalPath(
+            request.NetChange,
+            request.RequestedCreditMax,
+            CustParameters::find());
+        request.ApprovalStatus = DYLO_CustCreditLimitRequestStatus::Submitted;
+        request.update();
+
+        ttscommit;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>setStatus</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Sets the approval status of a request.
+    /// </summary>
+    /// <param name = "_recId">The record ID of the request.</param>
+    /// <param name = "_status">The new status.</param>
+    public static void setStatus(RefRecId _recId, DYLO_CustCreditLimitRequestStatus _status)
+    {
+        ttsbegin;
+
+        DYLO_CustCreditLimitRequest request = DYLO_CustCreditLimitRequest::findRecId(_recId, true);
+
+        if (request.RecId && request.ApprovalStatus != _status)
+        {
+            request.ApprovalStatus = _status;
+            request.update();
+        }
+
+        ttscommit;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>complete</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Applies a finally approved request: updates the customer's credit limit and stamps the approval.
+    /// </summary>
+    /// <param name = "_recId">The record ID of the request.</param>
+    /// <param name = "_correlationId">The correlation ID of the workflow.</param>
+    public static void complete(RefRecId _recId, WorkflowCorrelationId _correlationId)
+    {
+        ttsbegin;
+
+        DYLO_CustCreditLimitRequest request = DYLO_CustCreditLimitRequest::findRecId(_recId, true);
+
+        if (!request.RecId
+            || request.ApprovalStatus == DYLO_CustCreditLimitRequestStatus::Approved
+            || request.ApprovalStatus == DYLO_CustCreditLimitRequestStatus::Rejected
+            || request.ApprovalStatus == DYLO_CustCreditLimitRequestStatus::Canceled)
+        {
+            ttscommit;
+            return;
+        }
+
+        CustTable custTable = CustTable::find(request.CustAccount, true);
+
+        if (custTable.CreditMax != request.CurrentCreditMax)
+        {
+            info(strFmt("@DYLOExtensions:CreditLimitReqApproverChanged",
+                custTable.AccountNum,
+                request.CurrentCreditMax,
+                custTable.CreditMax,
+                request.RequestedCreditMax));
+        }
+
+        using (var context = new DYLO_CustCreditLimitUpdateContext())
+        {
+            custTable.CreditMax = request.RequestedCreditMax;
+
+            if (!custTable.validateWrite())
+            {
+                throw error("@SYS18447");
+            }
+
+            custTable.update();
+        }
+
+        request.ApprovalStatus  = DYLO_CustCreditLimitRequestStatus::Approved;
+        request.ApprovalDate    = DateTimeUtil::getSystemDate(DateTimeUtil::getUserPreferredTimeZone());
+        request.FinalApproverId = DYLO_CustCreditLimitRequestWFProcessor::findFinalApprover(_correlationId);
+        request.update();
+
+        ttscommit;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>findFinalApprover</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Finds the user who last approved a work item of the workflow.
+    /// </summary>
+    /// <param name = "_correlationId">The correlation ID of the workflow.</param>
+    /// <returns>The user ID of the final approver; the current user if none is found.</returns>
+    private static UserId findFinalApprover(WorkflowCorrelationId _correlationId)
+    {
+        WorkflowTrackingTable       tracking;
+        WorkflowTrackingStatusTable trackingStatus;
+
+        select firstonly User from tracking
+            order by RecId desc
+            where tracking.TrackingContext == WorkflowTrackingContext::WorkItem
+               && tracking.TrackingType    == WorkflowTrackingType::Approval
+            exists join trackingStatus
+                where trackingStatus.RecId         == tracking.WorkflowTrackingStatusTable
+                   && trackingStatus.CorrelationId == _correlationId;
+
+        return tracking.User ? tracking.User : curUserId();
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

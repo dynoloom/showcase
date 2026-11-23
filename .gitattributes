@@ -1,0 +1,11 @@
+# Text documents: normalise line endings
+*.md      text eol=lf
+
+# Delivered D365 metadata and diffs: keep the exact bytes as delivered
+**/3-code/** -text
+*.patch      -text
+
+# Binary
+*.docx binary
+*.png  binary
+*.jpg  binary

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxSecurityDuty xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_TradeAgreementPriceAdjMaintain</Name>
+	<Description>@DYLOExtensions:MassPriceAdjDutyDescription</Description>
+	<Label>@DYLOExtensions:MassPriceAdjDuty</Label>
+	<Privileges>
+		<AxSecurityPrivilegeReference>
+			<Name>DYLO_TradeAgreementPriceAdjGenerate</Name>
+		</AxSecurityPrivilegeReference>
+	</Privileges>
+</AxSecurityDuty>

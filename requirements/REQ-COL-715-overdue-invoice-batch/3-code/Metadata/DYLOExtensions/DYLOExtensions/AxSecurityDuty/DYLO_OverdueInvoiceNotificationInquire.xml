@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxSecurityDuty xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_OverdueInvoiceNotificationInquire</Name>
+	<Description>@DYLOExtensions:OverdueInvNotifInquireDutyDescription</Description>
+	<Label>@DYLOExtensions:OverdueInvNotifInquireDuty</Label>
+	<Privileges>
+		<AxSecurityPrivilegeReference>
+			<Name>DYLO_OverdueInvoiceNotificationLogView</Name>
+		</AxSecurityPrivilegeReference>
+	</Privileges>
+</AxSecurityDuty>

@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_SalesOrderApiService</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Custom JSON service that creates a sales order from an external system (REQ-INT-508).
+/// Every call is traced in <c>DYLO_SalesOrderApiTrace</c>.
+/// </summary>
+public class DYLO_SalesOrderApiService
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>createSalesOrder</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Creates a sales order from the request and returns the outcome.
+    /// </summary>
+    /// <param name = "_request">The request.</param>
+    /// <returns>The response.</returns>
+    public DYLO_SalesOrderApiResponseContract createSalesOrder(DYLO_SalesOrderApiRequestContract _request)
+    {
+        System.Diagnostics.Stopwatch        stopwatch = new System.Diagnostics.Stopwatch();
+        utcdatetime                         executedDateTime;
+        str                                 requestJson;
+        DataAreaId                          legalEntity;
+        DYLO_SalesOrderApiResponseContract  response;
+
+        stopwatch.Start();
+        executedDateTime = DateTimeUtil::utcNow();
+
+        requestJson = this.requestJson(_request);
+        legalEntity = _request ? _request.parmLegalEntity() : '';
+
+        if (legalEntity && !xDataArea::exist(legalEntity))
+        {
+            // Unknown legal entity: logged in the caller's company
+            response = DYLO_SalesOrderApiResponseContract::newFromRequest(_request);
+            response.addError(DYLO_SalesOrderApiProcessor::ErrLegalEntityNotFound,
+                strFmt("@DYLOExtensions:SOApiErrLegalEntityNotFound", legalEntity));
+            response.setFailed();
+
+            stopwatch.Stop();
+            DYLO_SalesOrderApiTraceLogger::logCall(_request, requestJson, response, executedDateTime, stopwatch.ElapsedMilliseconds);
+
+            return response;
+        }
+
+        if (legalEntity && legalEntity != curExt())
+        {
+            changecompany(legalEntity)
+            {
+                response = this.processAndLog(_request, requestJson, executedDateTime, stopwatch);
+            }
+        }
+        else
+        {
+            response = this.processAndLog(_request, requestJson, executedDateTime, stopwatch);
+        }
+
+        return response;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>processAndLog</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Processes the request in the current company and writes the trace record. Every unexpected
+    /// exception becomes a failed response, so every call is traced.
+    /// </summary>
+    private DYLO_SalesOrderApiResponseContract processAndLog(
+        DYLO_SalesOrderApiRequestContract   _request,
+        str                                 _requestJson,
+        utcdatetime                         _executedDateTime,
+        System.Diagnostics.Stopwatch        _stopwatch)
+    {
+        DYLO_SalesOrderApiResponseContract  response;
+        int                                 infologStart = infologLine();
+
+        try
+        {
+            response = DYLO_SalesOrderApiProcessor::process(_request);
+        }
+        catch (Exception::CLRError)
+        {
+            response = DYLO_SalesOrderApiProcessor::newUnexpectedResponse(_request, infologStart, true);
+        }
+        catch
+        {
+            response = DYLO_SalesOrderApiProcessor::newUnexpectedResponse(_request, infologStart);
+        }
+
+        _stopwatch.Stop();
+        DYLO_SalesOrderApiTraceLogger::logCall(_request, _requestJson, response, _executedDateTime, _stopwatch.ElapsedMilliseconds);
+
+        return response;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>requestJson</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Serializes and formats the request as D365 read it.
+    /// </summary>
+    private str requestJson(DYLO_SalesOrderApiRequestContract _request)
+    {
+        str json;
+
+        try
+        {
+            json = DYLO_JsonFormatter::format(FormJsonSerializer::serializeClass(_request));
+        }
+        catch
+        {
+            json = '';
+        }
+
+        return json;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

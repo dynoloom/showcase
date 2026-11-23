@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_TradeAgreementPriceAdjTaskContract</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Data contract of one runtime task (a bundle of items, or the summary task) of the mass trade agreement price update.
+/// </summary>
+[DataContractAttribute]
+public class DYLO_TradeAgreementPriceAdjTaskContract
+{
+    DYLO_PriceAdjRunId          runId;
+    PriceDiscJournalNum         journalNum;
+    List                        itemIds;
+    LineNum                     lineNumBase;
+    PriceGroupId                custPriceGroup;
+    DYLO_PriceAdjPercent        adjustmentPct;
+    TransDate                   effectiveFromDate;
+    DYLO_PriceAdjRoundingRule   roundingRule;
+    NoYes                       autoPost;
+    int                         bundleCount;
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>parmRunId</Name>
+				<Source><![CDATA[
+    [DataMemberAttribute('RunId')]
+    public DYLO_PriceAdjRunId parmRunId(DYLO_PriceAdjRunId _runId = runId)
+    {
+        runId = _runId;
+        return runId;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmJournalNum</Name>
+				<Source><![CDATA[
+    [DataMemberAttribute('JournalNum')]
+    public PriceDiscJournalNum parmJournalNum(PriceDiscJournalNum _journalNum = journalNum)
+    {
+        journalNum = _journalNum;
+        return journalNum;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmItemIds</Name>
+				<Source><![CDATA[
+    [
+        DataMemberAttribute('ItemIds'),
+        AifCollectionTypeAttribute('return', Types::String)
+    ]
+    public List parmItemIds(List _itemIds = itemIds)
+    {
+        itemIds = _itemIds;
+        return itemIds;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmLineNumBase</Name>
+				<Source><![CDATA[
+    [DataMemberAttribute('LineNumBase')]
+    public LineNum parmLineNumBase(LineNum _lineNumBase = lineNumBase)
+    {
+        lineNumBase = _lineNumBase;
+        return lineNumBase;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmCustPriceGroup</Name>
+				<Source><![CDATA[
+    [DataMemberAttribute('CustPriceGroup')]
+    public PriceGroupId parmCustPriceGroup(PriceGroupId _custPriceGroup = custPriceGroup)
+    {
+        custPriceGroup = _custPriceGroup;
+        return custPriceGroup;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmAdjustmentPct</Name>
+				<Source><![CDATA[
+    [DataMemberAttribute('AdjustmentPct')]
+    public DYLO_PriceAdjPercent parmAdjustmentPct(DYLO_PriceAdjPercent _adjustmentPct = adjustmentPct)
+    {
+        adjustmentPct = _adjustmentPct;
+        return adjustmentPct;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmEffectiveFromDate</Name>
+				<Source><![CDATA[
+    [DataMemberAttribute('EffectiveFromDate')]
+    public TransDate parmEffectiveFromDate(TransDate _effectiveFromDate = effectiveFromDate)
+    {
+        effectiveFromDate = _effectiveFromDate;
+        return effectiveFromDate;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmRoundingRule</Name>
+				<Source><![CDATA[
+    [DataMemberAttribute('RoundingRule')]
+    public DYLO_PriceAdjRoundingRule parmRoundingRule(DYLO_PriceAdjRoundingRule _roundingRule = roundingRule)
+    {
+        roundingRule = _roundingRule;
+        return roundingRule;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmAutoPost</Name>
+				<Source><![CDATA[
+    [DataMemberAttribute('AutoPost')]
+    public NoYes parmAutoPost(NoYes _autoPost = autoPost)
+    {
+        autoPost = _autoPost;
+        return autoPost;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>parmBundleCount</Name>
+				<Source><![CDATA[
+    [DataMemberAttribute('BundleCount')]
+    public int parmBundleCount(int _bundleCount = bundleCount)
+    {
+        bundleCount = _bundleCount;
+        return bundleCount;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

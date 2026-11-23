@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxForm xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="Microsoft.Dynamics.AX.Metadata.V6">
+	<Name>DYLO_MerchHierarchyReparentDialog</Name>
+	<SourceCode>
+		<Methods xmlns="">
+			<Method>
+				<Name>classDeclaration</Name>
+				<Source><![CDATA[
+/// <summary>
+/// Moves a merchandising hierarchy node, with its subtree, under a new parent node (REQ-PIM-903).
+/// </summary>
+[Form]
+public class DYLO_MerchHierarchyReparentDialog extends FormRun
+{
+    DYLO_MerchHierarchyNode node;
+}
+]]></Source>
+			</Method>
+			<Method>
+				<Name>init</Name>
+				<Source><![CDATA[
+    public void init()
+    {
+        super();
+
+        if (!element.args() || element.args().dataset() != tableNum(DYLO_MerchHierarchyNode))
+        {
+            throw error("@DYLOExtensions:MerchHierWrongCall");
+        }
+
+        node = DYLO_MerchHierarchyNode::find(element.args().record().RecId);
+        NodeToMove.text(node.nodeDisplay());
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>closeOk</Name>
+				<Source><![CDATA[
+    public void closeOk()
+    {
+        DYLO_MerchHierarchyNode newParent = DYLO_MerchHierarchyNode::findByNodeId(NewParentNodeId.valueStr());
+        FormRun                 callerForm;
+        Object                  callerObject;
+
+        if (!newParent.RecId)
+        {
+            checkFailed("@DYLOExtensions:MerchHierParentInvalid");
+            return;
+        }
+
+        // Errors keep the dialog open.
+        if (!DYLO_MerchHierarchyManager::reparent(node, newParent.RecId))
+        {
+            return;
+        }
+
+        super();
+
+        callerForm = element.args().caller() as FormRun;
+
+        if (callerForm && formHasMethod(callerForm, identifierStr(afterReparent)))
+        {
+            callerObject = callerForm;
+            callerObject.afterReparent(node.RecId);
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>lookupNewParent</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Looks up the nodes the node may be moved under: active nodes without products,
+    /// other than the node itself and its descendants.
+    /// </summary>
+    public void lookupNewParent(FormStringControl _control)
+    {
+        SysTableLookup          lookup      = SysTableLookup::newParameters(tableNum(DYLO_MerchHierarchyNode), _control);
+        Query                   query       = new Query();
+        QueryBuildDataSource    qbds        = query.addDataSource(tableNum(DYLO_MerchHierarchyNode));
+        QueryBuildDataSource    qbdsProduct;
+        SetEnumerator           enumerator  = DYLO_MerchHierarchyManager::subtreeNodeRecIds(node.RecId).getEnumerator();
+        RecId                   excludedRecId;
+        str                     expression;
+
+        lookup.addLookupfield(fieldNum(DYLO_MerchHierarchyNode, NodeId), true);
+        lookup.addLookupfield(fieldNum(DYLO_MerchHierarchyNode, Name));
+        lookup.addLookupfield(fieldNum(DYLO_MerchHierarchyNode, HierarchyLevel));
+
+        qbds.addRange(fieldNum(DYLO_MerchHierarchyNode, Active)).value(queryValue(NoYes::Yes));
+
+        while (enumerator.moveNext())
+        {
+            excludedRecId = enumerator.current();
+            expression += strFmt('%1(%2.%3 != %4)',
+                expression ? ' && ' : '',
+                qbds.name(),
+                fieldStr(DYLO_MerchHierarchyNode, RecId),
+                excludedRecId);
+        }
+
+        if (expression)
+        {
+            qbds.addRange(fieldNum(DYLO_MerchHierarchyNode, RecId)).value(strFmt('(%1)', expression));
+        }
+
+        qbdsProduct = qbds.addDataSource(tableNum(DYLO_MerchHierarchyProduct));
+        qbdsProduct.joinMode(JoinMode::NoExistsJoin);
+        qbdsProduct.addLink(fieldNum(DYLO_MerchHierarchyNode, RecId), fieldNum(DYLO_MerchHierarchyProduct, Node));
+
+        lookup.parmQuery(query);
+        lookup.performFormLookup();
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+		<DataSources xmlns="" />
+		<DataControls xmlns="">
+			<Control>
+				<Name>NewParentNodeId</Name>
+				<Type>String</Type>
+				<Methods>
+					<Method>
+						<Name>lookup</Name>
+						<Source><![CDATA[
+        public void lookup()
+        {
+            element.lookupNewParent(this);
+        }
+
+]]></Source>
+					</Method>
+				</Methods>
+			</Control>
+		</DataControls>
+		<Members xmlns="" />
+	</SourceCode>
+	<DataSources />
+	<Design>
+		<Caption xmlns="">@DYLOExtensions:MerchHierReparentNode</Caption>
+		<Pattern xmlns="">Dialog</Pattern>
+		<PatternVersion xmlns="">1.2</PatternVersion>
+		<Style xmlns="">Dialog</Style>
+		<ViewEditMode xmlns="">Edit</ViewEditMode>
+		<Controls xmlns="">
+			<AxFormControl xmlns=""
+				i:type="AxFormGroupControl">
+				<Name>ContentSection</Name>
+				<HeightMode>SizeToAvailable</HeightMode>
+				<Pattern>FieldsFieldGroups</Pattern>
+				<PatternVersion>1.1</PatternVersion>
+				<Type>Group</Type>
+				<WidthMode>SizeToAvailable</WidthMode>
+				<FormControlExtension
+					i:nil="true" />
+				<Controls>
+					<AxFormControl xmlns=""
+						i:type="AxFormStringControl">
+						<Name>NodeToMove</Name>
+						<AllowEdit>No</AllowEdit>
+						<AutoDeclaration>Yes</AutoDeclaration>
+						<Type>String</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<ExtendedDataType>Description255</ExtendedDataType>
+						<Label>@DYLOExtensions:MerchHierNodeToMove</Label>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormStringControl">
+						<Name>NewParentNodeId</Name>
+						<AutoDeclaration>Yes</AutoDeclaration>
+						<Type>String</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<ExtendedDataType>DYLO_MerchNodeId</ExtendedDataType>
+						<Label>@DYLOExtensions:MerchHierNewParentNode</Label>
+					</AxFormControl>
+				</Controls>
+				<ColumnsMode>Fill</ColumnsMode>
+				<Style>DialogContent</Style>
+			</AxFormControl>
+			<AxFormControl xmlns=""
+				i:type="AxFormButtonGroupControl">
+				<Name>CommitSection</Name>
+				<Type>ButtonGroup</Type>
+				<WidthMode>SizeToAvailable</WidthMode>
+				<FormControlExtension
+					i:nil="true" />
+				<Controls>
+					<AxFormControl xmlns=""
+						i:type="AxFormCommandButtonControl">
+						<Name>OKButton</Name>
+						<Type>CommandButton</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<Command>OK</Command>
+					</AxFormControl>
+					<AxFormControl xmlns=""
+						i:type="AxFormCommandButtonControl">
+						<Name>CancelButton</Name>
+						<Type>CommandButton</Type>
+						<FormControlExtension
+							i:nil="true" />
+						<Command>Cancel</Command>
+						<SaveRecord>No</SaveRecord>
+					</AxFormControl>
+				</Controls>
+				<ArrangeMethod>HorizontalRight</ArrangeMethod>
+				<Style>DialogCommitContainer</Style>
+			</AxFormControl>
+		</Controls>
+	</Design>
+	<Parts />
+</AxForm>

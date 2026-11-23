@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxTableExtension xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>CustCustomerV3Staging.DYLOExtensions</Name>
+	<FieldGroupExtensions />
+	<FieldGroups />
+	<FieldModifications />
+	<Fields>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>LoyaltyTier</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>DYLO_LoyaltyTierText</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>PreferredDeliveryWindow</Name>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>DYLO_PreferredDeliveryWindow</ExtendedDataType>
+		</AxTableField>
+	</Fields>
+	<FullTextIndexes />
+	<Indexes />
+	<Mappings />
+	<PropertyModifications />
+	<RelationExtensions />
+	<RelationModifications />
+	<Relations />
+</AxTableExtension>

@@ -1,0 +1,336 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxTable xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_SalesOrderApiTrace</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// One record for each call of the inbound sales order API (REQ-INT-508).
+/// </summary>
+public class DYLO_SalesOrderApiTrace extends common
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>canReprocess</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Determines whether the call can be reprocessed.
+    /// </summary>
+    /// <returns>true when the call failed; otherwise, false.</returns>
+    public boolean canReprocess()
+    {
+        return this.RecId != 0 && this.Status == DYLO_SalesOrderApiStatus::Failed;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>findRecId</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Finds a trace record by its record ID.
+    /// </summary>
+    public static DYLO_SalesOrderApiTrace findRecId(RecId _recId, boolean _forUpdate = false)
+    {
+        DYLO_SalesOrderApiTrace trace;
+
+        if (_recId)
+        {
+            trace.selectForUpdate(_forUpdate);
+
+            select firstonly trace
+                where trace.RecId == _recId;
+        }
+
+        return trace;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>findLastSuccessByExtRef</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Finds the newest successful or reprocessed call for an external order reference whose sales order still exists.
+    /// </summary>
+    /// <param name = "_externalOrderRef">The external order reference.</param>
+    /// <returns>The trace record; an empty buffer when there is none.</returns>
+    public static DYLO_SalesOrderApiTrace findLastSuccessByExtRef(DYLO_ExternalOrderRef _externalOrderRef)
+    {
+        DYLO_SalesOrderApiTrace trace;
+        DYLO_SalesOrderApiTrace notFound;
+
+        if (_externalOrderRef)
+        {
+            while select trace
+                order by ExecutedDateTime desc
+                where trace.ExternalOrderRef == _externalOrderRef
+                   && (trace.Status == DYLO_SalesOrderApiStatus::Success
+                    || trace.Status == DYLO_SalesOrderApiStatus::Reprocessed)
+            {
+                if (trace.SalesId && SalesTable::exist(trace.SalesId))
+                {
+                    return trace;
+                }
+            }
+        }
+
+        return notFound;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+	<DeveloperDocumentation>@DYLOExtensions:SOApiTraceTableDevDoc</DeveloperDocumentation>
+	<FormRef>DYLO_SalesOrderApiTraceLog</FormRef>
+	<Label>@DYLOExtensions:SOApiTraceTable</Label>
+	<TableGroup>Transaction</TableGroup>
+	<TitleField1>CorrelationId</TitleField1>
+	<TitleField2>ExternalOrderRef</TitleField2>
+	<CreatedBy>Yes</CreatedBy>
+	<CreatedDateTime>Yes</CreatedDateTime>
+	<Modules>SalesAndMarketing</Modules>
+	<DeleteActions />
+	<FieldGroups>
+		<AxTableFieldGroup>
+			<Name>AutoReport</Name>
+			<Fields>
+				<AxTableFieldGroupField>
+					<DataField>CorrelationId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>ExternalOrderRef</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>CustAccount</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>SalesId</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>Status</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>ExecutedDateTime</DataField>
+				</AxTableFieldGroupField>
+				<AxTableFieldGroupField>
+					<DataField>RetryCount</DataField>
+				</AxTableFieldGroupField>
+			</Fields>
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoLookup</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoIdentification</Name>
+			<AutoPopulate>Yes</AutoPopulate>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoSummary</Name>
+			<Fields />
+		</AxTableFieldGroup>
+		<AxTableFieldGroup>
+			<Name>AutoBrowse</Name>
+			<Fields />
+		</AxTableFieldGroup>
+	</FieldGroups>
+	<Fields>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>CorrelationId</Name>
+			<AllowEdit>No</AllowEdit>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>DYLO_CorrelationId</ExtendedDataType>
+			<Mandatory>Yes</Mandatory>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>ExternalOrderRef</Name>
+			<AllowEdit>No</AllowEdit>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>DYLO_ExternalOrderRef</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>CustAccount</Name>
+			<AllowEdit>No</AllowEdit>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>CustAccount</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>CurrencyCode</Name>
+			<AllowEdit>No</AllowEdit>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>CurrencyCode</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>SalesId</Name>
+			<AllowEdit>No</AllowEdit>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>SalesId</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldEnum">
+			<Name>Status</Name>
+			<AllowEdit>No</AllowEdit>
+			<AssetClassification>Customer Content</AssetClassification>
+			<EnumType>DYLO_SalesOrderApiStatus</EnumType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>ErrorCode</Name>
+			<AllowEdit>No</AllowEdit>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>DYLO_ApiErrorCode</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>ErrorMessage</Name>
+			<AllowEdit>No</AllowEdit>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>Notes</ExtendedDataType>
+			<Label>@DYLOExtensions:SOApiErrorMessage</Label>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>RequestJson</Name>
+			<AllowEdit>No</AllowEdit>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>Notes</ExtendedDataType>
+			<Label>@DYLOExtensions:SOApiRequestJson</Label>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>ResponseJson</Name>
+			<AllowEdit>No</AllowEdit>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>Notes</ExtendedDataType>
+			<Label>@DYLOExtensions:SOApiResponseJson</Label>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldUtcDateTime">
+			<Name>ExecutedDateTime</Name>
+			<AllowEdit>No</AllowEdit>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>TransDateTime</ExtendedDataType>
+			<Label>@DYLOExtensions:SOApiExecutedDateTime</Label>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldInt64">
+			<Name>DurationMs</Name>
+			<AllowEdit>No</AllowEdit>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>DYLO_ApiDurationMs</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>CallerUserId</Name>
+			<AllowEdit>No</AllowEdit>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>UserId</ExtendedDataType>
+			<Label>@DYLOExtensions:SOApiCallerUserId</Label>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldInt">
+			<Name>RetryCount</Name>
+			<AllowEdit>No</AllowEdit>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>DYLO_ApiRetryCount</ExtendedDataType>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldUtcDateTime">
+			<Name>LastRetryDateTime</Name>
+			<AllowEdit>No</AllowEdit>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>TransDateTime</ExtendedDataType>
+			<Label>@DYLOExtensions:SOApiLastRetryDateTime</Label>
+		</AxTableField>
+		<AxTableField xmlns=""
+			i:type="AxTableFieldString">
+			<Name>LastRetryBy</Name>
+			<AllowEdit>No</AllowEdit>
+			<AssetClassification>Customer Content</AssetClassification>
+			<ExtendedDataType>UserId</ExtendedDataType>
+			<Label>@DYLOExtensions:SOApiLastRetryBy</Label>
+		</AxTableField>
+	</Fields>
+	<FullTextIndexes />
+	<Indexes>
+		<AxTableIndex>
+			<Name>ExtRefStatusIdx</Name>
+			<AllowDuplicates>Yes</AllowDuplicates>
+			<Fields>
+				<AxTableIndexField>
+					<DataField>ExternalOrderRef</DataField>
+				</AxTableIndexField>
+				<AxTableIndexField>
+					<DataField>Status</DataField>
+				</AxTableIndexField>
+			</Fields>
+		</AxTableIndex>
+		<AxTableIndex>
+			<Name>ExecutedIdx</Name>
+			<AllowDuplicates>Yes</AllowDuplicates>
+			<Fields>
+				<AxTableIndexField>
+					<DataField>ExecutedDateTime</DataField>
+				</AxTableIndexField>
+			</Fields>
+		</AxTableIndex>
+	</Indexes>
+	<Mappings />
+	<Relations>
+		<AxTableRelation>
+			<Name>SalesTable</Name>
+			<Cardinality>ZeroMore</Cardinality>
+			<RelatedTable>SalesTable</RelatedTable>
+			<RelatedTableCardinality>ZeroOne</RelatedTableCardinality>
+			<RelationshipType>Association</RelationshipType>
+			<Constraints>
+				<AxTableRelationConstraint xmlns=""
+					i:type="AxTableRelationConstraintField">
+					<Name>SalesId</Name>
+					<Field>SalesId</Field>
+					<RelatedField>SalesId</RelatedField>
+				</AxTableRelationConstraint>
+			</Constraints>
+		</AxTableRelation>
+		<AxTableRelation>
+			<Name>CustTable</Name>
+			<Cardinality>ZeroMore</Cardinality>
+			<RelatedTable>CustTable</RelatedTable>
+			<RelatedTableCardinality>ZeroOne</RelatedTableCardinality>
+			<RelationshipType>Association</RelationshipType>
+			<Constraints>
+				<AxTableRelationConstraint xmlns=""
+					i:type="AxTableRelationConstraintField">
+					<Name>CustAccount</Name>
+					<Field>CustAccount</Field>
+					<RelatedField>AccountNum</RelatedField>
+				</AxTableRelationConstraint>
+			</Constraints>
+		</AxTableRelation>
+		<AxTableRelation>
+			<Name>UserInfo</Name>
+			<Cardinality>ZeroMore</Cardinality>
+			<RelatedTable>UserInfo</RelatedTable>
+			<RelatedTableCardinality>ZeroOne</RelatedTableCardinality>
+			<RelationshipType>Association</RelationshipType>
+			<Constraints>
+				<AxTableRelationConstraint xmlns=""
+					i:type="AxTableRelationConstraintField">
+					<Name>CallerUserId</Name>
+					<Field>CallerUserId</Field>
+					<RelatedField>id</RelatedField>
+				</AxTableRelationConstraint>
+			</Constraints>
+		</AxTableRelation>
+	</Relations>
+	<StateMachines />
+</AxTable>

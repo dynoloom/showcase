@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_PrintMgmtReportFormatPopulator_Extension</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// REQ-INV-105: registers DYLO_SalesInvoice.Report as a report format of the Customer invoice document.
+/// </summary>
+[ExtensionOf(classStr(PrintMgmtReportFormatPopulator))]
+final class DYLO_PrintMgmtReportFormatPopulator_Extension
+{
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>addDocuments</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Adds the report formats of this model after the standard ones.
+    /// </summary>
+    protected void addDocuments()
+    {
+        #PrintMgmtSetup
+
+        next addDocuments();
+
+        this.addOther(
+            PrintMgmtDocumentType::SalesOrderInvoice,
+            ssrsReportStr(DYLO_SalesInvoice, Report),
+            ssrsReportStr(DYLO_SalesInvoice, Report),
+            #NoCountryRegionId);
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

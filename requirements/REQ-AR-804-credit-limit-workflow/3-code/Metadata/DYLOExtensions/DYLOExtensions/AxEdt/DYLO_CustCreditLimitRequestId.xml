@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxEdt xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns=""
+	i:type="AxEdtString">
+	<Name>DYLO_CustCreditLimitRequestId</Name>
+	<Extends>Num</Extends>
+	<Label>@DYLOExtensions:CreditLimitReqRequestId</Label>
+	<ReferenceTable>DYLO_CustCreditLimitRequest</ReferenceTable>
+	<ArrayElements />
+	<Relations />
+	<TableReferences>
+		<AxEdtTableReference>
+			<RelatedField>RequestId</RelatedField>
+			<Table>DYLO_CustCreditLimitRequest</Table>
+		</AxEdtTableReference>
+	</TableReferences>
+</AxEdt>

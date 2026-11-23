@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>SalesInvoiceJournalPostBase_DYLO_Extension</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Posts the warranty provision of warranty eligible items in the sales invoice's own voucher.
+/// </summary>
+[ExtensionOf(classStr(SalesInvoiceJournalPostBase))]
+final class SalesInvoiceJournalPostBase_DYLO_Extension
+{
+    private CurrencyExchangeHelper dyloRevenueExchangeRateHelper;
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>createLedgerVoucherTransObject</Name>
+				<Source><![CDATA[
+    protected LedgerVoucherTransObject createLedgerVoucherTransObject(
+        LedgerVoucherObject _ledgerVoucherObject,
+        LedgerDimensionAccount _ledgerDimensionMerged,
+        AmountCur _revenueAmount,
+        CurrencyExchangeHelper _exchangeRateHelper)
+    {
+        // Keep the exchange rates of the revenue line so the warranty lines use exactly the same rates.
+        dyloRevenueExchangeRateHelper = _exchangeRateHelper;
+
+        return next createLedgerVoucherTransObject(_ledgerVoucherObject, _ledgerDimensionMerged, _revenueAmount, _exchangeRateHelper);
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>postLine</Name>
+				<Source><![CDATA[
+    protected void postLine()
+    {
+        dyloRevenueExchangeRateHelper = null;
+
+        next postLine();
+
+        if (this.canSkipPostLine())
+        {
+            return;
+        }
+
+        DYLO_WarrantyProvisionPostingService::construct(
+            ledgerVoucher,
+            custInvoiceJour,
+            custInvoiceTrans,
+            salesParmLine,
+            lineValue,
+            this.currencyCode(),
+            this.dyloExchangeRateHelper()).post();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>dyloExchangeRateHelper</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Returns the exchange rate helper used for the revenue line of the current invoice line,
+    /// or builds one the same way when no revenue line was posted.
+    /// </summary>
+    /// <returns>The exchange rate helper.</returns>
+    private CurrencyExchangeHelper dyloExchangeRateHelper()
+    {
+        if (!dyloRevenueExchangeRateHelper)
+        {
+            dyloRevenueExchangeRateHelper = CurrencyExchangeHelper::newExchangeDate(
+                Ledger::primaryLedger(CompanyInfo::findDataArea(curExt()).RecId),
+                ledgerVoucher.findLedgerVoucherObject().parmAccountingDate());
+            dyloRevenueExchangeRateHelper.parmExchangeRate1(this.fixedExchRate());
+            dyloRevenueExchangeRateHelper.parmExchangeRate2(this.fixedExchRateSecondary());
+        }
+
+        return dyloRevenueExchangeRateHelper;
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>
