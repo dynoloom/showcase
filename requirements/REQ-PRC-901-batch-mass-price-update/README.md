@@ -1,7 +1,7 @@
 # REQ-PRC-901 — Periodic Mass Trade Agreement Price Adjustment Batch Job (SysOperation)
 
-**Status:** Delivered 2026-11-22 · Compiled with 0 errors · 1 of 12 test scenarios evidenced, 5 failed  
-Walkthrough video: not recorded yet.
+**Status:** Delivered 2026-11-22 · Compiled with 0 errors · 11 of 12 test scenarios evidenced  
+Walkthrough video: [watch on YouTube](https://youtu.be/1T1H5YXfSs0).
 
 | Step | What you will find |
 |---|---|
@@ -64,3 +64,7 @@ All objects are new or extensions of standard objects, in the new model **DYLOEx
 
 Labels are in the model's label file, [`DYLOExtensions.en-US.label.txt`](3-code/Metadata/DYLOExtensions/DYLOExtensions/AxLabelFile/LabelResources/en-US/DYLOExtensions.en-US.label.txt).
 The label file and model descriptor are shared by every requirement in this repository, so the delivered copy also contains entries from requirements delivered before this one.
+
+## Fixed under warranty
+
+Our own test of the first delivery found a defect: the dialog raised an error on opening and the job did not run. We reported it through the portal's warranty, and a fix was delivered on 2026-11-23 at no charge. `3-code` holds the first delivery, unchanged; [`3-code/warranty-fix`](3-code/warranty-fix/) holds the 1 file(s) the fix replaced ([diff](3-code/warranty-fix/changes.patch)). The test results on the [testing page](4-testing/test-cases.md) are for the fixed code.

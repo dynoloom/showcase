@@ -1,7 +1,7 @@
 # REQ-GL-902 — Automated Product Warranty Provision Subledger & General Ledger Voucher Posting
 
 **Status:** Delivered 2026-11-22 · Compiled with 0 errors · 12 of 13 test scenarios evidenced  
-Walkthrough video: recorded, publishing on [@Dynoloom](https://www.youtube.com/@Dynoloom).
+Walkthrough video: [watch on YouTube](https://youtu.be/wHyLtTcY0UM).
 
 | Step | What you will find |
 |---|---|

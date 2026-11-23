@@ -30,8 +30,12 @@ delivered them into the one model, `DYLOExtensions`.
 | 8 | REQ-COL-715 | 153 | **0** | 2 |
 | 9 | REQ-AR-804 | 194 | **0** | 2 |
 
-Step 9 is the complete model. Its files are identical, file for file, to the model the platform's connector applied to
-the dev machine the tests ran on.
+| 10 | The two warranty fixes (REQ-PRC-901, REQ-AR-410) on top | 194 | **0** | 2 |
+
+Step 9 is the complete model as first delivered. Our own tests then found defects in two requirements; both were
+reported through the portal's warranty and fixed, and each fix is published beside the first delivery in that
+requirement's `3-code/warranty-fix` folder. Step 10 is step 9 with those three files replaced. Its files are identical,
+file for file, to the model the platform's connector applied to the dev machine the tests ran on.
 
 ## About the warnings
 

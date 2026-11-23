@@ -1,7 +1,7 @@
 # REQ-INV-105 — Display Customer PO Reference and Delivery Instructions on Posted Sales Invoices and Printouts
 
 **Status:** Delivered 2026-11-22 · Compiled with 0 errors · 9 of 10 test scenarios evidenced, 1 failed  
-Walkthrough video: recorded, publishing on [@Dynoloom](https://www.youtube.com/@Dynoloom).
+Walkthrough video: [watch on YouTube](https://youtu.be/TOsRhbpmtW0).
 
 | Step | What you will find |
 |---|---|

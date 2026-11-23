@@ -1,0 +1,466 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AxClass xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+	<Name>DYLO_OpenBackorderRiskDP</Name>
+	<SourceCode>
+		<Declaration><![CDATA[
+/// <summary>
+/// Data provider of the <c>DYLO_OpenBackorderRiskReport</c> report (REQ-AR-410): overdue open sales
+/// order lines with stock shortage, backorder amount and risk class, and the KPI totals.
+/// </summary>
+[
+    SRSReportParameterAttribute(classStr(DYLO_OpenBackorderRiskContract))
+]
+public class DYLO_OpenBackorderRiskDP extends SrsReportDataProviderPreProcessTempDB
+{
+    DYLO_OpenBackorderRiskLineTmp   lineTmp;
+    DYLO_OpenBackorderRiskHeaderTmp headerTmp;
+
+    DYLO_OpenBackorderRiskContract  contract;
+    TransDate                       today;
+
+    Map                             availPhysicalCache;     // item + criteria dimensions -> available physical
+    Map                             custTableCache;         // CustAccount -> CustTable
+    Map                             custRepNames;           // CustAccount -> Set of sales responsible names
+    Map                             workerNameCache;        // HcmWorker RecId -> name
+    Set                             allOrders;
+    Set                             highRiskOrders;
+
+    AmountMST                       totalValueMST;
+    AmountMST                       highRiskValueMST;
+    InventQty                       shortageUnits;
+    Qty                             openQtyTotal;
+}
+]]></Declaration>
+		<Methods>
+			<Method>
+				<Name>getLineTmp</Name>
+				<Source><![CDATA[
+    [SRSReportDataSetAttribute(tableStr(DYLO_OpenBackorderRiskLineTmp))]
+    public DYLO_OpenBackorderRiskLineTmp getLineTmp()
+    {
+        select lineTmp;
+        return lineTmp;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>getHeaderTmp</Name>
+				<Source><![CDATA[
+    [SRSReportDataSetAttribute(tableStr(DYLO_OpenBackorderRiskHeaderTmp))]
+    public DYLO_OpenBackorderRiskHeaderTmp getHeaderTmp()
+    {
+        select headerTmp;
+        return headerTmp;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>processReport</Name>
+				<Source><![CDATA[
+    public void processReport()
+    {
+        QueryRun            queryRun;
+        SalesLine           salesLine;
+        SalesTable          salesTable;
+        InventDim           inventDim;
+        RecordInsertList    lineInsertList;
+
+        contract = this.parmDataContract() as DYLO_OpenBackorderRiskContract;
+        today    = DateTimeUtil::getSystemDate(DateTimeUtil::getUserPreferredTimeZone());
+
+        availPhysicalCache  = new Map(Types::String, Types::Real);
+        custTableCache      = new Map(Types::String, Types::Record);
+        custRepNames        = new Map(Types::String, Types::Class);
+        workerNameCache     = new Map(Types::Int64, Types::String);
+        allOrders           = new Set(Types::String);
+        highRiskOrders      = new Set(Types::String);
+
+        lineInsertList = new RecordInsertList(tableNum(DYLO_OpenBackorderRiskLineTmp), true, true, true, false, true, lineTmp);
+
+        queryRun = new QueryRun(this.buildQuery());
+
+        while (queryRun.next())
+        {
+            salesLine   = queryRun.get(tableNum(SalesLine));
+            salesTable  = queryRun.get(tableNum(SalesTable));
+            inventDim   = queryRun.get(tableNum(InventDim));
+
+            this.initLine(salesLine, salesTable, inventDim);
+            lineInsertList.add(lineTmp);
+        }
+
+        lineInsertList.insertDatabase();
+
+        this.updateAccountRep();
+        this.insertHeader();
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>buildQuery</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Builds the query of the eligible order lines.
+    /// </summary>
+    /// <returns>The query.</returns>
+    private Query buildQuery()
+    {
+        Query                   query = new Query();
+        QueryBuildDataSource    qbdsLine;
+        QueryBuildDataSource    qbdsTable;
+        QueryBuildDataSource    qbdsCust;
+        QueryBuildDataSource    qbdsDim;
+        List                    custAccounts = contract.parmCustAccountList();
+        ListEnumerator          enumerator;
+        TransDate               cutOff = today - contract.parmMinDaysOverdue();
+
+        qbdsLine = query.addDataSource(tableNum(SalesLine));
+        qbdsLine.addRange(fieldNum(SalesLine, SalesStatus)).value(queryValue(SalesStatus::Backorder));
+        qbdsLine.addRange(fieldNum(SalesLine, RemainSalesPhysical)).value('>0');
+        qbdsLine.addRange(fieldNum(SalesLine, ShippingDateRequested)).value(queryRange(mkDate(2, 1, 1900), cutOff));
+        qbdsLine.addSortField(fieldNum(SalesLine, CustAccount));
+        qbdsLine.addSortField(fieldNum(SalesLine, SalesId));
+        qbdsLine.addSortField(fieldNum(SalesLine, LineNum));
+
+        if (custAccounts && !custAccounts.empty())
+        {
+            enumerator = custAccounts.getEnumerator();
+            while (enumerator.moveNext())
+            {
+                qbdsLine.addRange(fieldNum(SalesLine, CustAccount)).value(queryValue(enumerator.current()));
+            }
+        }
+
+        qbdsTable = qbdsLine.addDataSource(tableNum(SalesTable));
+        qbdsTable.joinMode(JoinMode::InnerJoin);
+        qbdsTable.fetchMode(QueryFetchMode::One2One);
+        qbdsTable.relations(false);
+        qbdsTable.addLink(fieldNum(SalesLine, SalesId), fieldNum(SalesTable, SalesId));
+        qbdsTable.addRange(fieldNum(SalesTable, SalesType)).value(queryValue(SalesType::Sales));
+
+        qbdsCust = qbdsLine.addDataSource(tableNum(CustTable));
+        qbdsCust.joinMode(JoinMode::InnerJoin);
+        qbdsCust.fetchMode(QueryFetchMode::One2One);
+        qbdsCust.relations(false);
+        qbdsCust.addLink(fieldNum(SalesLine, CustAccount), fieldNum(CustTable, AccountNum));
+        if (contract.parmCustGroup())
+        {
+            qbdsCust.addRange(fieldNum(CustTable, CustGroup)).value(queryValue(contract.parmCustGroup()));
+        }
+
+        qbdsDim = qbdsLine.addDataSource(tableNum(InventDim));
+        qbdsDim.joinMode(JoinMode::InnerJoin);
+        qbdsDim.fetchMode(QueryFetchMode::One2One);
+        qbdsDim.relations(false);
+        qbdsDim.addLink(fieldNum(SalesLine, InventDimId), fieldNum(InventDim, InventDimId));
+        if (contract.parmInventSiteId())
+        {
+            qbdsDim.addRange(fieldNum(InventDim, InventSiteId)).value(queryValue(contract.parmInventSiteId()));
+        }
+        if (contract.parmInventLocationId())
+        {
+            qbdsDim.addRange(fieldNum(InventDim, InventLocationId)).value(queryValue(contract.parmInventLocationId()));
+        }
+
+        if (contract.parmIncludeCreditHold() == NoYes::No)
+        {
+            qbdsTable.addRange(fieldNum(SalesTable, CredManInCreditControl)).value(queryValue(NoYes::No));
+            qbdsCust.addRange(fieldNum(CustTable, Blocked)).value(queryValue(CustVendorBlocked::No));
+        }
+
+        return query;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>initLine</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Fills the line buffer from an order line and adds it to the totals.
+    /// </summary>
+    /// <param name="_salesLine">The order line.</param>
+    /// <param name="_salesTable">The order of the line.</param>
+    /// <param name="_inventDim">The inventory dimensions of the line.</param>
+    private void initLine(SalesLine _salesLine, SalesTable _salesTable, InventDim _inventDim)
+    {
+        CustTable   custTable = this.custTable(_salesLine.CustAccount);
+        PriceCur    netUnit;
+        AmountCur   amountCur;
+        int         daysLate;
+
+        lineTmp.clear();
+
+        lineTmp.CustAccount             = _salesLine.CustAccount;
+        lineTmp.CustName                = custTable.name();
+        lineTmp.CustCreditMax           = custTable.CreditMax;
+        lineTmp.SalesId                 = _salesLine.SalesId;
+        lineTmp.LineNum                 = _salesLine.LineNum;
+        lineTmp.ItemId                  = _salesLine.ItemId;
+        lineTmp.ItemName                = InventTable::find(_salesLine.ItemId).itemName(_inventDim);
+        lineTmp.ShippingDateRequested   = _salesLine.ShippingDateRequested;
+        lineTmp.OpenQty                 = _salesLine.RemainSalesPhysical;
+
+        lineTmp.AvailPhysical           = this.availPhysical(_salesLine.ItemId, _inventDim);
+        lineTmp.ShortageQty             = max(0, _salesLine.RemainInventPhysical - lineTmp.AvailPhysical);
+
+        netUnit                         = _salesLine.SalesQty ? _salesLine.LineAmount / _salesLine.SalesQty : 0;
+        amountCur                       = _salesLine.RemainSalesPhysical * netUnit;
+        lineTmp.BackorderAmountMST      = CurrencyExchangeHelper::amountCur2MST(amountCur, _salesLine.CurrencyCode, 0, today);
+
+        daysLate                        = today - _salesLine.ShippingDateRequested;
+        lineTmp.DaysLate                = daysLate;
+
+        if (daysLate > 7)
+        {
+            lineTmp.RiskLevel = DYLO_BackorderRiskLevel::High;
+        }
+        else if (daysLate >= 3)
+        {
+            lineTmp.RiskLevel = DYLO_BackorderRiskLevel::Medium;
+        }
+        else
+        {
+            lineTmp.RiskLevel = DYLO_BackorderRiskLevel::Low;
+        }
+        lineTmp.RiskLevelValue          = enum2int(lineTmp.RiskLevel);
+
+        this.addAccountRep(_salesLine.CustAccount, _salesTable.WorkerSalesResponsible);
+
+        allOrders.add(_salesLine.SalesId);
+        totalValueMST   += lineTmp.BackorderAmountMST;
+        shortageUnits   += lineTmp.ShortageQty;
+        openQtyTotal    += lineTmp.OpenQty;
+
+        if (lineTmp.RiskLevel == DYLO_BackorderRiskLevel::High)
+        {
+            highRiskOrders.add(_salesLine.SalesId);
+            highRiskValueMST += lineTmp.BackorderAmountMST;
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>availPhysical</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Gets the available physical stock of the item for the product dimensions, site and warehouse
+    /// of the line, summed over all other dimensions.
+    /// </summary>
+    /// <param name="_itemId">The item.</param>
+    /// <param name="_lineDim">The inventory dimensions of the line.</param>
+    /// <returns>The available physical quantity in the inventory unit.</returns>
+    private InventQtyAvailPhysical availPhysical(ItemId _itemId, InventDim _lineDim)
+    {
+        InventDim               criteriaDim;
+        ListEnumerator          enumerator = InventDim::dimProductDimFieldList().getEnumerator();
+        FieldId                 dimFieldId;
+        str                     cacheKey = _itemId;
+        InventQtyAvailPhysical  qtyAvailPhysical;
+
+        while (enumerator.moveNext())
+        {
+            dimFieldId = enumerator.current();
+            criteriaDim.(dimFieldId) = _lineDim.(dimFieldId);
+            cacheKey += '#' + strFmt('%1', _lineDim.(dimFieldId));
+        }
+
+        criteriaDim.InventSiteId     = _lineDim.InventSiteId;
+        criteriaDim.InventLocationId = _lineDim.InventLocationId;
+        cacheKey += '#' + _lineDim.InventSiteId + '#' + _lineDim.InventLocationId;
+
+        if (availPhysicalCache.exists(cacheKey))
+        {
+            return availPhysicalCache.lookup(cacheKey);
+        }
+
+        qtyAvailPhysical = InventAvailabilityProvider::findByItemIdDim(_itemId, criteriaDim).parmInventAvailability().availPhysical();
+        availPhysicalCache.insert(cacheKey, qtyAvailPhysical);
+
+        return qtyAvailPhysical;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>custTable</Name>
+				<Source><![CDATA[
+    private CustTable custTable(CustAccount _custAccount)
+    {
+        CustTable custTable;
+
+        if (custTableCache.exists(_custAccount))
+        {
+            return custTableCache.lookup(_custAccount);
+        }
+
+        custTable = CustTable::find(_custAccount);
+        custTableCache.insert(_custAccount, custTable);
+
+        return custTable;
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>addAccountRep</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Keeps the name of the sales responsible of an order for the customer header.
+    /// </summary>
+    /// <param name="_custAccount">The customer account of the order.</param>
+    /// <param name="_worker">The sales responsible worker of the order.</param>
+    private void addAccountRep(CustAccount _custAccount, HcmWorkerRecId _worker)
+    {
+        Set     names;
+        str     workerName;
+
+        if (custRepNames.exists(_custAccount))
+        {
+            names = custRepNames.lookup(_custAccount);
+        }
+        else
+        {
+            names = new Set(Types::String);
+            custRepNames.insert(_custAccount, names);
+        }
+
+        if (_worker)
+        {
+            if (workerNameCache.exists(_worker))
+            {
+                workerName = workerNameCache.lookup(_worker);
+            }
+            else
+            {
+                workerName = HcmWorker::find(_worker).name();
+                workerNameCache.insert(_worker, workerName);
+            }
+
+            if (workerName)
+            {
+                names.add(workerName);
+            }
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>updateAccountRep</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Writes the distinct sales responsible names of each customer to the customer's lines.
+    /// </summary>
+    private void updateAccountRep()
+    {
+        MapEnumerator   custEnumerator = custRepNames.getEnumerator();
+        SetEnumerator   nameEnumerator;
+        CustAccount     custAccount;
+        Set             names;
+        str             accountRep;
+        Description255  accountRepText;
+
+        while (custEnumerator.moveNext())
+        {
+            custAccount = custEnumerator.currentKey();
+            names       = custEnumerator.currentValue();
+            accountRep  = '';
+
+            nameEnumerator = names.getEnumerator();
+            while (nameEnumerator.moveNext())
+            {
+                accountRep += (accountRep ? ', ' : '') + nameEnumerator.current();
+            }
+
+            if (!accountRep)
+            {
+                accountRep = "@DYLOExtensions:OpenBackorderRiskNoAccountRep";
+            }
+
+            accountRepText = subStr(accountRep, 1, new DictType(extendedTypeNum(Description255)).stringLen());
+
+            update_recordset lineTmp
+                setting AccountRep = accountRepText
+                where lineTmp.CustAccount == custAccount;
+        }
+    }
+
+]]></Source>
+			</Method>
+			<Method>
+				<Name>insertHeader</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Inserts the one header row with the parameter texts and the KPI totals.
+    /// </summary>
+    private void insertHeader()
+    {
+        CurrencyCode    accountingCurrency = Ledger::accountingCurrency();
+        CurrencySymbol  symbol = Currency::find(accountingCurrency).Symbol;
+        str             allText = "@DYLOExtensions:OpenBackorderRiskAll";
+        InventSiteId    siteId = contract.parmInventSiteId();
+        InventLocationId locationId = contract.parmInventLocationId();
+        CustGroupId     custGroupId = contract.parmCustGroup();
+        List            custAccounts = contract.parmCustAccountList();
+        str             siteWarehouseText;
+        str             custGroupText;
+
+        if (siteId && locationId)
+        {
+            siteWarehouseText = strFmt("@DYLOExtensions:OpenBackorderRiskSiteWarehouseFormat", siteId, locationId);
+        }
+        else if (siteId)
+        {
+            siteWarehouseText = siteId;
+        }
+        else if (locationId)
+        {
+            siteWarehouseText = locationId;
+        }
+        else
+        {
+            siteWarehouseText = allText;
+        }
+
+        if (custGroupId)
+        {
+            custGroupText = strFmt("@DYLOExtensions:OpenBackorderRiskCustGroupFormat", custGroupId, CustGroup::find(custGroupId).Name);
+        }
+        else
+        {
+            custGroupText = allText;
+        }
+
+        if (custAccounts && !custAccounts.empty())
+        {
+            custGroupText = strFmt("@DYLOExtensions:OpenBackorderRiskCustGroupWithCustomers", custGroupText, custAccounts.elements());
+        }
+
+        headerTmp.clear();
+        headerTmp.CompanyName               = CompanyInfo::find().name();
+        headerTmp.SiteWarehouseText         = siteWarehouseText;
+        headerTmp.CustGroupText             = custGroupText;
+        headerTmp.MinDaysOverdue            = contract.parmMinDaysOverdue();
+        headerTmp.IncludeCreditHold         = contract.parmIncludeCreditHold();
+        headerTmp.IncludeCreditHoldValue    = enum2int(headerTmp.IncludeCreditHold);
+        headerTmp.TotalOrders               = allOrders.elements();
+        headerTmp.TotalValueMST             = totalValueMST;
+        headerTmp.HighRiskOrders            = highRiskOrders.elements();
+        headerTmp.HighRiskValueMST          = highRiskValueMST;
+        headerTmp.ShortageUnits             = shortageUnits;
+        headerTmp.OpenQtyTotal              = openQtyTotal;
+        headerTmp.CurrencySymbol            = symbol ? symbol : accountingCurrency;
+        headerTmp.RunDate                   = today;
+        headerTmp.insert();
+    }
+
+]]></Source>
+			</Method>
+		</Methods>
+	</SourceCode>
+</AxClass>

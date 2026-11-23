@@ -1,0 +1,426 @@
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_OpenBackorderRiskDP.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_OpenBackorderRiskDP.xml
+index a7a24a6..7f02d4f 100644
+--- a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_OpenBackorderRiskDP.xml
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_OpenBackorderRiskDP.xml
+@@ -136,12 +136,14 @@ public class DYLO_OpenBackorderRiskDP extends SrsReportDataProviderPreProcessTem
+ 
+         qbdsTable = qbdsLine.addDataSource(tableNum(SalesTable));
+         qbdsTable.joinMode(JoinMode::InnerJoin);
++        qbdsTable.fetchMode(QueryFetchMode::One2One);
+         qbdsTable.relations(false);
+         qbdsTable.addLink(fieldNum(SalesLine, SalesId), fieldNum(SalesTable, SalesId));
+         qbdsTable.addRange(fieldNum(SalesTable, SalesType)).value(queryValue(SalesType::Sales));
+ 
+         qbdsCust = qbdsLine.addDataSource(tableNum(CustTable));
+         qbdsCust.joinMode(JoinMode::InnerJoin);
++        qbdsCust.fetchMode(QueryFetchMode::One2One);
+         qbdsCust.relations(false);
+         qbdsCust.addLink(fieldNum(SalesLine, CustAccount), fieldNum(CustTable, AccountNum));
+         if (contract.parmCustGroup())
+@@ -151,6 +153,7 @@ public class DYLO_OpenBackorderRiskDP extends SrsReportDataProviderPreProcessTem
+ 
+         qbdsDim = qbdsLine.addDataSource(tableNum(InventDim));
+         qbdsDim.joinMode(JoinMode::InnerJoin);
++        qbdsDim.fetchMode(QueryFetchMode::One2One);
+         qbdsDim.relations(false);
+         qbdsDim.addLink(fieldNum(SalesLine, InventDimId), fieldNum(InventDim, InventDimId));
+         if (contract.parmInventSiteId())
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxReport/DYLO_OpenBackorderRiskReport.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxReport/DYLO_OpenBackorderRiskReport.xml
+index 5652ea2..afb1255 100644
+--- a/Metadata/DYLOExtensions/DYLOExtensions/AxReport/DYLO_OpenBackorderRiskReport.xml
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxReport/DYLO_OpenBackorderRiskReport.xml
+@@ -765,14 +765,15 @@
+                   </Paragraph>
+                 </Paragraphs>
+                 <Top>0.1in</Top>
+-                <Left>0.16in</Left>
++                <Left>0in</Left>
+                 <Height>0.2in</Height>
+-                <Width>2.45in</Width>
++                <Width>2.25in</Width>
+                 <Style>
+                   <Border>
+                     <Style>None</Style>
+                   </Border>
+                   <VerticalAlign>Middle</VerticalAlign>
++                  <PaddingLeft>0.16in</PaddingLeft>
+                 </Style>
+               </Textbox>
+               <Textbox Name="DYLO_ParamCustGroup">
+@@ -804,14 +805,15 @@
+                   </Paragraph>
+                 </Paragraphs>
+                 <Top>0.1in</Top>
+-                <Left>2.72in</Left>
++                <Left>2.25in</Left>
+                 <Height>0.2in</Height>
+-                <Width>2.45in</Width>
++                <Width>2.85in</Width>
+                 <Style>
+                   <Border>
+                     <Style>None</Style>
+                   </Border>
+                   <VerticalAlign>Middle</VerticalAlign>
++                  <PaddingLeft>0.47in</PaddingLeft>
+                 </Style>
+               </Textbox>
+               <Textbox Name="DYLO_ParamMinDays">
+@@ -843,7 +845,7 @@
+                   </Paragraph>
+                 </Paragraphs>
+                 <Top>0.1in</Top>
+-                <Left>5.28in</Left>
++                <Left>5.1in</Left>
+                 <Height>0.2in</Height>
+                 <Width>2.45in</Width>
+                 <Style>
+@@ -851,6 +853,7 @@
+                     <Style>None</Style>
+                   </Border>
+                   <VerticalAlign>Middle</VerticalAlign>
++                  <PaddingLeft>0.18in</PaddingLeft>
+                 </Style>
+               </Textbox>
+               <Textbox Name="DYLO_ParamIncludeOnHold">
+@@ -882,14 +885,15 @@
+                   </Paragraph>
+                 </Paragraphs>
+                 <Top>0.1in</Top>
+-                <Left>7.84in</Left>
++                <Left>7.55in</Left>
+                 <Height>0.2in</Height>
+-                <Width>2in</Width>
++                <Width>2.45in</Width>
+                 <Style>
+                   <Border>
+                     <Style>None</Style>
+                   </Border>
+                   <VerticalAlign>Middle</VerticalAlign>
++                  <PaddingLeft>0.29in</PaddingLeft>
+                 </Style>
+               </Textbox>
+             </ReportItems>
+@@ -930,14 +934,16 @@
+                   </Paragraph>
+                 </Paragraphs>
+                 <Top>0.14in</Top>
+-                <Left>0.05in</Left>
++                <Left>0in</Left>
+                 <Height>0.18in</Height>
+-                <Width>2.28in</Width>
++                <Width>2.25in</Width>
+                 <Style>
+                   <Border>
+                     <Style>None</Style>
+                   </Border>
+                   <VerticalAlign>Middle</VerticalAlign>
++                  <PaddingLeft>0.05in</PaddingLeft>
++                  <PaddingRight>0.05in</PaddingRight>
+                 </Style>
+               </Textbox>
+               <Textbox Name="DYLO_KpiOrdersValue">
+@@ -961,14 +967,16 @@
+                   </Paragraph>
+                 </Paragraphs>
+                 <Top>0.36in</Top>
+-                <Left>0.05in</Left>
++                <Left>0in</Left>
+                 <Height>0.28in</Height>
+-                <Width>2.28in</Width>
++                <Width>2.25in</Width>
+                 <Style>
+                   <Border>
+                     <Style>None</Style>
+                   </Border>
+                   <VerticalAlign>Middle</VerticalAlign>
++                  <PaddingLeft>0.05in</PaddingLeft>
++                  <PaddingRight>0.05in</PaddingRight>
+                 </Style>
+               </Textbox>
+             </ReportItems>
+@@ -976,7 +984,7 @@
+             <Top>0.54in</Top>
+             <Left>0in</Left>
+             <Height>0.74in</Height>
+-            <Width>2.38in</Width>
++            <Width>2.25in</Width>
+             <Style>
+               <Border>
+                 <Color>#93C5FD</Color>
+@@ -1009,14 +1017,16 @@
+                   </Paragraph>
+                 </Paragraphs>
+                 <Top>0.14in</Top>
+-                <Left>0.05in</Left>
++                <Left>0in</Left>
+                 <Height>0.18in</Height>
+-                <Width>2.28in</Width>
++                <Width>2.85in</Width>
+                 <Style>
+                   <Border>
+                     <Style>None</Style>
+                   </Border>
+                   <VerticalAlign>Middle</VerticalAlign>
++                  <PaddingLeft>0.05in</PaddingLeft>
++                  <PaddingRight>0.05in</PaddingRight>
+                 </Style>
+               </Textbox>
+               <Textbox Name="DYLO_KpiValueValue">
+@@ -1040,22 +1050,24 @@
+                   </Paragraph>
+                 </Paragraphs>
+                 <Top>0.36in</Top>
+-                <Left>0.05in</Left>
++                <Left>0in</Left>
+                 <Height>0.28in</Height>
+-                <Width>2.28in</Width>
++                <Width>2.85in</Width>
+                 <Style>
+                   <Border>
+                     <Style>None</Style>
+                   </Border>
+                   <VerticalAlign>Middle</VerticalAlign>
++                  <PaddingLeft>0.05in</PaddingLeft>
++                  <PaddingRight>0.05in</PaddingRight>
+                 </Style>
+               </Textbox>
+             </ReportItems>
+             <KeepTogether>true</KeepTogether>
+             <Top>0.54in</Top>
+-            <Left>2.54in</Left>
++            <Left>2.25in</Left>
+             <Height>0.74in</Height>
+-            <Width>2.38in</Width>
++            <Width>2.85in</Width>
+             <Style>
+               <Border>
+                 <Color>#CBD5E1</Color>
+@@ -1088,14 +1100,16 @@
+                   </Paragraph>
+                 </Paragraphs>
+                 <Top>0.14in</Top>
+-                <Left>0.05in</Left>
++                <Left>0in</Left>
+                 <Height>0.18in</Height>
+-                <Width>2.28in</Width>
++                <Width>2.45in</Width>
+                 <Style>
+                   <Border>
+                     <Style>None</Style>
+                   </Border>
+                   <VerticalAlign>Middle</VerticalAlign>
++                  <PaddingLeft>0.05in</PaddingLeft>
++                  <PaddingRight>0.05in</PaddingRight>
+                 </Style>
+               </Textbox>
+               <Textbox Name="DYLO_KpiHighRiskValue">
+@@ -1119,22 +1133,24 @@
+                   </Paragraph>
+                 </Paragraphs>
+                 <Top>0.36in</Top>
+-                <Left>0.05in</Left>
++                <Left>0in</Left>
+                 <Height>0.28in</Height>
+-                <Width>2.28in</Width>
++                <Width>2.45in</Width>
+                 <Style>
+                   <Border>
+                     <Style>None</Style>
+                   </Border>
+                   <VerticalAlign>Middle</VerticalAlign>
++                  <PaddingLeft>0.05in</PaddingLeft>
++                  <PaddingRight>0.05in</PaddingRight>
+                 </Style>
+               </Textbox>
+             </ReportItems>
+             <KeepTogether>true</KeepTogether>
+             <Top>0.54in</Top>
+-            <Left>5.08in</Left>
++            <Left>5.1in</Left>
+             <Height>0.74in</Height>
+-            <Width>2.38in</Width>
++            <Width>2.45in</Width>
+             <Style>
+               <Border>
+                 <Color>#FCA5A5</Color>
+@@ -1167,14 +1183,16 @@
+                   </Paragraph>
+                 </Paragraphs>
+                 <Top>0.14in</Top>
+-                <Left>0.05in</Left>
++                <Left>0in</Left>
+                 <Height>0.18in</Height>
+-                <Width>2.28in</Width>
++                <Width>2.45in</Width>
+                 <Style>
+                   <Border>
+                     <Style>None</Style>
+                   </Border>
+                   <VerticalAlign>Middle</VerticalAlign>
++                  <PaddingLeft>0.05in</PaddingLeft>
++                  <PaddingRight>0.05in</PaddingRight>
+                 </Style>
+               </Textbox>
+               <Textbox Name="DYLO_KpiShortageValue">
+@@ -1198,22 +1216,24 @@
+                   </Paragraph>
+                 </Paragraphs>
+                 <Top>0.36in</Top>
+-                <Left>0.05in</Left>
++                <Left>0in</Left>
+                 <Height>0.28in</Height>
+-                <Width>2.28in</Width>
++                <Width>2.45in</Width>
+                 <Style>
+                   <Border>
+                     <Style>None</Style>
+                   </Border>
+                   <VerticalAlign>Middle</VerticalAlign>
++                  <PaddingLeft>0.05in</PaddingLeft>
++                  <PaddingRight>0.05in</PaddingRight>
+                 </Style>
+               </Textbox>
+             </ReportItems>
+             <KeepTogether>true</KeepTogether>
+             <Top>0.54in</Top>
+-            <Left>7.62in</Left>
++            <Left>7.55in</Left>
+             <Height>0.74in</Height>
+-            <Width>2.38in</Width>
++            <Width>2.45in</Width>
+             <Style>
+               <Border>
+                 <Color>#FDE68A</Color>
+@@ -2014,8 +2034,6 @@
+                     </TablixCell>
+                     <TablixCell>
+                       <CellContents>
+-                        <Rectangle Name="DYLO_RiskBadgeCell">
+-                          <ReportItems>
+                             <Textbox Name="DYLO_RiskBadge">
+                               <KeepTogether>true</KeepTogether>
+                               <Paragraphs>
+@@ -2035,34 +2053,36 @@
+                                   </Style>
+                                 </Paragraph>
+                               </Paragraphs>
+-                              <Top>0.05in</Top>
+-                              <Left>0.15in</Left>
+-                              <Height>0.21in</Height>
+-                              <Width>0.88in</Width>
+                               <Style>
+                                 <Border>
+                                   <Style>None</Style>
+                                 </Border>
++                                <TopBorder>
++                                  <Color>=IIf(RowNumber("CustomerGroup") Mod 2 = 0, "#F8FAFC", "#FFFFFF")</Color>
++                                  <Style>Solid</Style>
++                                  <Width>3.6pt</Width>
++                                </TopBorder>
++                                <BottomBorder>
++                                  <Color>#E2E8F0</Color>
++                                  <Style>Solid</Style>
++                                  <Width>1pt</Width>
++                                </BottomBorder>
++                                <LeftBorder>
++                                  <Color>=IIf(RowNumber("CustomerGroup") Mod 2 = 0, "#F8FAFC", "#FFFFFF")</Color>
++                                  <Style>Solid</Style>
++                                  <Width>10.8pt</Width>
++                                </LeftBorder>
++                                <RightBorder>
++                                  <Color>=IIf(RowNumber("CustomerGroup") Mod 2 = 0, "#F8FAFC", "#FFFFFF")</Color>
++                                  <Style>Solid</Style>
++                                  <Width>12.24pt</Width>
++                                </RightBorder>
+                                 <BackgroundColor>=Switch(Fields!RiskLevelValue.Value = 2, "#FEE2E2", Fields!RiskLevelValue.Value = 1, "#FEF3C7", True, "#DCFCE7")</BackgroundColor>
+                                 <VerticalAlign>Middle</VerticalAlign>
+                                 <PaddingLeft>2pt</PaddingLeft>
+                                 <PaddingRight>2pt</PaddingRight>
+                               </Style>
+                             </Textbox>
+-                          </ReportItems>
+-                          <KeepTogether>true</KeepTogether>
+-                          <Style>
+-                            <Border>
+-                              <Style>None</Style>
+-                            </Border>
+-                            <BottomBorder>
+-                              <Color>#E2E8F0</Color>
+-                              <Style>Solid</Style>
+-                              <Width>1pt</Width>
+-                            </BottomBorder>
+-                            <BackgroundColor>=IIf(RowNumber("CustomerGroup") Mod 2 = 0, "#F8FAFC", "#FFFFFF")</BackgroundColor>
+-                          </Style>
+-                        </Rectangle>
+                       </CellContents>
+                     </TablixCell>
+                   </TablixCells>
+@@ -2381,14 +2401,15 @@
+                     </Paragraph>
+                   </Paragraphs>
+                   <Top>0.12in</Top>
+-                  <Left>0.21in</Left>
++                  <Left>0in</Left>
+                   <Height>0.2in</Height>
+-                  <Width>5.5in</Width>
++                  <Width>5.75in</Width>
+                   <Style>
+                     <Border>
+                       <Style>None</Style>
+                     </Border>
+                     <VerticalAlign>Middle</VerticalAlign>
++                    <PaddingLeft>0.21in</PaddingLeft>
+                   </Style>
+                 </Textbox>
+                 <Textbox Name="DYLO_ReportTitle">
+@@ -2412,14 +2433,15 @@
+                     </Paragraph>
+                   </Paragraphs>
+                   <Top>0.34in</Top>
+-                  <Left>0.21in</Left>
++                  <Left>0in</Left>
+                   <Height>0.28in</Height>
+-                  <Width>5.5in</Width>
++                  <Width>5.75in</Width>
+                   <Style>
+                     <Border>
+                       <Style>None</Style>
+                     </Border>
+                     <VerticalAlign>Middle</VerticalAlign>
++                    <PaddingLeft>0.21in</PaddingLeft>
+                   </Style>
+                 </Textbox>
+                 <Textbox Name="DYLO_ReportId">
+@@ -2445,12 +2467,13 @@
+                   <Top>0.12in</Top>
+                   <Left>6.6in</Left>
+                   <Height>0.2in</Height>
+-                  <Width>3.23in</Width>
++                  <Width>3.4in</Width>
+                   <Style>
+                     <Border>
+                       <Style>None</Style>
+                     </Border>
+                     <VerticalAlign>Middle</VerticalAlign>
++                    <PaddingRight>0.17in</PaddingRight>
+                   </Style>
+                 </Textbox>
+                 <Textbox Name="DYLO_Generated">
+@@ -2474,14 +2497,15 @@
+                     </Paragraph>
+                   </Paragraphs>
+                   <Top>0.37in</Top>
+-                  <Left>5.8in</Left>
++                  <Left>5.75in</Left>
+                   <Height>0.2in</Height>
+-                  <Width>4.03in</Width>
++                  <Width>4.25in</Width>
+                   <Style>
+                     <Border>
+                       <Style>None</Style>
+                     </Border>
+                     <VerticalAlign>Middle</VerticalAlign>
++                    <PaddingRight>0.17in</PaddingRight>
+                   </Style>
+                 </Textbox>
+               </ReportItems>

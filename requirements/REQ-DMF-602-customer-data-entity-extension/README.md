@@ -1,7 +1,7 @@
 # REQ-DMF-602 — Extend Customer Master Data Entity (CustCustomerV3Entity) with Loyalty Tier & Preferred Delivery Window
 
-**Status:** Delivered 2026-11-22 · Compiled with 0 errors · 3 of 9 test scenarios evidenced, 1 failed  
-Walkthrough video: not recorded yet.
+**Status:** Delivered 2026-11-22 · Compiled with 0 errors · 7 of 9 test scenarios evidenced  
+Walkthrough video: [watch on YouTube](https://youtu.be/nBB0X_uTIaA).
 
 | Step | What you will find |
 |---|---|

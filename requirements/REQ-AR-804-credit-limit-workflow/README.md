@@ -1,7 +1,7 @@
 # REQ-AR-804 — Customer Credit Limit Increase Request & Multi-Tier Approval Workflow
 
 **Status:** Delivered 2026-11-22 · Compiled with 0 errors · 1 of 17 test scenarios evidenced  
-Walkthrough video: recorded, publishing on [@Dynoloom](https://www.youtube.com/@Dynoloom).
+Walkthrough video: [watch on YouTube](https://youtu.be/IAsy3jDSc8o).
 
 | Step | What you will find |
 |---|---|

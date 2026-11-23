@@ -1,7 +1,7 @@
 # REQ-COL-715 — Automated Overdue Invoice Batch Job & Notification Log Workspace
 
 **Status:** Delivered 2026-11-22 · Compiled with 0 errors · 9 of 17 test scenarios evidenced, 1 failed  
-Walkthrough video: recorded, publishing on [@Dynoloom](https://www.youtube.com/@Dynoloom).
+Walkthrough video: [watch on YouTube](https://youtu.be/js8i84g-rlU).
 
 | Step | What you will find |
 |---|---|

@@ -1,7 +1,7 @@
 # REQ-PIM-903 — Multi-Level Commercial Merchandising Hierarchy & Margin Roll-Up Tree Form
 
 **Status:** Delivered 2026-11-22 · Compiled with 0 errors · 12 of 16 test scenarios evidenced  
-Walkthrough video: recorded, publishing on [@Dynoloom](https://www.youtube.com/@Dynoloom).
+Walkthrough video: [watch on YouTube](https://youtu.be/unI3t9J5ORs).
 
 | Step | What you will find |
 |---|---|

@@ -15,133 +15,122 @@ Tested in Dynamics 365 Finance & Operations 10.0.48 on the Contoso demo data, le
 
 | # | Scenario | Expected result | Result | Evidence |
 |---|---|---|---|---|
-| T1 (AC-01) | Open Accounts receivable > Inquiries and reports > Orders > Open backorder risk summary | Dialog shows Site, Warehouse, Customer group, Customer accounts (tick list), Min days overdue = 1, Include credit-hold orders = Yes | ✅ Passed | [a_menu_ar_orders.png](evidence/a_menu_ar_orders.png) · [b_dialog_defaults.png](evidence/b_dialog_defaults.png) · [c_dialog_customer_ticklist.png](evidence/c_dialog_customer_ticklist.png) |
-| T2 | Enter Min days overdue = 0 | Dialog refuses with an error; report does not run | ✅ Passed | [d_min_days_0_refused.png](evidence/d_min_days_0_refused.png) |
-| T3 | Order line, open order, remaining 40, requested ship date 12 days ago | Line printed, Days late 12 in red, badge HIGH RISK (red) | ◐ Partly evidenced Days Late 12 in red and the HIGH RISK badge are right, but the line is printed 4 times (defect 1). | [g_report_two_customers_p1.png](evidence/g_report_two_customers_p1.png) |
-| T4 | Lines 3, 7 and 8 days late; lines 1 and 2 days late | 3 and 7 → MEDIUM; 8 → HIGH; 1 and 2 → LOW | ◐ Partly evidenced The badges are right (8 days HIGH RISK; 7 and 3 days MEDIUM; 2 and 1 days LOW), but each line is printed 4 times (defect 1). | [g_report_two_customers_p1.png](evidence/g_report_two_customers_p1.png) · [h_report_two_customers_p2.png](evidence/h_report_two_customers_p2.png) |
-| T5 | Min days overdue = 5 | Lines 1–4 days late are not printed | ◐ Partly evidenced With Min days overdue = 5 the lines 3, 2 and 1 days late are left out as designed, but each printed line appears 4 times (defect 1). | [j_min_days_5.png](evidence/j_min_days_5.png) |
-| T6 | Line fully delivered, invoiced, cancelled, or a return order | Not printed | ❌ Failed The two open lines of an item-requirement order, which is not a sales order, are printed 3 times each (defect 3). Its invoiced line is correctly left out. Return and cancelled orders were not tried. | [m_FAILED_item_requirement_printed.png](evidence/m_FAILED_item_requirement_printed.png) |
-| T7 | Item stock: 10 available in WH-MAIN and 100 in another warehouse; line for 40 in WH-MAIN | Avail. Phys. 10.00; shortage 30 | ❌ Failed Line of 200.00 in warehouse 11, where 128 are in stock (2,710 over all warehouses): three of the four printed copies show Avail. Phys. 2,710.00, one shows 128.00. The shortage card shows 72 Units (200 - 128), which is right for this line. | [h_report_two_customers_p2.png](evidence/h_report_two_customers_p2.png) |
-| T8 | Available physical stock ≥ open quantity | Shortage 0 for that line | — Not yet recorded |  |
-| T9 | Order in EUR, accounting currency USD, line 10 × 100 EUR with 10% discount, 4 remaining | Backorder amount = 4 × 90 EUR converted at today's rate | — Not yet recorded |  |
-| T10 (AC-02) | Run with a known data set | Card 1 = distinct orders, card 2 = sum of amounts, card 3 = distinct orders with a HIGH line (sum of HIGH line amounts), card 4 = sum of line shortages; match a manual check | ❌ Failed Cards show 53 Orders and $14,058,945.80; the manual check gives 52 sales orders, 187 lines and $3,513,836.45. The value is 4 times the real sum plus 3 x $1,200 of an item-requirement order, which is also counted as an order. | [e_report_all_p1.png](evidence/e_report_all_p1.png) |
-| T11 (AC-03) | Two customers, orders with different sales responsibles | Grouped by customer; header shows credit limit and the distinct rep names; subtotals and grand total add up | ❌ Failed Grouping by customer, the credit limit and the distinct rep names are right. The subtotals and the grand total are 4 times the real amounts: customer DE-001 shows $1,608,618.00 where its 5 real lines total $402,154.50. | [f_report_all_p2_customer_groups.png](evidence/f_report_all_p2_customer_groups.png) |
-| T12 | Choose 2 customer accounts; then choose none | Only those 2 customers; then all customers | ✅ Passed The customer selection works: two ticked gives only those two customers, none ticked gives all. The report pages used as evidence show the duplicated lines of defect 1. | [c_dialog_customer_ticklist.png](evidence/c_dialog_customer_ticklist.png) · [g_report_two_customers_p1.png](evidence/g_report_two_customers_p1.png) · [e_report_all_p1.png](evidence/e_report_all_p1.png) |
-| T13 | Customer group WHSL, site 1, warehouse WH-MAIN | Only lines of WHSL customers shipping from WH-MAIN; parameter strip shows the values | ❌ Failed Run with customer group 10, site 1, warehouse 11 (USMF has no group WHSL or warehouse WH-MAIN). The strip shows the values, but customers of every group are printed: 53 orders on 27 pages. The filters only reduce the copies per line from 4 to 2. | [l_FAILED_filter_group_site_warehouse.png](evidence/l_FAILED_filter_group_site_warehouse.png) |
-| T14 | Order in credit management hold; another customer blocked "All"; Include credit-hold = No, then Yes | No: both left out. Yes: both printed | ❌ Failed Blocked-customer part only: with Include credit-hold orders = No the order of a customer on hold "All" is still printed (3 copies, subtotal $1,643.85); with Yes it prints 4 copies. An order in credit-management hold was not tested. | [n_FAILED_credit_hold_no_p1.png](evidence/n_FAILED_credit_hold_no_p1.png) · [o_FAILED_credit_hold_no_p2.png](evidence/o_FAILED_credit_hold_no_p2.png) |
-| T15 | No line matches | Banner, parameters and zero KPI cards print, plus the "No open backorders…" message | ✅ Passed | [k_no_match.png](evidence/k_no_match.png) |
-| T16 (AC-04) | Export a 3-page result to PDF and to Excel | Banner and page numbers on every page, column headers repeat, badges coloured, no truncated columns | ❌ Failed The Excel export failed: the 9 report columns are spread over 36 Excel columns with 6,306 merged cells; there is no screenshot of the Excel file. The PDF part passed on a 44-page run (banner and page number on every page, headers repeat, badges coloured, no truncated column); the screenshot shows that part. | [f_report_all_p2_customer_groups.png](evidence/f_report_all_p2_customer_groups.png) |
+| T1 (AC-01) | Open Accounts receivable > Inquiries and reports > Orders > Open backorder risk summary | Dialog shows Site, Warehouse, Customer group, Customer accounts (tick list), Min days overdue = 1, Include credit-hold orders = Yes | ✅ Passed | [s_menu_ar_orders.png](evidence/s_menu_ar_orders.png) · [t_dialog_defaults.png](evidence/t_dialog_defaults.png) · [u_dialog_customer_ticklist.png](evidence/u_dialog_customer_ticklist.png) |
+| T2 | Enter Min days overdue = 0 | Dialog refuses with an error; report does not run | ✅ Passed | [v_min_days_0_refused.png](evidence/v_min_days_0_refused.png) |
+| T3 | Order line, open order, remaining 40, requested ship date 12 days ago | Line printed, Days late 12 in red, badge HIGH RISK (red) | ✅ Passed | [w_report_two_customers.png](evidence/w_report_two_customers.png) |
+| T4 | Lines 3, 7 and 8 days late; lines 1 and 2 days late | 3 and 7 → MEDIUM; 8 → HIGH; 1 and 2 → LOW | ✅ Passed | [w_report_two_customers.png](evidence/w_report_two_customers.png) |
+| T5 | Min days overdue = 5 | Lines 1–4 days late are not printed | ✅ Passed | [za_min_days_5.png](evidence/za_min_days_5.png) |
+| T6 | Line fully delivered, invoiced, cancelled, or a return order | Not printed | ◐ Partly evidenced Item-requirement order no longer printed; return, cancelled and fully delivered orders were not set up as separate cases. | [y_report_all_p3.png](evidence/y_report_all_p3.png) |
+| T7 | Item stock: 10 available in WH-MAIN and 100 in another warehouse; line for 40 in WH-MAIN | Avail. Phys. 10.00; shortage 30 | ✅ Passed Run with demo-data quantities: 128 available in the line's warehouse, 2,710 over all warehouses, line of 200. | [w_report_two_customers.png](evidence/w_report_two_customers.png) |
+| T8 | Available physical stock ≥ open quantity | Shortage 0 for that line | ✅ Passed Shown through the shortage card; the report has no per-line shortage column. | [w_report_two_customers.png](evidence/w_report_two_customers.png) |
+| T9 | Order in EUR, accounting currency USD, line 10 × 100 EUR with 10% discount, 4 remaining | Backorder amount = 4 × 90 EUR converted at today's rate | ◐ Partly evidenced Currency conversion only; the 10% discount and the partial delivery were not exercised. | [w_report_two_customers.png](evidence/w_report_two_customers.png) |
+| T10 (AC-02) | Run with a known data set | Card 1 = distinct orders, card 2 = sum of amounts, card 3 = distinct orders with a HIGH line (sum of HIGH line amounts), card 4 = sum of line shortages; match a manual check | ✅ Passed | [x_report_all_p1.png](evidence/x_report_all_p1.png) · [z_report_all_p14_grand_total.png](evidence/z_report_all_p14_grand_total.png) |
+| T11 (AC-03) | Two customers, orders with different sales responsibles | Grouped by customer; header shows credit limit and the distinct rep names; subtotals and grand total add up | ✅ Passed | [x_report_all_p1.png](evidence/x_report_all_p1.png) · [y_report_all_p3.png](evidence/y_report_all_p3.png) · [z_report_all_p14_grand_total.png](evidence/z_report_all_p14_grand_total.png) |
+| T12 | Choose 2 customer accounts; then choose none | Only those 2 customers; then all customers | ✅ Passed | [u_dialog_customer_ticklist.png](evidence/u_dialog_customer_ticklist.png) · [w_report_two_customers.png](evidence/w_report_two_customers.png) · [x_report_all_p1.png](evidence/x_report_all_p1.png) |
+| T13 | Customer group WHSL, site 1, warehouse WH-MAIN | Only lines of WHSL customers shipping from WH-MAIN; parameter strip shows the values | ✅ Passed Run with customer group 10, site 1, warehouse 11 of the demo data. | [zc_filter_group_site_warehouse.png](evidence/zc_filter_group_site_warehouse.png) · [zb_filter_customer_group_10.png](evidence/zb_filter_customer_group_10.png) |
+| T14 | Order in credit management hold; another customer blocked "All"; Include credit-hold = No, then Yes | No: both left out. Yes: both printed | ◐ Partly evidenced Blocked customer only; an order in credit-management hold was not set up. | [zd_credit_hold_no.png](evidence/zd_credit_hold_no.png) · [ze_credit_hold_yes.png](evidence/ze_credit_hold_yes.png) |
+| T15 | No line matches | Banner, parameters and zero KPI cards print, plus the "No open backorders…" message | ✅ Passed | [zf_no_match.png](evidence/zf_no_match.png) |
+| T16 (AC-04) | Export a 3-page result to PDF and to Excel | Banner and page numbers on every page, column headers repeat, badges coloured, no truncated columns | ◐ Partly evidenced PDF shown on screen; the Excel export was checked by opening the file (9 columns), not by screenshot. | [x_report_all_p1.png](evidence/x_report_all_p1.png) · [y_report_all_p3.png](evidence/y_report_all_p3.png) · [z_report_all_p14_grand_total.png](evidence/z_report_all_p14_grand_total.png) |
 | T17 | User with only a role that lacks the duty | Menu item not visible | — Not yet recorded |  |
 
-### a_menu_ar_orders.png
+### s_menu_ar_orders.png
 
-The Accounts receivable menu: Open backorder risk summary is listed under Inquiries and reports > Orders.
+The new entry Open backorder risk summary under Accounts receivable > Inquiries and reports > Orders.
 
-![The Accounts receivable menu: Open backorder risk summary is listed under Inquiries and reports > Orders.](evidence/a_menu_ar_orders.png)
+![The new entry Open backorder risk summary under Accounts receivable > Inquiries and reports > Orders.](evidence/s_menu_ar_orders.png)
 
-### b_dialog_defaults.png
+### t_dialog_defaults.png
 
-The report dialog as first opened: Site, Warehouse, Customer group and Customer accounts are empty, Min days overdue is 1 and Include credit-hold orders is Yes.
+The report dialog with Site, Warehouse, Customer group and Customer accounts empty, Min days overdue 1 and Include credit-hold orders Yes.
 
-![The report dialog as first opened: Site, Warehouse, Customer group and Customer accounts are empty, Min days overdue is 1 and Include credit-hold orders is Yes.](evidence/b_dialog_defaults.png)
+![The report dialog with Site, Warehouse, Customer group and Customer accounts empty, Min days overdue 1 and Include credit-hold orders Yes.](evidence/t_dialog_defaults.png)
 
-### c_dialog_customer_ticklist.png
+### u_dialog_customer_ticklist.png
 
-The Customer accounts tick list with US-013 Pelican Wholesales and US-014 Grebe Wholesales ticked; the field shows "US-013;US-014".
+The Customer accounts tick list with customers US-013 and US-014 ticked.
 
-![The Customer accounts tick list with US-013 Pelican Wholesales and US-014 Grebe Wholesales ticked; the field shows "US-013;US-014".](evidence/c_dialog_customer_ticklist.png)
+![The Customer accounts tick list with customers US-013 and US-014 ticked.](evidence/u_dialog_customer_ticklist.png)
 
-### d_min_days_0_refused.png
+### v_min_days_0_refused.png
 
-With Min days overdue = 0 the dialog stays open and shows "Min days overdue must be at least 1."
+Min days overdue 0 is refused with the message "Min days overdue must be at least 1."
 
-![With Min days overdue = 0 the dialog stays open and shows "Min days overdue must be at least 1."](evidence/d_min_days_0_refused.png)
+![Min days overdue 0 is refused with the message "Min days overdue must be at least 1."](evidence/v_min_days_0_refused.png)
 
-### g_report_two_customers_p1.png
+### w_report_two_customers.png
 
-Page 1 of 3 for the two ticked customers: 12 and 8 days late are HIGH RISK with the days in red, 7 and 3 days are MEDIUM. Shows a defect: every line is printed 4 times, so the subtotal and the value cards are too high.
+The whole report for two customers on one page: banner, parameter strip, four cards, order 001087 with lines 12, 8, 7, 3, 2 and 1 days late badged HIGH RISK, MEDIUM and LOW, order 001090 converted from EUR, subtotals and grand total $4,522.95.
 
-![Page 1 of 3 for the two ticked customers: 12 and 8 days late are HIGH RISK with the days in red, 7 and 3 days are MEDIUM. Shows a defect: every line is printed 4 times, so the subtotal and the value cards are too high.](evidence/g_report_two_customers_p1.png)
+![The whole report for two customers on one page: banner, parameter strip, four cards, order 001087 with lines 12, 8, 7, 3, 2 and 1 days late badged HIGH RISK, MEDIUM and LOW, order 001090 converted from EUR, subtotals and grand total $4,522.95.](evidence/w_report_two_customers.png)
 
-### h_report_two_customers_p2.png
+### x_report_all_p1.png
 
-Page 2 of 3 of the same run: 3 days MEDIUM, 2 and 1 days LOW, and the line of 200.00 at 12 days HIGH RISK. Shows defects: every line is printed 4 times, and three of the four copies of the 200.00 line show Avail. Phys. 2,710.00 (all warehouses) where warehouse 11 holds 128.00.
+All customers, page 1 of 14: cards show 52 Orders, $3,513,836.45, 51 Orders ($3,510,786) and 8,079 Units, matching a manual check of the data; customer DE-001 with subtotal $402,154.50.
 
-![Page 2 of 3 of the same run: 3 days MEDIUM, 2 and 1 days LOW, and the line of 200.00 at 12 days HIGH RISK. Shows defects: every line is printed 4 times, and three of the four copies of the 200.00 line show Avail. Phys. 2,710.00 (all warehouses) where warehouse 11 holds 128.00.](evidence/h_report_two_customers_p2.png)
+![All customers, page 1 of 14: cards show 52 Orders, $3,513,836.45, 51 Orders ($3,510,786) and 8,079 Units, matching a manual check of the data; customer DE-001 with subtotal $402,154.50.](evidence/x_report_all_p1.png)
 
-### j_min_days_5.png
+### y_report_all_p3.png
 
-The same two customers with Min days overdue = 5: the strip reads "Min Days Overdue: 5 Day(s)" and only lines 12, 8 and 7 days late are printed. Shows a defect: every line is printed 4 times.
+Page 3 of 14: banner, customer header and column headers repeat; customer US-001 lists order 001010 and then 001036, with the item-requirement order 001011 left out.
 
-![The same two customers with Min days overdue = 5: the strip reads "Min Days Overdue: 5 Day(s)" and only lines 12, 8 and 7 days late are printed. Shows a defect: every line is printed 4 times.](evidence/j_min_days_5.png)
+![Page 3 of 14: banner, customer header and column headers repeat; customer US-001 lists order 001010 and then 001036, with the item-requirement order 001011 left out.](evidence/y_report_all_p3.png)
 
-### k_no_match.png
+### z_report_all_p14_grand_total.png
 
-A customer with no open backorders: banner, parameter strip, four zero cards and "No open backorders match the selected criteria."
+Last page, 14 of 14: grand total 12,551.00 open quantity and $3,513,836.45.
 
-![A customer with no open backorders: banner, parameter strip, four zero cards and "No open backorders match the selected criteria."](evidence/k_no_match.png)
+![Last page, 14 of 14: grand total 12,551.00 open quantity and $3,513,836.45.](evidence/z_report_all_p14_grand_total.png)
 
-### e_report_all_p1.png
+### za_min_days_5.png
 
-Shows a defect. Page 1 of 44 for all customers: the cards read 53 Orders and $14,058,945.80 where the manual check gives 52 orders and $3,513,836.45, and each line of order 000697 is printed 4 times.
+Min days overdue 5: only the lines 12, 8, 7 and 10 days late remain; the 3, 2 and 1 day lines are gone.
 
-![Shows a defect. Page 1 of 44 for all customers: the cards read 53 Orders and $14,058,945.80 where the manual check gives 52 orders and $3,513,836.45, and each line of order 000697 is printed 4 times.](evidence/e_report_all_p1.png)
+![Min days overdue 5: only the lines 12, 8, 7 and 10 days late remain; the 3, 2 and 1 day lines are gone.](evidence/za_min_days_5.png)
 
-### f_report_all_p2_customer_groups.png
+### zb_filter_customer_group_10.png
 
-Page 2 of 44: the banner, customer header and column headers repeat, and customer US-001 shows its credit limit and three distinct rep names. Shows a defect: every line is printed 4 times and the customer subtotals are 4 times the real amounts.
+Customer group 10 only: 15 Orders, $710,991.00 and 504 Units, matching the data for that group.
 
-![Page 2 of 44: the banner, customer header and column headers repeat, and customer US-001 shows its credit limit and three distinct rep names. Shows a defect: every line is printed 4 times and the customer subtotals are 4 times the real amounts.](evidence/f_report_all_p2_customer_groups.png)
+![Customer group 10 only: 15 Orders, $710,991.00 and 504 Units, matching the data for that group.](evidence/zb_filter_customer_group_10.png)
 
-### m_FAILED_item_requirement_printed.png
+### zc_filter_group_site_warehouse.png
 
-Shows a defect. Page 10 of 44: the two open lines of item-requirement order 001011, which is not a sales order, are printed 3 times each.
+Customer group 10, site 1, warehouse 11: the strip shows the values and only customers US-003, US-004 and US-013 are printed (4 Orders, $3,975.00).
 
-![Shows a defect. Page 10 of 44: the two open lines of item-requirement order 001011, which is not a sales order, are printed 3 times each.](evidence/m_FAILED_item_requirement_printed.png)
+![Customer group 10, site 1, warehouse 11: the strip shows the values and only customers US-003, US-004 and US-013 are printed (4 Orders, $3,975.00).](evidence/zc_filter_group_site_warehouse.png)
 
-### l_FAILED_filter_group_site_warehouse.png
+### zd_credit_hold_no.png
 
-Shows a defect. The strip reads "Site / Warehouse: 1 / 11" and "Customer Group: 10 (Wholesales customers)", yet the report still has 53 orders and starts with customers DE-001 (group 90) and US-001 (group 30), each line printed twice.
+Include credit-hold orders No with customer US-014 on hold: only US-013 is printed, 1 Orders, $3,975.00.
 
-![Shows a defect. The strip reads "Site / Warehouse: 1 / 11" and "Customer Group: 10 (Wholesales customers)", yet the report still has 53 orders and starts with customers DE-001 (group 90) and US-001 (group 30), each line printed twice.](evidence/l_FAILED_filter_group_site_warehouse.png)
+![Include credit-hold orders No with customer US-014 on hold: only US-013 is printed, 1 Orders, $3,975.00.](evidence/zd_credit_hold_no.png)
 
-### n_FAILED_credit_hold_no_p1.png
+### ze_credit_hold_yes.png
 
-Shows a defect, first page of the run: the strip reads "Include On-Hold: No" for customers US-013 and US-014, and the cards still count 2 Orders and $17,543.85.
+Include credit-hold orders Yes with the same selection: the on-hold customer US-014 and its order 001090 are printed again.
 
-![Shows a defect, first page of the run: the strip reads "Include On-Hold: No" for customers US-013 and US-014, and the cards still count 2 Orders and $17,543.85.](evidence/n_FAILED_credit_hold_no_p1.png)
+![Include credit-hold orders Yes with the same selection: the on-hold customer US-014 and its order 001090 are printed again.](evidence/ze_credit_hold_yes.png)
 
-### o_FAILED_credit_hold_no_p2.png
+### zf_no_match.png
 
-Shows a defect, page 2 of the same run: customer US-014, on hold "All", is still printed with order 001090 and a subtotal of $1,643.85.
+No matching lines: the cards show zero and the report prints "No open backorders match the selected criteria."
 
-![Shows a defect, page 2 of the same run: customer US-014, on hold "All", is still printed with order 001090 and a subtotal of $1,643.85.](evidence/o_FAILED_credit_hold_no_p2.png)
+![No matching lines: the cards show zero and the report prints "No open backorders match the selected criteria."](evidence/zf_no_match.png)
 
 ## Notes
 
-Tested on 23 November 2026 (the report's run date) in USMF demo data on the dev box, against section 6 of the approved design, with the delivered code unchanged. Two sales orders were created for the test: 001087 for customer US-013 (seven lines of item A0001 in site 1 / warehouse 11 at 15.00 USD, requested ship dates 1 to 12 days before the run date) and 001090 for customer US-014 (4 x 100.00 EUR).
+Tested on 23 November 2026 (the report's run date) in USMF demo data on the dev box, against section 6 of the approved design. Two sales orders were created for the test: 001087 for customer US-013 (seven lines of item A0001 in site 1 / warehouse 11 at 15.00 USD, requested ship dates 1 to 12 days before the run date) and 001090 for customer US-014 (4 x 100.00 EUR).
 
-**Summary:** the report opens, renders and follows the designed layout, but its figures are wrong. Every report screenshot on this page shows duplicated lines; none of them is a picture of a correct report. The defects below are reported for a fix under warranty.
+**Summary:** the report prints every line once, its figures match the data, and the filters work. All customers: 52 orders, $3,513,836.45, 12,551.00 open quantity and 8,079 shortage units, the same as a manual check of the data. Customer group 10: 15 orders, 8 customers, $710,991.00 and 504 shortage units, also the same.
 
-**Defects found:**
-1. **Every line is printed four times and the totals are multiplied.** Sales order lines print 4 times (item-requirement lines 3 times). Customer subtotals, the grand total, the Total backorder value card and the high-risk value are inflated accordingly. All customers: the cards show 53 Orders and $14,058,945.80; a manual check of the same data (sales orders only) gives 52 orders, 187 lines and $3,513,836.45. The printed value is 4 times the real sum plus 3 x $1,200 of an item-requirement order. Customer DE-001 shows a subtotal of $1,608,618.00; its 5 real lines total $402,154.50. Only one of the copies carries the line's own site and warehouse; the others show the item's stock over all warehouses in Avail. Phys. (2,710.00 where warehouse 11 holds 128.00). The Shortage units card for the test line was right (72 Units = 200 - 128).
-2. **Filters on customer group, site, warehouse and credit hold do not exclude lines.** With customer group 10, site 1 and warehouse 11 the strip shows the values but customers of every group are printed (53 orders, 27 pages); the filters only reduce the copies per line from 4 to 2. With Include credit-hold orders = No, the order of a customer on hold "All" is still printed (3 copies instead of 4). The Customer accounts filter and Min days overdue do work.
-3. **Orders that are not sales orders are printed.** Item-requirement order 001011 appears in the report and is counted in the Total open backorders card (53 instead of 52).
-4. **The Excel export is not one column per report column.** The 9 report columns are spread over 36 Excel columns with 6,306 merged cells. The PDF export of the same 44-page run was correct in layout.
+**History — fixed under warranty.** The first delivery, tested earlier the same day, printed every eligible line four times, so subtotals, the grand total and the value cards were about four times too high (53 Orders and $14,058,945.80 against 52 orders and $3,513,836.45 in the data). It also ignored the Customer group, Site, Warehouse and Include credit-hold orders = No filters, printed an item-requirement order, and its Excel export spread 9 columns over 36. A retest after a full database sync and recompile showed the same behaviour. The data provider and the report were then corrected under warranty, and every result on this page is for the corrected version. No defect was found in it.
 
-**Partly passed:** T3, T4 and T5. Days late, the red figure above 7 days, the three risk badges and the Min days overdue cut-off are right, but each line is printed 4 times (defect 1).
+**Partly passed:**
+- T6: the item-requirement order is no longer printed; return, cancelled and fully delivered orders were not set up as separate cases.
+- T9: only the currency conversion was checked (400 EUR printed as $547.95). The 10% line discount could not be entered on the test order and no partial delivery was posted.
+- T14: checked with a customer on hold; an order in credit-management hold was not set up.
+- T16: the PDF is shown on screen (banner and page numbers on every page, repeated headers, coloured badges). The Excel export was checked by opening the file: 9 columns, one per report column.
 
-**Failed:** T6 (defect 3), T7 (defect 1: wrong Avail. Phys. on three of four copies), T10 and T11 (defect 1: cards, subtotals and grand total), T13 and T14 (defect 2), T16 (defect 4).
+**Not run:** T17 (a user without the duty), because only one user session was available.
 
-**Not run:**
-- T8 (shortage 0 when stock covers the line): the report prints no shortage per line, so it cannot be shown on screen.
-- T9 (EUR order with a 10 % discount and a partial delivery): not run as specified. The discount could not be entered on the test line and no partial delivery was posted. A variant was run instead: 4 x 100.00 EUR, no discount, nothing delivered, printed as $547.95, which is 400 EUR at the demo data's default exchange rate. That shows the conversion only.
-- T14, the part with an order in credit-management hold: no such order was set up.
-- T17 (a user without the duty): only an administrator session was available.
-- T6, the parts with a return order and a cancelled order.
-
-**Observations, not counted as failures:**
-- The menu entry sits after "Order lines not invoiced report", not directly after "Backorder lines" as the design says.
-- The parameter strip reads "1 customers" when a single customer is selected.
-- The "Req. Ship Date" and "Days Late" column headers wrap to two lines.
-- T13 was run with customer group 10 and warehouse 11 because USMF demo data has no group WHSL or warehouse WH-MAIN.
+**Small remarks:** the four cards touch each other and have different widths, where the design has four equal cards with gaps; the strip reads "1 customers" and a card "1 Orders" in the singular case; the Req. Ship Date and Days Late column headers wrap to two lines; the menu entry sits after Order lines not invoiced report rather than directly after Backorder lines.

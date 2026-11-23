@@ -1,7 +1,7 @@
 # REQ-INT-508 — Inbound Sales Order Creation Custom Service API with Full Payload Tracing & Reprocessing Form
 
 **Status:** Delivered 2026-11-22 · Compiled with 0 errors · 15 of 18 test scenarios evidenced  
-Walkthrough video: recorded, publishing on [@Dynoloom](https://www.youtube.com/@Dynoloom).
+Walkthrough video: [watch on YouTube](https://youtu.be/c-qsxyWWLUw).
 
 | Step | What you will find |
 |---|---|

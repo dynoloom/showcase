@@ -43,7 +43,11 @@ folders in delivery order, letting each one overwrite the shared files of the on
 | 8 | REQ-COL-715 | 2026-11-22 |
 | 9 | REQ-AR-804 | 2026-11-22 |
 
-**One requirement on its own.** Apply the folders up to and including the one you want, in the same order.
+Then apply the two warranty fixes on top: copy `3-code/warranty-fix/Metadata` of REQ-PRC-901 and of REQ-AR-410 over the
+result. Each replaces files of its own requirement only.
+
+**One requirement on its own.** Apply the folders up to and including the one you want, in the same order, then that
+requirement's warranty fix if it has one.
 
 Then build the `DYLOExtensions` model in Visual Studio, synchronise the database, deploy the reports for report
 requirements, and follow the scenarios in `4-testing/test-cases.md`.

@@ -1,0 +1,31 @@
+diff --git a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_TradeAgreementPriceAdjUIBuilder.xml b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_TradeAgreementPriceAdjUIBuilder.xml
+index 73415f8..3a8b321 100644
+--- a/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_TradeAgreementPriceAdjUIBuilder.xml
++++ b/Metadata/DYLOExtensions/DYLOExtensions/AxClass/DYLO_TradeAgreementPriceAdjUIBuilder.xml
+@@ -75,6 +75,12 @@ public class DYLO_TradeAgreementPriceAdjUIBuilder extends SysOperationAutomaticU
+         QueryBuildDataSource    qbds;
+         container               selectedFields = [tableNum(InventItemGroup), fieldNum(InventItemGroup, ItemGroupId)];
+ 
++        // The item group field gets its own multi-select lookup below; the framework must not build a second one on the same control.
++        if (itemGroupField && multiSelectQueryMap && multiSelectQueryMap.exists(itemGroupField))
++        {
++            multiSelectQueryMap.remove(itemGroupField);
++        }
++
+         super();
+ 
+         if (itemGroupField)
+@@ -89,6 +95,13 @@ public class DYLO_TradeAgreementPriceAdjUIBuilder extends SysOperationAutomaticU
+                 query,
+                 false,
+                 selectedFields);
++
++            // Lets the framework read the selected item groups from this control when OK is chosen.
++            if (!multiSelectControlMap)
++            {
++                multiSelectControlMap = new Map(Types::Class, Types::Class);
++            }
++            multiSelectControlMap.insert(itemGroupField, itemGroupMultiSelectCtrl);
+         }
+     }
+ 
