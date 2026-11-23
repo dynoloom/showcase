@@ -1,6 +1,6 @@
 <p align="center"><img src=".github/dynoloom-banner.png" alt="DynoLoom — No Queues. Just Deliveries." width="900"></p>
 
-# DynoLoom — AI-built Dynamics 365 F&O extensions, in the open
+# DynoLoom — AI-built Dynamics 365 F&O extensions
 
 DynoLoom turns a **Dynamics 365 Finance & Operations requirement document** into a **technical design**, then into
 **compiled X++ code** delivered to the client's own model. This repository publishes real requirements that went
